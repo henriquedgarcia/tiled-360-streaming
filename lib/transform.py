@@ -3,6 +3,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def ______basic_____(): ...
@@ -49,6 +50,7 @@ def hcs2cart(azimuth: Union[np.ndarray, float], elevation: Union[np.ndarray, flo
     z = np.cos(elevation) * np.cos(azimuth)
     y = -np.sin(elevation)
     x = np.cos(elevation) * np.sin(azimuth)
+    x, y, z = np.round([x, y, z], 6)
     return x, y, z
 
 
@@ -122,7 +124,8 @@ def cart2erp(x, y, z, shape):
     return m, n
 
 
-def erp2hcs(n: Union[np.ndarray, int], m: Union[np.ndarray, int], shape: Union[np.ndarray, tuple[int, int]]) -> Union[np.ndarray, tuple[float, float]]:
+def erp2hcs(n: Union[np.ndarray, int], m: Union[np.ndarray, int], shape: Union[np.ndarray, tuple[int, int]]) -> Union[
+    np.ndarray, tuple[float, float]]:
     """
 
     :param m: horizontal pixel coordinate
@@ -167,104 +170,131 @@ def hcs2erp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int]:
 def ______cmp_____(): ...
 
 
+def cart2uv_cmp(x, y, z):
+    u = v = face = None
+    ax, ay, az = np.abs((x, y, z))
+
+    if -x >= -z and -x > z \
+            and -x >= -y and -x > y \
+            and x < 0:  # face 0
+        face = 0
+        u = z / ax
+        v = y / ax
+    if z >= -x and z > x \
+            and z >= -y and z > y \
+            and z > 0:  # face 1
+        face = 1
+        u = x / az
+        v = y / az
+    if x >= z and x > -z \
+            and x >= -y and x > y \
+            and x > 0:
+        face = 2
+        u = -z / ax
+        v = y / ax
+
+    if y >= x and y > -x \
+            and y >= -z and y > z \
+            and y > 0:
+        face = 3
+        u = -x / ay
+        v = z / ay
+    if -z >= x and -z > -x \
+            and -z >= -y and -z > y \
+            and z < 0:
+        face = 4
+        u = -x / az
+        v = y / az
+    if -y >= x and -y > -x \
+            and -y >= z and -y > -z \
+            and y < 0:
+        face = 5
+        u = -x / ay
+        v = z / ay
+
+    return u, v, face
+
+
+def uv_cmp2mn_face(u, v, side_size: int):
+    m = int((u + 1) * side_size / 2)
+    n = int((v + 1) * side_size / 2)
+    return m, n
+
+
+def mn_face2mn_proj(m, n, face, side_size):
+    new_m, new_n = None, None
+    if face == 0:
+        new_m = m
+        new_n = n
+    elif face == 1:
+        new_m = m + side_size
+        new_n = n
+    elif face == 2:
+        new_m = m + 2 * side_size
+        new_n = n
+    elif face == 3:
+        new_m = side_size - n - 1
+        new_n = m + side_size
+    elif face == 4:
+        new_m = 2 * side_size - n - 1
+        new_n = m + side_size
+    elif face == 5:
+        new_m = 3 * side_size - n - 1
+        new_n = m + side_size
+
+    return new_m, new_n
+
+
 def hcs2cmp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int, int]:
     """
 
     :param azimuth: in rad
     :param elevation: in rad
     :param shape: shape of projection in numpy format: (height, width)
-    :return: (m, n) pixel coord using nearest neighbor
+    :return: (m, n, face) pixel coord using nearest neighbor
     """
     proj_h, proj_w = shape
-    u, v, face = None, None, None
+    side_size = int(proj_h / 2)  # suppose the face is a square
+
     x, y, z = hcs2cart(azimuth, elevation)
-    ax, ay, az = np.abs((x, y, z))
-
-    if ax >= ay and ax >= az and x > 0:  # face 0
-        face = 0
-        u = -z / ax
-        v = -y / ax
-    if ax >= ay and ax >= az and x < 0:
-        face = 1
-        u = z / ax
-        v = -y / ax
-
-    if ay >= ax and ay >= az and y > 0:
-        face = 2
-        u = -x / ay
-        v = -z / ay
-    if ay >= ay >= az and y < 0:
-        face = 3
-        u = x / ay
-        v = -z / ay
-
-    if az >= ax and az >= ax and z > 0:
-        face = 4
-        u = x / az
-        v = -y / az
-    if az >= ax and az >= ay and z < 0:
-        face = 5
-        u = -x / az
-        v = -y / az
-
-    a = int(proj_h / 2)  # suppose the face is a square
-    m = int((u + 1) * a / 2)
-    n = int((v + 1) * a / 2)
-
-    if face == 4:
-        m = m
-        n = n
-    elif face == 0:
-        m = m + a
-        n = n
-    elif face == 5:
-        m = m + 2 * a
-        n = n
-    elif face == 3:
-        m = a - n
-        n = m + a
-    elif face == 1:
-        m = 2 * a - n
-        n = m + a
-    elif face == 2:
-        m = 3 * a - n
-        n = m + a
-
+    u, v, face = cart2uv_cmp(x, y, z)
+    m, n = uv_cmp2mn_face(u, v, side_size)
+    m, n = mn_face2mn_proj(m, n, face, side_size)
     return m, n, face
 
 
-def cmp2cart(n: int, m: int, shape: tuple[int, int], f: int = 0) -> tuple[float, float, float]:
-    x, y, z = None, None, None
-    proj_h, proj_w = shape
-    face_h = proj_h / 2  # face is a square. u
-    face_w = proj_w / 3  # face is a square. v
-    u = (m + 0.5) * 2 / face_h - 1
-    v = (n + 0.5) * 2 / face_w - 1
-    if f == 0:
-        x = 1.0
-        y = -v
-        z = -u
-    elif f == 1:
-        x = -1.0
-        y = -v
-        z = u
-    elif f == 2:
-        x = u
-        y = 1.0
-        z = v
-    elif f == 3:
-        x = u
-        y = -1.0
-        z = -v
-    elif f == 4:
-        x = u
-        y = -v
-        z = 1.0
-    elif f == 5:
-        x = -u
-        y = -v
-        z = -1.0
-    return x, y, z
+# def cmp2cart(n: int, m: int, shape: tuple[int, int], f: int = 0) -> tuple[float, float, float]:
+#     x, y, z = None, None, None
+#     proj_h, proj_w = shape
+#     face_h = proj_h / 2  # face is a square. u
+#     face_w = proj_w / 3  # face is a square. v
+#     u = (m + 0.5) * 2 / face_h - 1
+#     v = (n + 0.5) * 2 / face_w - 1
+#     if f == 0:
+#         x = 1.0
+#         y = -v
+#         z = -u
+#     elif f == 1:
+#         x = -1.0
+#         y = -v
+#         z = u
+#     elif f == 2:
+#         x = u
+#         y = 1.0
+#         z = v
+#     elif f == 3:
+#         x = u
+#         y = -1.0
+#         z = -v
+#     elif f == 4:
+#         x = u
+#         y = -v
+#         z = 1.0
+#     elif f == 5:
+#         x = -u
+#         y = -v
+#         z = -1.0
+#     return x, y, z
 
 
 def ______utils_____(): ...
@@ -408,3 +438,106 @@ def position2trajectory(positions_list, fps=30):
 
     # incomplete
     return yaw_speed, pitch_speed
+
+
+def ______test_____(): ...
+
+
+def teste_hcs2cmp():
+    shape = (400, 600)
+    img = np.zeros(shape)
+    for i in np.linspace(np.deg2rad(0), np.deg2rad(180), 100):
+        yaw = i
+        pitch = 0
+        m, n, face = hcs2cmp(yaw, pitch, shape)
+        img[n, m] = 255
+        plt.scatter(m, n)
+        print(f'{yaw=}, {pitch=}, {face=}')
+        print(f'{m=}, {n=}, {face=}')
+
+    # plt.imshow(img, cmap='gray')
+    plt.xlim([0, 600])
+    plt.ylim([0, 400])
+    plt.show()
+    plt.pause(0)
+
+
+def teste_uv2mn_face():
+    x = []
+    y = []
+    for coord in np.linspace(-1, 1, 30):
+        m, n = uv_cmp2mn_face(coord, 0, 1080)
+        x.append(m)
+        y.append(n)
+        plt.scatter(m, n)
+    plt.show()
+    plt.pause()
+
+
+def teste_mn_face2mn_proj():
+    for face in range(0, 1):
+        for i in range(0, 1080, 60):
+            m, n = mn_face2mn_proj(i, 0, face, 1080)
+            plt.scatter(m, n)
+            #
+            m, n = mn_face2mn_proj(i, 1079, face, 1080)
+            plt.scatter(m, n)
+            #
+            m, n = mn_face2mn_proj(0, i, face, 1080)
+            plt.scatter(m, n)
+            #
+            m, n = mn_face2mn_proj(1079, i, face, 1080)
+            plt.scatter(m, n)
+
+    plt.show()
+
+
+def teste_hcs2uv():
+    ax: plt.Axes
+    ax = plt.figure().add_subplot()
+    lu, lv, lface = [], [], []
+
+    for angle in range(0, 360):
+        elevation = np.deg2rad(angle)
+        elevation = 0
+        azimuth = 0
+        azimuth = np.deg2rad(angle)
+
+        u, v, face = hcs2uv_cmp(azimuth, elevation)
+        lu.append(u)
+        lv.append(v)
+        lface.append(face)
+        ax.scatter(u, v)
+
+    plt.show()
+
+
+def teste_hcs2cart():
+    ax = plt.figure().add_subplot(projection='3d')
+    lx, ly, lz = [], [], []
+
+    for angle in range(300):
+        elevation = np.deg2rad(angle)
+        azimuth = np.deg2rad(angle)
+
+        x, y, z = hcs2cart(azimuth, elevation)
+        print(f'{x=}, {y=}, {z=}')
+        lx.append(x)
+        ly.append(-y)
+        lz.append(z)
+
+    lx, ly, lz = lx, lz, ly
+    ax.plot(lx, ly, lz, label='parametric curve')
+    ax.legend()
+    for angle in range(0, 360):
+        ax.view_init(30, angle)
+        plt.draw()
+        plt.pause(.001)
+
+
+if __name__ in '__main__':
+    # teste_hcs2cart()
+    # teste_hcs2uv()
+    # teste_uv2mn_face()
+    # teste_mn_face2mn_proj()
+    teste_hcs2cmp()
