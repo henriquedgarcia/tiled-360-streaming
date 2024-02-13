@@ -9,3 +9,4 @@ fitter
 tqdm
 opencv
 cython
+scikit-image
