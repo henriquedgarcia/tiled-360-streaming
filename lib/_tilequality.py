@@ -1,3 +1,4 @@
+from collections import defaultdict
 from multiprocessing import Pool
 from multiprocessing import Pool
 from pathlib import Path
@@ -63,8 +64,16 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         self.old_tile = ''
 
     def _prepare_weight_ndarray(self):
-        # for self.projection == 'erp' only
         height, width = self.video_shape[:2]
+        weight_ndarray_file = Path(
+            f'datasets/weight_ndarray_{self.vid_proj}_{width}x{height}.pickle')
+
+        try:
+            weight_ndarray = load_pickle(weight_ndarray_file)
+            return weight_ndarray
+        except FileNotFoundError:
+            pass
+
         r = height / 4
 
         if self.vid_proj == 'erp':
@@ -80,6 +89,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             raise ValueError(f'Wrong self.vid_proj. Value == {self.vid_proj}')
 
         self.weight_ndarray = np.fromfunction(func, (height, width), dtype='float')
+        save_pickle(self.weight_ndarray, weight_ndarray_file)
+
 
     def load_sph_file(self, shape: tuple[int, int] = None):
         """
@@ -166,26 +177,14 @@ class SegmentsQuality(SegmentsQualityProps):
         if self.skip(): return
 
         print(f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]]')
-        chunk_quality = {}
+        chunk_quality = defaultdict(list)
         start = time()
-
-        print("\t ssim.")
-        with Pool(8) as p:
-            ssim_value = p.starmap(self._ssim, zip(iter_frame(self.reference_segment), iter_frame(self.segment_file)))
-        print("\t mse.")
-        with Pool(8) as p:
-            mse_value = p.starmap(self._mse, zip(iter_frame(self.reference_segment), iter_frame(self.segment_file)))
-        print("\t wsmse.")
-        with Pool(8) as p:
-            wsmse_value = p.starmap(self._wsmse, zip(iter_frame(self.reference_segment), iter_frame(self.segment_file)))
-        print("\t smse.")
-        with Pool(8) as p:
-            smse_nn_value = p.starmap(self._smse_nn, zip(iter_frame(self.reference_segment), iter_frame(self.segment_file)))
-
-        chunk_quality['MSE'] = mse_value
-        chunk_quality['SSIM'] = ssim_value
-        chunk_quality['WS-MSE'] = wsmse_value
-        chunk_quality['S-MSE'] = smse_nn_value
+        for frame, frame1, frame2 in enumerate(zip(iter_frame(self.reference_segment), iter_frame(self.segment_file))):
+            print(f'{frame=}')
+            chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
+            chunk_quality['MSE'].append(self._mse(frame1, frame2))
+            chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
+            chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
 
         pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\t time={time() - start}.")
