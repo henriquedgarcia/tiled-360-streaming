@@ -70,7 +70,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
         try:
             weight_ndarray = load_pickle(weight_ndarray_file)
-            return weight_ndarray
+            self.weight_ndarray = weight_ndarray
+            return
         except FileNotFoundError:
             pass
 
@@ -91,7 +92,6 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         self.weight_ndarray = np.fromfunction(func, (height, width), dtype='float')
         save_pickle(self.weight_ndarray, weight_ndarray_file)
 
-
     def load_sph_file(self, shape: tuple[int, int] = None):
         """
         Load 655362 sample points (elevation, azimuth). Angles in degree.
@@ -99,11 +99,12 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         :param shape:
         :return:
         """
-        sph_points_mask_file = Path(f'datasets/sph_points_{self.vid_proj}_{"x".join(map(str, shape[::-1]))}_mask.pickle')
+        sph_points_mask_file = Path(
+            f'datasets/sph_points_{self.vid_proj}_{"x".join(map(str, shape[::-1]))}_mask.pickle')
         # sph_points_mask_file = Path(f'config/sph_points_erp_4320x2160_mask.pickle')
         try:
-            sph_points_mask = load_pickle(sph_points_mask_file)
-            return sph_points_mask
+            self.sph_points_mask = load_pickle(sph_points_mask_file)
+            return
         except FileNotFoundError:
             pass
 
@@ -127,7 +128,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             sph_points_mask[n, m] = 1
 
         save_pickle(sph_points_mask, sph_points_mask_file)
-        return sph_points_mask
+        self.sph_points_mask = sph_points_mask
 
     @property
     def quality_list(self) -> list[str]:
@@ -153,8 +154,9 @@ class SegmentsQuality(SegmentsQualityProps):
         try:
             chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
             if len(chunk_quality_df['frame']) == 30:
-                print(f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]] - '
-                      f'EXIST', end='\r')
+                print(
+                    f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]] - '
+                    f'EXIST', end='\r')
                 return True
             else:
                 self.log('video_quality_csv SMALL. Cleaning.', self.segment_file)
@@ -179,7 +181,8 @@ class SegmentsQuality(SegmentsQualityProps):
         print(f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]]')
         chunk_quality = defaultdict(list)
         start = time()
-        for frame, frame1, frame2 in enumerate(zip(iter_frame(self.reference_segment), iter_frame(self.segment_file))):
+        for frame, (frame1, frame2) in enumerate(
+                zip(iter_frame(self.reference_segment), iter_frame(self.segment_file))):
             print(f'{frame=}')
             chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
             chunk_quality['MSE'].append(self._mse(frame1, frame2))
@@ -293,7 +296,7 @@ class SegmentsQuality(SegmentsQualityProps):
         if self.weight_ndarray.shape != shape:  # suppose that changed projection, the resolution is changed too.
             self._prepare_weight_ndarray()
         if self.sph_points_mask.shape != shape:  # suppose that change the projection
-            self.sph_points_mask = self.load_sph_file(shape)
+            self.load_sph_file(shape)
 
     @property
     def tiling(self) -> str:
@@ -343,7 +346,9 @@ class CollectResults(SegmentsQualityProps):
                         for self.chunk in self.chunk_list:
                             if self.quality_result_json.exists():
                                 try:
-                                    assert (len(self.results[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]['MSE'])) == 30
+                                    assert (len(
+                                        self.results[self.vid_proj][self.name][self.tiling][self.quality][self.tile][
+                                            self.chunk]['MSE'])) == 30
                                     continue
                                 except (AssertionError, KeyError):
                                     pass
@@ -373,7 +378,9 @@ class CollectResults(SegmentsQualityProps):
             return
 
         # https://ffmpeg.org/ffmpeg-filters.html#psnr
-        print(f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}][tile{self.tile}][chunk{self.chunk}]', end='')
+        print(
+            f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}][tile{self.tile}][chunk{self.chunk}]',
+            end='')
         chunk_results = self.results[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
         for metric in self.metric_list:
             chunk_quality_list = chunk_quality_df[metric].tolist()
