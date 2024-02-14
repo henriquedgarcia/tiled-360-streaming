@@ -247,9 +247,6 @@ class Log:
         finally:
             self.save_log()
 
-    def start_log(self):
-        self.log_text = defaultdict(list)
-
     def log(self, error_code: str, filepath):
         self.log_text['video'].append(f'{self.video}')
         self.log_text['tiling'].append(f'{self.tiling}')
@@ -281,7 +278,7 @@ class Utils:
     chunk: str
 
     def print_state(self):
-        print(f'Dectime [{self.vid_proj}][{self.name}][{self.tiling}][crf{self.quality}][tile{self.tile}]'
+        print(f'{self.__class__.__name__} [{self.vid_proj}][{self.name}][{self.tiling}][crf{self.quality}][tile{self.tile}]'
               f'[chunk{self.chunk}] = ', end='\r')
 
     def print_resume(self):
