@@ -240,6 +240,8 @@ class Log:
 
     @contextmanager
     def logger(self):
+        self.log_text = defaultdict(list)
+
         try:
             yield
         finally:
