@@ -140,7 +140,6 @@ class TileDecodeBenchmarkPaths(GlobalPaths, Utils, Log):
 
     def __init__(self, config: str):
         self.config = Config(config)
-        self.start_log()
         self.print_resume()
         with self.logger():
             self.main()
@@ -306,12 +305,43 @@ class Segment(TileDecodeBenchmarkPaths):
 
     def skip(self, decode=False):
         # first compressed file
+
+        folder = self.project_path / self.compressed_folder / self.basename
+        old_name = folder / f'tile{self.tile}.mp4'
+        if folder.exists():
+            if old_name.exists() and not self.compressed_file.exists():
+                old_name.replace(self.compressed_file)
+                old_name.with_suffix('.log').replace(self.compressed_log)
+
+            try:
+                folder.rmdir()
+            except OSError:
+                pass
+
         if not self.compressed_file.exists():
             self.log('compressed_file NOTFOUND.', self.compressed_file)
             print(f'{Bcolors.FAIL}The file {self.compressed_file} not exist. Skipping.{Bcolors.ENDC}')
             return True
 
         # second check segment log
+        folder = self.project_path / self.segment_folder / self.basename
+        if folder.exists():
+            old_name = folder / f'tile{self.tile}.log'
+
+            if old_name.exists() and not self.segment_log.exists():
+                old_name.replace(self.segment_log)
+
+            for self.chunk in self.chunk_list:
+                if not self.segment_file.exists():
+                    chunk = int(str(self.chunk))
+                    old_file = folder / f'tile{self.tile}_{chunk:03d}.mp4'
+                    old_file.replace(self.segment_file)
+
+            try:
+                old_name.parent.rmdir()
+            except OSError:
+                pass
+
         try:
             segment_log = self.segment_log.read_text()
         except FileNotFoundError:
@@ -374,7 +404,7 @@ class Decode(TileDecodeBenchmarkPaths):
         for self.video in self.videos_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
-                    for self.turn in range(5):
+                    for self.turn in range(self.decoding_num):
                         for self.tile in self.tile_list:
                             for self.chunk in self.chunk_list:
                                 self.worker()
