@@ -332,9 +332,9 @@ class Segment(TileDecodeBenchmarkPaths):
                 old_name.replace(self.segment_log)
 
             for self.chunk in self.chunk_list:
-                if not self.segment_file.exists():
-                    chunk = int(str(self.chunk))
-                    old_file = folder / f'tile{self.tile}_{chunk:03d}.mp4'
+                chunk = int(str(self.chunk))
+                old_file = folder / f'tile{self.tile}_{chunk:03d}.mp4'
+                if old_file.exists() and not self.segment_file.exists():
                     old_file.replace(self.segment_file)
 
             try:
