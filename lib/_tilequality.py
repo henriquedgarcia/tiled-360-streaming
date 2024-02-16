@@ -143,37 +143,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 class SegmentsQuality(SegmentsQualityProps):
     def main(self):
         self.init()
-        for self.video in self.videos_list:
-            for self.tiling in self.tiling_list:
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        for self.chunk in self.chunk_list:
-                            self.all()
-
-    def skip(self):
-        try:
-            chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
-            if len(chunk_quality_df['frame']) == 30:
-                print(
-                    f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]] - '
-                    f'EXIST', end='\r')
-                return True
-            else:
-                self.log('video_quality_csv SMALL. Cleaning.', self.segment_file)
-                self.video_quality_csv.unlink(missing_ok=True)
-
-        except FileNotFoundError:
-            pass
-
-        if not self.segment_file.exists():
-            self.log('segment_file NOTFOUND', self.segment_file)
-            return True
-
-        if not self.reference_segment.exists():
-            self.log('reference_segment NOTFOUND', self.reference_segment)
-            return True
-
-        return False
+        for _ in self.iterator():
+            self.all()
 
     def all(self):
         if self.skip(): return
@@ -191,6 +162,43 @@ class SegmentsQuality(SegmentsQualityProps):
 
         pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\t time={time() - start}.")
+
+    def iterator(self):
+        for self.video in self.videos_list:
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            yield
+
+    def skip(self):
+        if not self.segment_file.exists():
+            self.log('segment_file NOTFOUND', self.segment_file)
+            return True
+
+        if not self.reference_segment.exists():
+            self.log('reference_segment NOTFOUND', self.reference_segment)
+            return True
+
+        try:
+            if self.check_video_quality_csv(): return True
+        except FileNotFoundError:
+            pass
+
+        return False
+
+    def check_video_quality_csv(self):
+        chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
+
+        if len(chunk_quality_df['frame']) == 30:
+            print(
+                f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]] - '
+                f'EXIST', end='\r')
+            return True
+        else:
+            self.log('video_quality_csv SMALL. Cleaning.', self.segment_file)
+            self.video_quality_csv.unlink(missing_ok=True)
+        return False
 
     @staticmethod
     def _mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
