@@ -194,7 +194,7 @@ class GlobalPaths(Factors):
 
     @property
     def project_path(self) -> Path:
-        return Path('results') / self.config['project']
+        return Path('../results') / self.config['project']
 
     def tile_position(self):
         """
