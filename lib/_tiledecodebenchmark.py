@@ -282,12 +282,11 @@ class Segment(TileDecodeBenchmarkPaths):
                 with self.multi() as _:
                     for self.quality in self.quality_list:
                         for self.tile in self.tile_list:
+                            if self.skip(): return
+
                             self.worker()
 
     def worker(self) -> Any:
-        if self.skip():
-            return
-
         print(f'==== Segment {self.compressed_file} ====')
         # todo: Alternative:
         # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
