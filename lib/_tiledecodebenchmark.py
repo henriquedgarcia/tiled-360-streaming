@@ -478,6 +478,7 @@ class GetBitrate(TileDecodeBenchmarkPaths):
     def main(self):
         for self.video in self.videos_list:
             self.result_rate = AutoDict()
+            self.change_flag = True
             if self.skip1(): continue
 
             for self.tiling in self.tiling_list:
@@ -490,8 +491,8 @@ class GetBitrate(TileDecodeBenchmarkPaths):
                 save_json(self.result_rate, self.bitrate_result_json)
 
     def skip1(self, check_result=True):
-        self.change_flag = False
         if self.bitrate_result_json.exists():
+            self.change_flag = False
             print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
             if check_result:
                 self.result_rate = load_json(self.bitrate_result_json,
@@ -517,6 +518,10 @@ class GetBitrate(TileDecodeBenchmarkPaths):
         old_bitrate = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
         if bitrate == old_bitrate:
             return
+
+        value = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+        if self.change_flag is False and value != bitrate:
+            self.change_flag = True
         if not self.change_flag: self.change_flag = True
         self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
 
