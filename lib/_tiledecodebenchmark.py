@@ -304,53 +304,19 @@ class Segment(TileDecodeBenchmarkPaths):
 
     def skip(self, decode=False):
         # first compressed file
-
-        folder = self.project_path / self.compressed_folder / self.basename
-        old_name = folder / f'tile{self.tile}.mp4'
-        if folder.exists():
-            if old_name.exists() and not self.compressed_file.exists():
-                old_name.replace(self.compressed_file)
-                old_name.with_suffix('.log').replace(self.compressed_log)
-
-            try:
-                folder.rmdir()
-            except OSError:
-                pass
-
         if not self.compressed_file.exists():
             self.log('compressed_file NOTFOUND.', self.compressed_file)
             print(f'{Bcolors.FAIL}The file {self.compressed_file} not exist. Skipping.{Bcolors.ENDC}')
             return True
 
         # second check segment log
-        folder = self.project_path / self.segment_folder / self.basename
-        if folder.exists():
-            old_name = folder / f'tile{self.tile}.log'
-
-            if old_name.exists() and not self.segment_log.exists():
-                old_name.replace(self.segment_log)
-
-            for self.chunk in self.chunk_list:
-                chunk = int(str(self.chunk))
-                old_file = folder / f'tile{self.tile}_{chunk:03d}.mp4'
-                if old_file.exists() and not self.segment_file.exists():
-                    old_file.replace(self.segment_file)
-
-            try:
-                old_name.parent.rmdir()
-            except OSError:
-                pass
-
         try:
             segment_log = self.segment_log.read_text()
         except FileNotFoundError:
-            print(f'{Bcolors.FAIL}Segmentlog no exist. Cleaning.{Bcolors.ENDC}')
-            self.log(f'Segmentlog no exist. The file {self.segment_log} exist.', self.segment_log)
             self.clean_segments()
             return False
 
         if 'file 60 done' not in segment_log:
-            # Se log tem um problema, exclua o log, seus possiveis segmentos.
             # self.compressed_file.unlink(missing_ok=True)
             # self.compressed_log.unlink(missing_ok=True)
             print(f'{Bcolors.FAIL}The file {self.segment_log} is corrupt. Processing.{Bcolors.ENDC}')
@@ -360,7 +326,7 @@ class Segment(TileDecodeBenchmarkPaths):
 
         # Se log está ok; verifique os segmentos.
         for self.chunk in self.chunk_list:
-            # segmento existe
+            # Se segmento existe
             try:
                 segment_file_size = self.segment_file.stat().st_size
             except FileNotFoundError:
@@ -1390,6 +1356,52 @@ class ByPattern(DectimeGraphsProps):
         print(f'  Finished.')
         if resumenamecsv is not None:
             pd.DataFrame(resume).to_csv(resumenamecsv)
+
+
+class RenameAndCheck(TileDecodeBenchmarkPaths):
+    def main(self):
+        for self.video in self.videos_list:
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    for self.turn in range(self.decoding_num):
+                        for self.tile in self.tile_list:
+                            self.compressed()
+
+                            for self.chunk in self.chunk_list:
+                                self.segmented()
+                                pass
+
+    def compressed(self) -> Any:
+        folder = self.project_path / self.compressed_folder / self.basename
+        old_name = folder / f'tile{self.tile}.mp4'
+        if folder.exists():
+            if old_name.exists() and not self.compressed_file.exists():
+                old_name.replace(self.compressed_file)
+                old_name.with_suffix('.log').replace(self.compressed_log)
+
+            try:
+                folder.rmdir()
+            except OSError:
+                pass
+
+    def segmented(self):
+        folder = self.project_path / self.segment_folder / self.basename
+        if folder.exists():
+            old_name = folder / f'tile{self.tile}.log'
+
+            if old_name.exists() and not self.segment_log.exists():
+                old_name.replace(self.segment_log)
+
+            for self.chunk in self.chunk_list:
+                chunk = int(str(self.chunk))
+                old_file = folder / f'tile{self.tile}_{chunk:03d}.mp4'
+                if old_file.exists() and not self.segment_file.exists():
+                    old_file.replace(self.segment_file)
+
+            try:
+                folder.rmdir()
+            except OSError:
+                pass
 
 
 TileDecodeBenchmarkOptions = {'0': Prepare,  # 0
