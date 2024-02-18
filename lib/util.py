@@ -88,10 +88,11 @@ def show(img):
 
 def iter_frame(video_path, gray=True, dtype='float64'):
     vreader = skvideo.io.vreader(f'{video_path}', as_grey=gray)
-    frames = []
+    # frames = []
     for frame in vreader:
         if gray:
             _, height, width, _ = frame.shape
             frame = frame.reshape((height, width)).astype(dtype)
-        frames.append(frame)
-    return frames
+        # frames.append(frame)
+        yield frame
+    # return frames
