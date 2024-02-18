@@ -567,8 +567,8 @@ class GetDectime(TileDecodeBenchmarkPaths):
                     for self.tile in self.tile_list:
                         for self.chunk in self.chunk_list:
                             self.get_dectime()
-        if self.change_flag:
-            save_json(self.result_times, self.dectime_result_json)
+            if self.change_flag:
+                save_json(self.result_times, self.dectime_result_json)
 
     def skip1(self, check_result=True):
         if self.dectime_result_json.exists():
