@@ -1,4 +1,3 @@
-import datetime
 from collections import defaultdict
 from itertools import combinations
 from logging import warning
@@ -133,10 +132,28 @@ class TileDecodeBenchmarkPaths(GlobalPaths, Utils, Log):
         return folder / f'rate_{self.video}.json'
 
     @property
+    def siti_stats(self) -> Path:
+        folder = self.project_path / self._siti_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f'siti_stats.csv'
+
+    @property
     def siti_results(self) -> Path:
         folder = self.project_path / self._siti_folder
         folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'{self.video}_siti_results.json'
+        name = f'siti_results'
+        if self.video:
+            name += f'_{self.video}'
+        if self.tiling:
+            name += f'_{self.tiling}'
+        if self.quality:
+            name += f'_{self.config["rate_control"]}{self.quality}'
+        if self.tile:
+            name += f'_tile{self.tile}'
+        if self.chunk:
+            name += f'_chunk{self.chunk}'
+
+        return folder / f'siti_results_{self.video}_crf{self.quality}.json'
 
     def __init__(self, config: str):
         self.config = Config(config)
@@ -144,7 +161,8 @@ class TileDecodeBenchmarkPaths(GlobalPaths, Utils, Log):
         with self.logger():
             self.main()
 
-    def main(self): ...
+    def main(self):
+        ...
 
 
 class Prepare(TileDecodeBenchmarkPaths):
@@ -593,57 +611,73 @@ class GetDectime(TileDecodeBenchmarkPaths):
 
 class MakeSiti(TileDecodeBenchmarkPaths):
     def main(self):
-        self._make_siti()
-        self._scatter_plot_siti()
-        pd.DataFrame(self.log_text).to_csv(Path(f'LogTestResultsDectime_{datetime.datetime.now()}.csv'.replace(':', '-')), encoding='utf-8')
+        self.tiling = '1x1'
+        self.quality = '28'
+        self.tile = '0'
 
-    def _make_siti(self):
+        self.calc_siti()
+        # self.calc_stats()
+        # self.plot_siti()
+        # self.scatter_plot_siti()
+
+    def calc_siti(self):
         for self.video in self.videos_list:
             if self.siti_results.exists():
+                print(f'siti_results FOUND {self.siti_results}. Skipping.')
                 continue
 
-            self.tiling = '1x1'
-            self.quality = '28'
-            self.tile = '0'
-
             if not self.compressed_file.exists():
-                print(f'File not exist {self.compressed_file}')
+                self.log('compressed_file NOT_FOUND', self.compressed_file)
+                print(f'compressed_file not exist {self.compressed_file}. Skipping.')
                 continue
 
             siti = SiTi(self.compressed_file)
-            siti_results_df = {f'{self.video}': siti.siti}
-            save_json(siti_results_df, self.siti_results)
 
-    def _scatter_plot_siti(self):
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), dpi=300)
-        fig: plt.Figure
-        fig2, ax3 = plt.subplots(1, 1, figsize=(8, 6), dpi=300)
+            siti_results = {self.video: siti.siti}
+            save_json(siti_results, self.siti_results)
 
+    def calc_stats(self):
+        siti_stats = defaultdict(list)
         for self.video in self.videos_list:
-            siti_results_df = load_json(self.siti_results)
-            si = siti_results_df[f'{self.video}']['si']
-            ti = [0] + siti_results_df[f'{self.video}']['ti']
-            si_med = np.median(si)
-            ti_med = np.median(ti)
-            ax1.plot(si, label=self.name.replace('_nas', ''))
-            ax2.plot(ti, label=self.name.replace('_nas', ''))
-            ax3.scatter(si_med, ti_med, label=self.name.replace('_nas', ''))
+            siti_results = load_json(self.siti_results)
+            si = siti_results[self.video]['si']
+            ti = siti_results[self.video]['ti']
 
-        # ax.set_title('Si/Ti', fontdict={'size': 16})
-        ax3.set_xlabel("Spatial Information")
-        ax3.set_ylabel("Temporal Information")
-        ax3.legend(loc='upper left', bbox_to_anchor=(1.01, 1.0),
-                   fontsize='small')
+            siti_stats['video'].append(self.video)
+            siti_stats['tiling'].append(self.tiling)
+            siti_stats['quality'].append(self.quality)
+            siti_stats['tile'].append(self.tile)
 
-        fig2.suptitle('SI x TI')
-        fig2.tight_layout()
-        fig2.savefig(self.project_path / self._siti_folder / 'scatter.png')
-        show(fig2)
+            siti_stats['si_avg'].append(np.average(si))
+            siti_stats['si_std'].append(np.std(si))
+            siti_stats['si_max'].append(np.max(si))
+            siti_stats['si_min'].append(np.min(si))
+            siti_stats['si_med'].append(np.median(si))
+            siti_stats['ti_avg'].append(np.average(ti))
+            siti_stats['ti_std'].append(np.std(ti))
+            siti_stats['ti_max'].append(np.max(ti))
+            siti_stats['ti_min'].append(np.min(ti))
+            siti_stats['ti_med'].append(np.median(ti))
+
+        pd.DataFrame(siti_stats).to_csv(self.siti_stats, index=False)
+
+    def plot_siti(self):
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), dpi=300)
+        for self.video in self.videos_list:
+            name = self.name.replace('_nas', '')
+            siti_results = load_json(self.siti_results)
+            si = siti_results[self.video]['si']
+            ti = siti_results[self.video]['ti']
+
+            ax1.plot(si, label=name)
+            ax2.plot(ti, label=name)
 
         ax1.set_xlabel("Frame")
         ax1.set_ylabel("Spatial Information")
+
         ax2.set_xlabel('Frame')
         ax2.set_ylabel('Temporal Information')
+
         handles, labels = ax1.get_legend_handles_labels()
         fig.suptitle('SI/TI by frame')
         fig.legend(handles, labels, loc='upper left', bbox_to_anchor=[0.8, 0.93],
@@ -652,6 +686,26 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         fig.subplots_adjust(right=0.78)
         fig.savefig(self.project_path / self._siti_folder / 'plot.png')
         fig.show()
+
+    def scatter_plot_siti(self):
+        fig, ax = plt.subplots(1, 1, figsize=(8, 6), dpi=300)
+        siti_stats = pd.read_csv(self.siti_stats)
+        for self.video in self.videos_list:
+            name = self.name.replace('_nas', '')
+
+            si_med = siti_stats['si_med'][self.video]
+            ti_med = siti_stats['ti_med'][self.video]
+            ax.scatter(si_med, ti_med, label=name)
+
+        ax.set_xlabel("Spatial Information")
+        ax.set_ylabel("Temporal Information")
+        ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1.0),
+                  fontsize='small')
+
+        fig.suptitle('SI x TI')
+        fig.tight_layout()
+        fig.savefig(self.project_path / self._siti_folder / 'scatter.png')
+        show(fig)
 
 
 class DectimeGraphsPaths(GlobalPaths, Utils, Log):
@@ -798,6 +852,7 @@ class DectimeGraphsPaths(GlobalPaths, Utils, Log):
 
 
 class DectimeGraphsProps(DectimeGraphsPaths):
+    _workfolder: Path
     workfolder_data: Path
     workfolder: Path
     metric_label = {'time': {'scilimits': (-3, -3),
