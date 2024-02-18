@@ -8,10 +8,9 @@ from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
-import skvideo.io
 from scipy import ndimage
 
-from .util import splitx, run_command
+from .util import splitx, run_command, iter_frame
 
 
 class AutoDict(dict):
@@ -312,45 +311,23 @@ class SiTi:
     previous_frame: Optional[np.ndarray]
     siti: dict
 
-    def __init__(self, filename: Path, verbose=True):
-        self.filename = filename
-        self.calc_siti(verbose=verbose)
-
-    def calc_siti(self, verbose=True):
-        vreader = skvideo.io.vreader(fname=str(self.filename), as_grey=True)
-        si = []
-        ti = []
+    def __init__(self, filename: Path):
+        self.siti = defaultdict(list)
         self.previous_frame = None
-        name = f'{self.filename.parts[-2]}/{self.filename.name}'
 
-        for frame_counter, frame in enumerate(vreader):
-            # Fix shape
-            frame = frame[0, :, :, 0].astype(np.float)
+        for n, frame in enumerate(iter_frame(filename)):
+            si = self._calc_si(frame)
+            self.siti['si'].append(si)
 
-            value_si = self._calc_si(frame)
-            si.append(value_si)
-            try:
-                value_ti = self._calc_ti(frame)
-                ti.append(value_ti)
-                if verbose:
-                    print(f'\rCalculating SiTi - {name}: Frame {frame_counter}, si={value_si:.2f}, ti={value_ti:.3f}', end='')
-            except TypeError:
-                pass
+            ti = self._calc_ti(frame)
+            self.siti['ti'].append(ti)
+
+            print(f'\rSiTi - {filename.parts[-4:]}: frame={n}, si={si:.2f}, ti={ti:.3f}', end='')
 
         print('')
-        self.siti = {'si': si,
-                     'si_avg': np.average(si),
-                     'si_std': np.std(si),
-                     'si_max': np.max(si),
-                     'si_min': np.min(si),
-                     'si_med': np.median(si),
-                     'ti': ti,
-                     'ti_avg': np.average(ti),
-                     'ti_std': np.std(ti),
-                     'ti_max': np.max(ti),
-                     'ti_min': np.min(ti),
-                     'ti_med': np.median(ti)
-                     }
+
+    def __getitem__(self, item) -> list:
+        return self.siti[item]
 
     @staticmethod
     def _calc_si(frame: np.ndarray) -> (float, np.ndarray):
@@ -375,8 +352,8 @@ class SiTi:
         """
         try:
             difference = frame - self.previous_frame
-            return difference.std()
         except TypeError:
-            raise TypeError('First Frame')
+            return 0.
         finally:
             self.previous_frame = frame
+        return difference.std()
