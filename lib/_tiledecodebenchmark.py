@@ -554,6 +554,7 @@ class GetDectime(TileDecodeBenchmarkPaths):
     def main(self):
         for self.video in self.videos_list:
             self.result_times = AutoDict()
+            self.change_flag = True
             if self.skip1(): continue
 
             for self.tiling in self.tiling_list:
@@ -565,8 +566,8 @@ class GetDectime(TileDecodeBenchmarkPaths):
             save_json(self.result_times, self.dectime_result_json)
 
     def skip1(self, check_result=True):
-        self.change_flag = False
         if self.dectime_result_json.exists():
+            self.change_flag = False
             print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
             if check_result:
                 self.result_times = load_json(self.dectime_result_json,
@@ -580,12 +581,13 @@ class GetDectime(TileDecodeBenchmarkPaths):
 
         try:
             content = self.dectime_log.read_text(encoding='utf-8').splitlines()
-            times = get_times(content)
         except FileNotFoundError:
             print(f'\n{Bcolors.FAIL}    The dectime log not exist. Skipping.'
                   f'{Bcolors.ENDC}')
             self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
             return
+
+        times = get_times(content)
 
         try:
             times = sorted(times)[-self.decoding_num:]
@@ -603,6 +605,9 @@ class GetDectime(TileDecodeBenchmarkPaths):
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
         else:
             print(f' {times}', end='')
+        value = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+        if self.change_flag is False and value != times:
+            self.change_flag = True
         self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
 
     @property
