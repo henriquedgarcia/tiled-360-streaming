@@ -193,9 +193,35 @@ class Compress(TileDecodeBenchmarkPaths):
                         for self.tile in self.tile_list:
                             self.worker()
 
-    def clean_compress(self):
-        self.compressed_log.unlink(missing_ok=True)
-        self.compressed_file.unlink(missing_ok=True)
+    def worker(self):
+        if self.skip():
+            return
+
+        print(f'==== Processing {self.compressed_file} ====')
+        x1, y1, x2, y2 = self.tile_position()
+
+        factor = self.rate_control
+
+        cmd = ['bin/ffmpeg -hide_banner -y -psnr']
+        cmd += [f'-i {self.lossless_file.as_posix()}']
+        cmd += [f'-c:v libx265']
+        cmd += [f'-{factor} {self.quality} -tune psnr']
+        cmd += [f'-x265-params']
+        cmd += [f'keyint={self.gop}:'
+                f'min-keyint={self.gop}:'
+                f'open-gop=0:'
+                f'scenecut=0:'
+                f'info=0']
+        if factor == 'qp':
+            cmd[-1] += ':ipratio=1:pbratio=1'
+        cmd += [f'-vf crop='
+                f'w={x2 - x1}:h={y2 - y1}:'
+                f'x={x1}:y={y1}']
+        cmd += [f'{self.compressed_file.as_posix()}']
+        cmd = ' '.join(cmd)
+
+        cmd = f'bash -c "{cmd}&> {self.compressed_log.as_posix()}"'
+        self.command_pool.append(cmd)
 
     def skip(self, decode=False):
         # first Lossless file
@@ -244,35 +270,9 @@ class Compress(TileDecodeBenchmarkPaths):
         print(f'{Bcolors.FAIL}The file {self.compressed_file} is OK.{Bcolors.ENDC}')
         return True
 
-    def worker(self):
-        if self.skip():
-            return
-
-        print(f'==== Processing {self.compressed_file} ====')
-        x1, y1, x2, y2 = self.tile_position()
-
-        factor = self.rate_control
-
-        cmd = ['bin/ffmpeg -hide_banner -y -psnr']
-        cmd += [f'-i {self.lossless_file.as_posix()}']
-        cmd += [f'-c:v libx265']
-        cmd += [f'-{factor} {self.quality} -tune psnr']
-        cmd += [f'-x265-params']
-        cmd += [f'keyint={self.gop}:'
-                f'min-keyint={self.gop}:'
-                f'open-gop=0:'
-                f'scenecut=0:'
-                f'info=0']
-        if factor == 'qp':
-            cmd[-1] += ':ipratio=1:pbratio=1'
-        cmd += [f'-vf crop='
-                f'w={x2 - x1}:h={y2 - y1}:'
-                f'x={x1}:y={y1}']
-        cmd += [f'{self.compressed_file.as_posix()}']
-        cmd = ' '.join(cmd)
-
-        cmd = f'bash -c "{cmd}&> {self.compressed_log.as_posix()}"'
-        self.command_pool.append(cmd)
+    def clean_compress(self):
+        self.compressed_log.unlink(missing_ok=True)
+        self.compressed_file.unlink(missing_ok=True)
 
 
 class Segment(TileDecodeBenchmarkPaths):
