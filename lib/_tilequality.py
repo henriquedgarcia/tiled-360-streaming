@@ -144,32 +144,26 @@ class SegmentsQuality(SegmentsQualityProps):
     def main(self):
         self.init()
         for _ in self.iterator():
+            if self.skip(): continue
             self.all()
 
     def all(self):
-        if self.skip(): return
-
-        print(f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]]')
+        print(f'{self.str_state()}')
         chunk_quality = defaultdict(list)
         start = time()
-        for frame, (frame1, frame2) in enumerate(
-                zip(iter_frame(self.reference_segment), iter_frame(self.segment_file))):
-            print(f'{frame=}')
+
+        iter_reference_segment = iter_frame(self.reference_segment)
+        iter_segment = iter_frame(self.segment_file)
+        zip_frames = zip(iter_reference_segment, iter_segment)
+
+        for frame, (frame1, frame2) in enumerate(zip_frames):
+            print(f'\r{frame=}', end='')
             chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
             chunk_quality['MSE'].append(self._mse(frame1, frame2))
             chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
             chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
-
         pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
-        print(f"\t time={time() - start}.")
-
-    def iterator(self):
-        for self.video in self.videos_list:
-            for self.tiling in self.tiling_list:
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        for self.chunk in self.chunk_list:
-                            yield
+        print(f"\n\ttime={time() - start}.")
 
     def skip(self):
         if not self.segment_file.exists():
@@ -191,14 +185,22 @@ class SegmentsQuality(SegmentsQualityProps):
         chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
 
         if len(chunk_quality_df['frame']) == 30:
-            print(
-                f'[{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]] - '
-                f'EXIST', end='\r')
+            print(f'[{self.vid_proj}][{self.video}][{self.tiling}]'
+                  f'[crf{self.quality}][tile{self.tile}][chunk{self.chunk}]]'
+                  f' - EXIST', end='\r')
             return True
         else:
             self.log('video_quality_csv SMALL. Cleaning.', self.segment_file)
             self.video_quality_csv.unlink(missing_ok=True)
         return False
+
+    def iterator(self):
+        for self.video in self.videos_list:
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            yield
 
     @staticmethod
     def _mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
