@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 
-from .util import run_command, iter_frame
 from .transform import splitx
+from .util import run_command, iter_frame
 
 
 class AutoDict(dict):
@@ -60,8 +60,8 @@ class Config:
 
 class Factors:
     bins: Union[int, str] = None
-    group: str = None
-    video: str = None
+    _video: str = None
+    _name: str = None
     quality_ref: str = '0'
     quality: str = None
     tiling: str = None
@@ -117,9 +117,28 @@ class Factors:
         return self.videos_list[self.video]['group']
 
     @property
+    def video(self) -> str:
+        if self._video is None and self.name is not None:
+            video = self.name.replace('_nas', f'_{self.proj}_nas')
+        else:
+            video = self._video
+        return video
+
+    @video.setter
+    def video(self, value):
+        self._video = value
+
+    @property
     def name(self) -> str:
-        name = self.video.replace('_cmp', '').replace('_erp', '')
+        if self._name is None and self.video is not None:
+            name = self.video.replace('_cmp', '').replace('_erp', '')
+        else:
+            name = self._name
         return name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
     @property
     def vid_proj(self) -> str:
