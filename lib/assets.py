@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 from scipy import ndimage
 
-from .util import splitx, run_command, iter_frame
+from .util import run_command, iter_frame
+from .transform import splitx
 
 
 class AutoDict(dict):
@@ -59,6 +60,7 @@ class Config:
 
 class Factors:
     bins: Union[int, str] = None
+    group: str = None
     video: str = None
     quality_ref: str = '0'
     quality: str = None
@@ -110,6 +112,10 @@ class Factors:
     # </editor-fold>
 
     # <editor-fold desc="Video Property">
+    @property
+    def group(self) -> str:
+        return self.videos_list[self.video]['group']
+
     @property
     def name(self) -> str:
         name = self.video.replace('_cmp', '').replace('_erp', '')
@@ -176,7 +182,7 @@ class Factors:
     # Metrics
     @property
     def metric_list(self) -> list[str]:
-        return ['time', 'rate', 'time_std', 'PSNR', 'WS-PSNR', 'S-PSNR']
+        return ['time', 'rate', 'time_std', 'MSE', 'WS-MSE', 'S-MSE']
 
     # GetTiles
     @property
