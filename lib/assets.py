@@ -229,13 +229,8 @@ def count_decoding(dectime_log: Path) -> int:
     return len(['' for line in content if 'utime' in line])
 
 
-class Log:
+class Log(Factors):
     log_text: defaultdict
-    video: str
-    tiling: str
-    quality: str
-    tile: str
-    chunk: str
 
     @contextmanager
     def logger(self):
@@ -264,21 +259,39 @@ class Log:
         df_log_text.to_csv(filename, encoding='utf-8')
 
 
-class Utils:
-    command_pool: list
-    config: Config
-    project_path: Path
-    segment_file: Path
-    vid_proj: str
-    name: str
-    tiling: str
-    quality: str
-    tile: str
-    chunk: str
+class Utils(Factors):
+    def state_str(self):
+        s = ''
+        if self.vid_proj:
+            s += f'[{self.vid_proj}]'
+        if self.name:
+            s += f'[{self.name}]'
+        if self.tiling:
+            s += f'[{self.tiling}]'
+        if self.quality:
+            s += f'[{self.rate_control}{self.quality}]'
+        if self.tile:
+            s += f'[tile{self.tile}]'
+        if self.chunk:
+            s += f'[chunk{self.chunk}]'
+        return f'{self.__class__.__name__} {s}'
 
-    def print_state(self):
-        print(f'{self.__class__.__name__} [{self.vid_proj}][{self.name}][{self.tiling}][crf{self.quality}][tile{self.tile}]'
-              f'[chunk{self.chunk}] = ', end='\r')
+    @property
+    def state(self):
+        s = []
+        if self.vid_proj:
+            s.append(self.vid_proj)
+        if self.name:
+            s.append(self.name)
+        if self.tiling:
+            s.append(self.tiling)
+        if self.quality:
+            s.append(self.quality)
+        if self.tile:
+            s.append(self.tile)
+        if self.chunk:
+            s.append(self.chunk)
+        return s
 
     def print_resume(self):
         print('=' * 70)
