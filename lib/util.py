@@ -69,22 +69,6 @@ def run_command(command: str):
     return process.stdout
 
 
-def idx2xy(idx: int, shape: tuple):
-    tile_x = idx % shape[1]
-    tile_y = idx // shape[1]
-    return tile_x, tile_y
-
-
-def splitx(string: str) -> tuple[int, ...]:
-    """
-    Receive a string like "5x6x7" (no spaces) and return a tuple of ints, in
-    this case, (5, 6, 7).
-    :param string: A string of numbers separated with "x".
-    :return: Return a list of int
-    """
-    return tuple(map(int, string.split('x')))
-
-
 def get_times(content):
     times = []
     for line in content:
@@ -93,10 +77,6 @@ def get_times(content):
             if t > 0:
                 times.append(t)
     return times
-
-
-def mse2psnr(_mse: float) -> float:
-    return 10 * np.log10((255. ** 2 / _mse))
 
 
 def show(img):
