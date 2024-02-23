@@ -54,7 +54,7 @@ class DectimeGraphsPaths(TileDecodeBenchmarkPaths):
         Need None
         :return:
         """
-        path = self.workfolder_data / f'data_bucket{self.metric}.json'
+        path = self.workfolder_data / f'data_bucket_{self.metric}.json'
         return path
 
     @property
@@ -179,7 +179,8 @@ class ByPatternProps(DectimeGraphsPaths):
                     'S-PSNR': {'scilimits': (0, 0),
                                'xlabel': f'Average S-PSNR'}
                     }
-    metric_list = ['time', 'time_std', 'rate', 'rate_std', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
+    metric_list = ['time', 'time_std', 'rate']
+    # metric_list = ['time', 'time_std', 'rate', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
     data_bucket: dict
     error_type: str
     fitter: Fitter
@@ -332,27 +333,26 @@ class ByPattern(ByPatternProps):
             self.worker()
 
     def worker(self):
-        # Get samples and Fitter
-        try:
-            self.data_bucket = load_json(self.data_bucket_file, object_hook=dict)
-        except FileNotFoundError:
-            self.get_data_bucket()
+        # Get samples
+        self.get_data_bucket()
 
-        try:
-            self.fitter = load_pickle(self.fitter_pickle_file)
-        except FileNotFoundError:
-            self.make_fit()
+        # Get Fitter
+        self.make_fit()
 
+        # Calc Stats
         if not self.stats_file.exists() or False:
             self.calc_stats()
 
+        # Calc Correlations
         if not self.correlations_file.exists() or False:
             self.calc_corr()
 
+        # Make Histogram
         if not self.pdf_file.exists() or False:
             # make an image for each metric and projection
             self.make_hist()
 
+        # Make boxplot
         if not self.boxplot_file.exists() or False:
             self.make_boxplot()
 
@@ -364,6 +364,142 @@ class ByPattern(ByPatternProps):
             for self.proj in ['erp', 'cmp']:
                 for self.tiling in self.tiling_list:
                     yield
+
+    def get_data_bucket(self):
+        # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
+        # 1x1 - 10014 chunks - 1/181 tiles por tiling
+        # 3x2 - 60084 chunks - 6/181 tiles por tiling
+        # 6x4 - 240336 chunks - 24/181 tiles por tiling
+        # 9x6 - 540756 chunks - 54/181 tiles por tiling
+        # 12x8 - 961344 chunks - 96/181 tiles por tiling
+        # total - 1812534 chunks - 181/181 tiles por tiling
+
+        def main():
+
+            for self.metric in self.metric_list:
+                if self.data_bucket_file.exists():
+                    print(f'Bucket for {self.metric} exist. Skipping')
+                    continue
+
+                self.data_bucket = AutoDict()
+                for self.video in self.videos_list:
+                    vid_data = load_json(json_metrics(self.metric))[self.vid_proj]
+
+                    for self.tiling in self.tiling_list:
+                        print(f'\r  {self.metric} - {self.vid_proj} {self.name} {self.tiling}. len = ', end='')
+                        bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling]
+
+                        for self.quality in self.quality_list:
+                            for self.tile in self.tile_list:
+                                for self.chunk in self.chunk_list:
+                                    chunk_data = vid_data[self.name][self.tiling][self.quality][self.tile][self.chunk]
+                                    chunk_data = process(chunk_data)
+
+                                    try:
+                                        bucket.append(chunk_data)
+                                    except AttributeError:
+                                        bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling] = [chunk_data]
+
+                        print(len(bucket))
+
+                # remove_outliers(self.data_bucket)
+
+                print(f'  Saving ... ', end='')
+                save_json(self.data_bucket, self.data_bucket_file)
+                print(f'  Finished.')
+
+        def json_metrics(metric):
+            return {'rate': self.bitrate_result_json,
+                    'time': self.dectime_result_json,
+                    'time_std': self.dectime_result_json,
+                    # 'MSE': self.quality_result_json,
+                    # 'WS-MSE': self.quality_result_json,
+                    # 'S-MSE': self.quality_result_json
+                    }[metric]
+
+        def process(value):
+            # Process value according the metric
+            if self.metric == 'time':
+                new_value = float(np.round(np.average(value), decimals=3))
+            elif self.metric == 'time_std':
+                new_value = float(np.round(np.std(value), decimals=6))
+            elif self.metric == 'rate':
+                new_value = float(value)
+            else:
+                # if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
+                metric_value = value[self.metric]
+                new_value = metric_value
+                if float(new_value) == float('inf'):
+                    new_value = 1000
+                else:
+                    new_value = new_value
+            return new_value
+
+        def remove_outliers(data, resumenamecsv=None):
+            ### Fliers analysis data[self.proj][self.tiling][self.metric]
+            print(f' Removing outliers... ', end='')
+            resume = defaultdict(list)
+            for proj in data:
+                for tiling in data[proj]:
+                    for metric in data[proj][tiling]:
+                        data_bucket = data[proj][tiling][metric]
+
+                        min, q1, med, q3, max = np.percentile(data_bucket, [0, 25, 50, 75, 100]).T
+                        iqr = 1.5 * (q3 - q1)
+                        clean_left = q1 - iqr
+                        clean_right = q3 + iqr
+
+                        data_bucket_clean = [d for d in data_bucket
+                                             if (clean_left <= d <= clean_right)]
+                        data[proj][tiling][metric] = data_bucket
+
+                        resume['projection'] += [proj]
+                        resume['tiling'] += [tiling]
+                        resume['metric'] += [metric]
+                        resume['min'] += [min]
+                        resume['q1'] += [q1]
+                        resume['median'] += [med]
+                        resume['q3'] += [q3]
+                        resume['max'] += [max]
+                        resume['iqr'] += [iqr]
+                        resume['clean_left'] += [clean_left]
+                        resume['clean_right'] += [clean_right]
+                        resume['original_len'] += [len(data_bucket)]
+                        resume['clean_len'] += [len(data_bucket_clean)]
+                        resume['clear_rate'] += [len(data_bucket_clean) / len(data_bucket)]
+            print(f'  Finished.')
+            if resumenamecsv is not None:
+                pd.DataFrame(resume).to_csv(resumenamecsv)
+
+        main()
+
+    def make_fit(self):
+        # "deve salvar o arquivo"
+        # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
+        # 1x1 - 10014 chunks - 1/181 tiles por tiling
+        # 3x2 - 60084 chunks - 6/181 tiles por tiling
+        # 6x4 - 240336 chunks - 24/181 tiles por tiling
+        # 9x6 - 540756 chunks - 54/181 tiles por tiling
+        # 12x8 - 961344 chunks - 96/181 tiles por tiling
+        # total - 1812534 chunks - 181/181 tiles por tiling
+        try:
+            self.fitter = load_pickle(self.fitter_pickle_file)
+            return
+        except FileNotFoundError:
+            pass
+
+        print(f'  Fitting - {self.metric} {self.proj} {self.tiling}... ', end='')
+
+        samples = self.data_bucket[self.metric][self.proj][self.tiling]
+
+        # Make a fit
+        self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+        self.fitter.fit()
+
+        # Save
+        print(f'  Saving Fitter... ', end='')
+        save_pickle(self.fitter, self.fitter_pickle_file)
+        print(f'  Finished.')
 
     def make_boxplot(self, overwrite=False):
         print(f'    Make BoxPlot - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
@@ -542,95 +678,6 @@ class ByPattern(ByPatternProps):
             self.fig_pdf.savefig(self.pdf_file)
             self.fig_cdf.savefig(self.cdf_file)
 
-    def make_fit(self):
-        "deve salvar o arquivo"
-        # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
-        # 1x1 - 10014 chunks - 1/181 tiles por tiling
-        # 3x2 - 60084 chunks - 6/181 tiles por tiling
-        # 6x4 - 240336 chunks - 24/181 tiles por tiling
-        # 9x6 - 540756 chunks - 54/181 tiles por tiling
-        # 12x8 - 961344 chunks - 96/181 tiles por tiling
-        # total - 1812534 chunks - 181/181 tiles por tiling
-
-        print(f'  Fitting - {self.metric} {self.proj} {self.tiling}... ', end='')
-
-        samples = self.data_bucket[self.metric][self.proj][self.tiling]
-
-        # Make a fit
-        self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
-        self.fitter.fit()
-
-        # Save
-        print(f'  Saving Fitter... ', end='')
-        save_pickle(self.fitter, self.fitter_pickle_file)
-        print(f'  Finished.')
-
-    def get_data_bucket(self, remove_outliers=False):
-        # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
-        # 1x1 - 10014 chunks - 1/181 tiles por tiling
-        # 3x2 - 60084 chunks - 6/181 tiles por tiling
-        # 6x4 - 240336 chunks - 24/181 tiles por tiling
-        # 9x6 - 540756 chunks - 54/181 tiles por tiling
-        # 12x8 - 961344 chunks - 96/181 tiles por tiling
-        # total - 1812534 chunks - 181/181 tiles por tiling
-
-        self.data_bucket = AutoDict()
-
-        def json_metrics(metric):
-            return {'rate': self.bitrate_result_json,
-                    'rate_std': self.dectime_result_json,
-                    'time': self.dectime_result_json,
-                    'time_std': self.dectime_result_json,
-                    # 'MSE': self.quality_result_json,
-                    # 'WS-MSE': self.quality_result_json,
-                    # 'S-MSE': self.quality_result_json
-                    }[metric]
-
-        def process(value):
-            # Process value according the metric
-            if self.metric == 'time':
-                new_value = float(np.round(np.average(value), decimals=3))
-            elif self.metric == 'time_std':
-                new_value = float(np.round(np.std(value), decimals=6))
-            elif self.metric == 'rate':
-                new_value = float(value)
-            else:
-                # if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
-                metric_value = value[self.metric]
-                new_value = metric_value
-                if float(new_value) == float('inf'):
-                    new_value = 1000
-                else:
-                    new_value = new_value
-            return new_value
-
-        for self.metric in self.metric_list:
-            for self.video in self.videos_list:
-                vid_data = load_json(json_metrics(self.metric), object_hook=dict)[self.vid_proj]
-
-                for self.tiling in self.tiling_list:
-                    print(f'\r  {self.metric} - {self.vid_proj} {self.name} {self.tiling}. len = ', end='')
-                    bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling]
-
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-                            for self.chunk in self.chunk_list:
-                                chunk_data = vid_data[self.name][self.tiling][self.quality][self.tile][self.chunk]
-                                chunk_data = process(chunk_data)
-
-                                try:
-                                    bucket.append(chunk_data)
-                                except AttributeError:
-                                    bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling] = [chunk_data]
-
-                    print(len(bucket))
-
-            if remove_outliers: self.remove_outliers(self.data_bucket)
-
-            print(f'  Saving ... ', end='')
-            save_json(self.data_bucket, self.data_bucket_file)
-            print(f'  Finished.')
-
     def make_violinplot(self, overwrite=False):
         print(f'\n====== Make Violin - Bins = {self.bins} ======')
         folder = self.workfolder / 'violinplot'
@@ -687,43 +734,6 @@ class ByPattern(ByPatternProps):
 
                 print(f'  Saving the figure')
                 fig.savefig(img_file)
-
-    @staticmethod
-    def remove_outliers(data, resumenamecsv=None):
-        ### Fliers analysis data[self.proj][self.tiling][self.metric]
-        print(f' Removing outliers... ', end='')
-        resume = defaultdict(list)
-        for proj in data:
-            for tiling in data[proj]:
-                for metric in data[proj][tiling]:
-                    data_bucket = data[proj][tiling][metric]
-
-                    min, q1, med, q3, max = np.percentile(data_bucket, [0, 25, 50, 75, 100]).T
-                    iqr = 1.5 * (q3 - q1)
-                    clean_left = q1 - iqr
-                    clean_right = q3 + iqr
-
-                    data_bucket_clean = [d for d in data_bucket
-                                         if (clean_left <= d <= clean_right)]
-                    data[proj][tiling][metric] = data_bucket
-
-                    resume['projection'] += [proj]
-                    resume['tiling'] += [tiling]
-                    resume['metric'] += [metric]
-                    resume['min'] += [min]
-                    resume['q1'] += [q1]
-                    resume['median'] += [med]
-                    resume['q3'] += [q3]
-                    resume['max'] += [max]
-                    resume['iqr'] += [iqr]
-                    resume['clean_left'] += [clean_left]
-                    resume['clean_right'] += [clean_right]
-                    resume['original_len'] += [len(data_bucket)]
-                    resume['clean_len'] += [len(data_bucket_clean)]
-                    resume['clear_rate'] += [len(data_bucket_clean) / len(data_bucket)]
-        print(f'  Finished.')
-        if resumenamecsv is not None:
-            pd.DataFrame(resume).to_csv(resumenamecsv)
 
 
 DectimeGraphsOptions = {'0': ByPattern,
