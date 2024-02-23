@@ -79,7 +79,7 @@ def get_times(content):
     return times
 
 
-def show(img):
+def show(img: np.ndarray):
     plt.imshow(img)
     plt.show()
 
