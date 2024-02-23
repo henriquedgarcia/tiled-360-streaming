@@ -8,8 +8,7 @@ from matplotlib import pyplot as plt
 from abc import ABC, abstractmethod
 
 try:
-    from .transform import rot_matrix
-    from .util import splitx
+    from .transform import rot_matrix, splitx
 except ImportError:
     from transform import rot_matrix
     from util import splitx
