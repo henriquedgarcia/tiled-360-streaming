@@ -17,7 +17,8 @@ from fitter import Fitter
 from matplotlib import pyplot as plt
 
 from .assets import GlobalPaths, Config, Log, AutoDict, Bcolors, Utils, SiTi
-from .util import save_pickle, load_pickle, splitx, save_json, load_json, run_command, decode_file, get_times
+from .util import save_pickle, load_pickle, save_json, load_json, run_command, decode_file, get_times
+from .transform import splitx
 
 
 class TileDecodeBenchmarkPaths(GlobalPaths, Utils, Log):
