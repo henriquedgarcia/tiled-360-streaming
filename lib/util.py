@@ -32,6 +32,24 @@ def load_pickle(filename):
     return results
 
 
+def count_decoding(dectime_log: Path) -> int:
+    """
+    Count how many times the word "utime" appears in "log_file"
+    :return:
+    """
+    try:
+        content = dectime_log.read_text(encoding='utf-8').splitlines()
+    except UnicodeDecodeError:
+        print('ERROR: UnicodeDecodeError. Cleaning.')
+        dectime_log.unlink()
+        return 0
+    except FileNotFoundError:
+        print('ERROR: FileNotFoundError. Return 0.')
+        return 0
+
+    return len(['' for line in content if 'utime' in line])
+
+
 def decode_file(filename, threads=None):
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
            f'-codec hevc '
