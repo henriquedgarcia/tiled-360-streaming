@@ -329,16 +329,14 @@ class ByPattern(ByPatternProps):
 
         print(f'\n====== Make hist - error_type={self.error_type}, n_dist={self.n_dist} ======')
 
-        for _ in self.loop():
-            self.worker()
+        for self.metric in self.metric_list:
+            for self.proj in ['erp', 'cmp']:
+                for self.tiling in self.tiling_list:
+                    # Get samples
+                    self.get_data_bucket()
+                    self.make_fit()
 
     def worker(self):
-        # Get samples
-        self.get_data_bucket()
-
-        # Get Fitter
-        self.make_fit()
-
         # Calc Stats
         if not self.stats_file.exists() or False:
             self.calc_stats()
@@ -359,12 +357,6 @@ class ByPattern(ByPatternProps):
         # if not self.violinplot_file.exists() or self.overwrite:
         #     self.make_violinplot()
 
-    def loop(self):
-        for self.metric in self.metric_list:
-            for self.proj in ['erp', 'cmp']:
-                for self.tiling in self.tiling_list:
-                    yield
-
     def get_data_bucket(self):
         # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
         # 1x1 - 10014 chunks - 1/181 tiles por tiling
@@ -374,39 +366,38 @@ class ByPattern(ByPatternProps):
         # 12x8 - 961344 chunks - 96/181 tiles por tiling
         # total - 1812534 chunks - 181/181 tiles por tiling
 
+        try:
+            self.data_bucket = load_pickle(self.data_bucket_file)
+            return
+        except FileNotFoundError:
+            pass
+
         def main():
+            self.data_bucket = AutoDict()
 
-            for self.metric in self.metric_list:
-                if self.data_bucket_file.exists():
-                    print(f'Bucket for {self.metric} exist. Skipping')
-                    continue
+            for self.name in self.name_list:
+                print(f'\r  {self.metric} {self.vid_proj} {self.tiling} {self.name}. len = ', end='')
+                vid_data = load_json(json_metrics(self.metric))[self.vid_proj]
+                bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling]
 
-                self.data_bucket = AutoDict()
-                for self.video in self.videos_list:
-                    vid_data = load_json(json_metrics(self.metric))[self.vid_proj]
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            chunk_data = vid_data[self.name][self.tiling][self.quality][self.tile][self.chunk]
+                            chunk_data = process(chunk_data)
 
-                    for self.tiling in self.tiling_list:
-                        print(f'\r  {self.metric} - {self.vid_proj} {self.name} {self.tiling}. len = ', end='')
-                        bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling]
+                            try:
+                                bucket.append(chunk_data)
+                            except AttributeError:
+                                bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling] = [chunk_data]
 
-                        for self.quality in self.quality_list:
-                            for self.tile in self.tile_list:
-                                for self.chunk in self.chunk_list:
-                                    chunk_data = vid_data[self.name][self.tiling][self.quality][self.tile][self.chunk]
-                                    chunk_data = process(chunk_data)
+                    print(len(bucket))
 
-                                    try:
-                                        bucket.append(chunk_data)
-                                    except AttributeError:
-                                        bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling] = [chunk_data]
+            # remove_outliers(self.data_bucket)
 
-                        print(len(bucket))
-
-                # remove_outliers(self.data_bucket)
-
-                print(f'  Saving ... ', end='')
-                save_json(self.data_bucket, self.data_bucket_file)
-                print(f'  Finished.')
+            print(f'  Saving ... ', end='')
+            save_json(self.data_bucket, self.data_bucket_file)
+            print(f'  Finished.')
 
         def json_metrics(metric):
             return {'rate': self.bitrate_result_json,
@@ -482,6 +473,7 @@ class ByPattern(ByPatternProps):
         # 9x6 - 540756 chunks - 54/181 tiles por tiling
         # 12x8 - 961344 chunks - 96/181 tiles por tiling
         # total - 1812534 chunks - 181/181 tiles por tiling
+
         try:
             self.fitter = load_pickle(self.fitter_pickle_file)
             return
