@@ -1,5 +1,4 @@
 import time
-from abc import ABC
 from collections import defaultdict, Counter
 from pathlib import Path
 from typing import Union
@@ -14,8 +13,8 @@ from skvideo.io import FFmpegWriter, FFmpegReader
 import lib.video360 as vp
 from ._tilequality import SegmentsQualityPaths
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
-from .util import load_json, save_json, splitx, idx2xy
-from .transform import cart2hcs, lin_interpol
+from .util import load_json, save_json
+from .transform import cart2hcs, lin_interpol, idx2xy, splitx
 from .assets import Config, AutoDict
 
 
@@ -30,7 +29,7 @@ rotation_map = {'cable_cam_nas': 265 / 180 * pi, 'drop_tower_nas': 180 / 180 * p
                 'wingsuit_dubai_nas': 63 / 180 * pi, 'drone_chases_car_nas': 81 / 180 * pi}
 
 
-class GetTilesPath(TileDecodeBenchmarkPaths, ABC):
+class GetTilesPath(TileDecodeBenchmarkPaths):
     dataset_folder: Path
     video_id_map: dict
     user_map: dict
