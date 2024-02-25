@@ -543,15 +543,12 @@ class GetDectime(TileDecodeBenchmarkPaths):
        'times': list(float, float, float)
        'rate': float
     """
-    turn: int
-    _video: str
     result_times: AutoDict
     change_flag: bool
+    times: list
 
     def main(self):
         for self.video in self.videos_list:
-            self.result_times = AutoDict()
-            self.change_flag = True
             if self.skip1(): continue
 
             for self.tiling in self.tiling_list:
@@ -559,53 +556,70 @@ class GetDectime(TileDecodeBenchmarkPaths):
                     for self.tile in self.tile_list:
                         for self.chunk in self.chunk_list:
                             self.get_dectime()
+
             if self.change_flag:
                 save_json(self.result_times, self.dectime_result_json)
 
     def skip1(self, check_result=True):
         if self.dectime_result_json.exists():
-            self.change_flag = False
             print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
+
             if check_result:
+                self.change_flag = False
                 self.result_times = load_json(self.dectime_result_json,
                                               object_hook=AutoDict)
                 return False
+
             return True
+        else:
+            return False
 
-    def get_dectime(self) -> Any:
-        print(f'\rDectime [{self.vid_proj}][{self.name}][{self.tiling}][crf{self.quality}][tile{self.tile}]'
-              f'[chunk{self.chunk}] = ', end='')
-
-        try:
-            content = self.dectime_log.read_text(encoding='utf-8').splitlines()
-        except FileNotFoundError:
+    def skip2(self):
+        if not self.dectime_log.exists():
             print(f'\n{Bcolors.FAIL}    The dectime log not exist. Skipping.'
                   f'{Bcolors.ENDC}')
             self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
-            return
+            return True
+        return False
 
-        times = get_times(content)
+    def check_time(self):
 
-        try:
-            times = sorted(times)[-self.decoding_num:]
-        except TypeError:
-            print(f'{Bcolors.WARNING} The times is not a list. {type(times)}.{Bcolors.ENDC}')
-            self.log('times is not a list', self.dectime_log)
-            return
+        if len(self.times) < self.decoding_num:
+            print(f'\n{Bcolors.WARNING}    The dectime is lower than {self.decoding_num}: {Bcolors.ENDC}')
+            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(self.times)}', self.dectime_log)
 
-        if len(times) < self.decoding_num:
-            print(f'\n{Bcolors.WARNING}    The dectime is lower than 3: {times}.{Bcolors.ENDC}')
-            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}', self.dectime_log)
-
-        if 0 in times:
-            print(f'\n{Bcolors.WARNING}    0  found in {times}{Bcolors.ENDC}')
+        if 0 in self.times:
+            print(f'\n{Bcolors.WARNING}    0  found: {Bcolors.ENDC}')
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
-        else:
-            print(f' {times}', end='')
-        value = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-        if self.change_flag is False and value != times:
+
+    def get_dectime(self) -> Any:
+        print(f'{self.state_str()} = ', end='')
+        if self.skip2(): return
+
+        content = self.dectime_log.read_text(encoding='utf-8')
+
+        self.times = get_times(content)
+        self.times = self.times[-self.decoding_num:]
+        self.times = sorted(self.times)
+        self.check_time()
+
+        result_times = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+
+        if self.change_flag is False and result_times != self.times:
             self.change_flag = True
-        self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
+
+        self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = self.times
+        print(f'{self.times}', end='')
+
+    @property
+    def video(self):
+        return self._video
+
+    @video.setter
+    def video(self, value):
+        self._video = value
+        self.result_times = AutoDict()
+        self.change_flag = True
 
     @property
     def quality_list(self) -> list[str]:
