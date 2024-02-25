@@ -63,13 +63,13 @@ class Factors:
     bins: Union[int, str] = None
     _video: str = None
     _name: str = None
+    _proj: str = None
     quality_ref: str = '0'
     quality: str = None
     tiling: str = None
     metric: str = None
     tile: str = None
     chunk: str = None
-    proj: str = None
     _name_list: list[str] = None
     _proj_list: list[str] = None
     config: Config
@@ -84,14 +84,14 @@ class Factors:
     def name_list(self) -> list[str]:
         if self._name_list is None:
             _name_list = set([video.replace('_cmp', '').replace('_erp', '') for video in self.videos_list])
-            self._name_list = list(_name_list)
+            self._name_list = sorted(list(_name_list))
         return self._name_list
 
     @property
     def proj_list(self) -> list[str]:
         if self._proj_list is None:
             _proj_set = set([self.videos_list[video]['projection'] for video in self.videos_list])
-            self._proj_list = list(_proj_set)
+            self._proj_list = sorted(list(_proj_set))
         return self._proj_list
 
     @property
@@ -126,8 +126,8 @@ class Factors:
 
     @property
     def video(self) -> str:
-        if self._video is None and self.name is not None:
-            return self.name.replace('_nas', f'_{self.proj}_nas')
+        if self._video is None and self._name is not None:
+            return self._name.replace('_nas', f'_{self.proj}_nas')
         else:
             return self._video
 
@@ -137,8 +137,8 @@ class Factors:
 
     @property
     def name(self) -> str:
-        if self._name is None and self.video is not None:
-            name = self.video.replace('_cmp', '').replace('_erp', '')
+        if self._name is None and self._video is not None:
+            name = self._video.replace('_cmp', '').replace('_erp', '')
         else:
             name = self._name
         return name
@@ -148,7 +148,19 @@ class Factors:
         self._name = value
 
     @property
+    def proj(self) -> str:
+        if self._proj is None:
+            self._proj = self.vid_proj
+        return self._proj
+
+    @proj.setter
+    def proj(self, value):
+        self._proj = value
+
+    @property
     def vid_proj(self) -> str:
+        if self.video is None:
+            return ''
         return self.videos_list[self.video]['projection']
 
     @property
@@ -273,11 +285,13 @@ class Log(Factors):
         df_log_text.to_csv(filename, encoding='utf-8')
 
 
-class Utils(Factors):
+class Utils(GlobalPaths):
+    command_pool: list
+
     def state_str(self):
         s = ''
-        if self.vid_proj:
-            s += f'[{self.vid_proj}]'
+        if self.proj:
+            s += f'[{self.proj}]'
         if self.name:
             s += f'[{self.name}]'
         if self.tiling:
@@ -359,7 +373,7 @@ class SiTi:
     @staticmethod
     def _calc_si(frame: np.ndarray) -> (float, np.ndarray):
         """
-        Calcule Spatial Information for a video frame. Calculate both vectors and so the magnitude.
+        Calculate Spatial Information for a video frame. Calculate both vectors and so the magnitude.
         :param frame: A luma video frame in numpy ndarray format.
         :return: spatial information and sobel frame.
         """
@@ -371,11 +385,11 @@ class SiTi:
 
     def _calc_ti(self, frame: np.ndarray) -> (float, np.ndarray):
         """
-        Calcule Temporal Information for a video frame. If is a first frame,
+        Calculate Temporal Information for a video frame. If is a first frame,
         the information is zero.
         :param frame: A luma video frame in numpy ndarray format.
-        :return: Temporal information and diference frame. If first frame the
-        diference is zero array on same shape of frame.
+        :return: Temporal information and difference frame. If first frame the
+        difference is zero array on same shape of frame.
         """
         try:
             difference = frame - self.previous_frame
