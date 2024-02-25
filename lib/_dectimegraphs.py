@@ -14,7 +14,7 @@ from cycler import cycler
 from fitter import Fitter
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
-from .assets import AutoDict
+from .assets import AutoDict, Bcolors
 from .util import load_json, save_json, save_pickle, load_pickle
 
 
@@ -253,7 +253,7 @@ class ByPatternProps(DectimeGraphsPaths):
         """
         folder = self.workfolder / 'pdf_cdf'
         folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'pdf_{self.proj}_{self.metric}.png'
+        return folder / f'pdf_{self.proj}_{self.metric}_{self.quality_str}.png'
 
     @property
     def boxplot_file(self) -> Path:
@@ -292,8 +292,6 @@ class ByPatternProps(DectimeGraphsPaths):
                                                        tight_layout=True)
         return _fig_pdf
 
-    _fig_cdf = {}
-
     @property
     def fig_cdf(self) -> figure.Figure:
         key = (self.metric, self.proj)
@@ -308,6 +306,7 @@ class ByPatternProps(DectimeGraphsPaths):
         return _fig_cdf
 
     _fig_boxplot = {}
+    _fig_cdf = {}
 
     @property
     def fig_boxplot(self) -> figure.Figure:
@@ -322,6 +321,24 @@ class ByPatternProps(DectimeGraphsPaths):
                                                                linewidth=0.5,
                                                                tight_layout=True)
         return _fig_boxplot
+
+    def process(self, value):
+        # Process value according the metric
+        if self.metric == 'time':
+            new_value = float(np.round(np.average(value), decimals=3))
+        elif self.metric == 'time_std':
+            new_value = float(np.round(np.std(value), decimals=6))
+        elif self.metric == 'rate':
+            new_value = float(value)
+        else:
+            # if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
+            metric_value = value[self.metric]
+            new_value = metric_value
+            if float(new_value) == float('inf'):
+                new_value = 1000
+            else:
+                new_value = new_value
+        return new_value
 
 
 class ByPattern(ByPatternProps):
@@ -745,13 +762,10 @@ class ByPattern(ByPatternProps):
                 }[self.metric]
 
 
-class ByPatternByQualityProps(ByPatternProps):
-    metric_list = ['rate', 'time', 'time_std']
-    # metric_list = ['time', 'time_std', 'rate', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
-
+class ByPatternByQualityProps(ByPattern):
     @property
     def data_bucket_file(self) -> Path:
-        path = self.workfolder_data / f'data_bucket_{self.metric}_{self.proj}_{self.tiling}_{self.rate_control}{self.quality}.json'
+        path = self.workfolder_data / f'data_bucket_{self.metric}_{self.proj}_{self.tiling}_{self.quality_str}.json'
         return path
 
     @property
@@ -761,8 +775,62 @@ class ByPatternByQualityProps(ByPatternProps):
 
         :return:  Path(fitter_pickle_file)
         """
-        fitter_file = self.workfolder_data / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.rate_control}{self.quality}_{self.bins}bins.pickle'
+        fitter_file = self.workfolder_data / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.quality_str}_{self.bins}bins.pickle'
         return fitter_file
+
+    @property
+    def cdf_file(self) -> Path:
+        """
+        Need: proj, and metric
+        :return:
+        """
+        folder = self.workfolder / 'pdf_cdf'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f'cdf_{self.proj}_{self.metric}.png'
+
+    _fig_pdf = {}
+
+    @property
+    def fig_pdf(self) -> figure.Figure:
+        key = (self.metric, self.proj)
+        try:
+            _fig_pdf = self._fig_pdf[key]
+        except KeyError:
+            self._fig_pdf = {}
+            _fig_pdf = self._fig_pdf[key] = plt.figure(figsize=(15.0, 10),
+                                                       dpi=600,
+                                                       linewidth=0.5,
+                                                       tight_layout=True)
+        return _fig_pdf
+
+    @property
+    def fig_cdf(self) -> figure.Figure:
+        key = (self.metric, self.proj)
+        try:
+            _fig_cdf = self._fig_cdf[key]
+        except KeyError:
+            self._fig_cdf = {}
+            _fig_cdf = self._fig_cdf[key] = plt.figure(figsize=(15.0, 10),
+                                                       dpi=600,
+                                                       linewidth=0.5,
+                                                       tight_layout=True)
+        return _fig_cdf
+
+    _fig_boxplot = {}
+    _fig_cdf = {}
+
+    @property
+    def fig_boxplot(self) -> figure.Figure:
+        key = (self.metric, self.proj)
+        try:
+            _fig_boxplot = self._fig_boxplot[key]
+        except KeyError:
+            self._fig_boxplot = {}
+            _fig_boxplot = self._fig_boxplot[key] = plt.figure(figsize=(6.0, 2),
+                                                               dpi=600,
+                                                               linewidth=0.5,
+                                                               tight_layout=True)
+        return _fig_boxplot
 
 
 class ByPatternByQuality(ByPatternByQualityProps):
@@ -779,9 +847,9 @@ class ByPatternByQuality(ByPatternByQualityProps):
                     for self.quality in self.quality_list:
                         self.get_data_bucket()
                         self.make_fit()
-                        self.make_hist()  # compare tiling
-                        self.calc_stats()
-                        self.make_boxplot()
+                        # self.make_hist1()  # compare tiling
+                        # self.calc_stats()
+                        # self.make_boxplot()
 
         # self.calc_corr()
 
@@ -811,50 +879,32 @@ class ByPatternByQuality(ByPatternByQualityProps):
             bucket = []
 
             for self.name in self.name_list:
-                print(f'\r  {self.metric} {self.proj} {self.tiling} {self.name}. len = ', end='')
+                print(f'\r  {self.metric} {self.proj} {self.tiling} {self.rate_control}{self.quality} {self.name}. len = ', end='')
 
                 vid_data = load_json(self.json_metrics)
-                bucket = self.data_bucket[self.metric][self.proj][self.tiling]
+                bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
 
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        for self.chunk in self.chunk_list:
-                            chunk_data = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-                            chunk_data = process(chunk_data)
+                for self.tile in self.tile_list:
+                    for self.chunk in self.chunk_list:
+                        chunk_data = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+                        chunk_data = self.process(chunk_data)
 
-                            try:
-                                bucket.append(chunk_data)
-                            except AttributeError:
-                                bucket = self.data_bucket[self.metric][self.proj][self.tiling] = [chunk_data]
+                        try:
+                            bucket.append(chunk_data)
+                        except AttributeError:
+                            bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality] = [chunk_data]
 
                 print(len(bucket))
 
             if tiles_num[self.tiling] != len(bucket):
                 self.log(f'bucket size error', self.data_bucket_file)
+                print(f'{Bcolors.FAIL}\n    bucket size error')
 
             # remove_outliers(self.data_bucket)
 
             print(f'  Saving ... ', end='')
             save_json(self.data_bucket, self.data_bucket_file)
             print(f'  Finished.')
-
-        def process(value):
-            # Process value according the metric
-            if self.metric == 'time':
-                new_value = float(np.round(np.average(value), decimals=3))
-            elif self.metric == 'time_std':
-                new_value = float(np.round(np.std(value), decimals=6))
-            elif self.metric == 'rate':
-                new_value = float(value)
-            else:
-                # if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
-                metric_value = value[self.metric]
-                new_value = metric_value
-                if float(new_value) == float('inf'):
-                    new_value = 1000
-                else:
-                    new_value = new_value
-            return new_value
 
         def remove_outliers(data, resumenamecsv=None):
             # Fliers analysis data[self.proj][self.tiling][self.metric]
@@ -911,9 +961,9 @@ class ByPatternByQuality(ByPatternByQualityProps):
         except FileNotFoundError:
             pass
 
-        print(f'  Fitting - {self.metric} - {self.proj} - {self.tiling}... ', end='')
+        print(f'  Fitting - {self.metric} - {self.proj} - {self.tiling} - {self.quality_str}... ', end='')
 
-        samples = self.data_bucket[self.metric][self.proj][self.tiling]
+        samples = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
 
         # Make a fit
         self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
@@ -924,14 +974,16 @@ class ByPatternByQuality(ByPatternByQualityProps):
         save_pickle(self.fitter, self.fitter_pickle_file)
         print(f'  Finished.')
 
-    def make_hist(self):
+    def make_hist1(self):
         if self.pdf_file.exists(): return
 
-        print(f'    Make Histogram - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
+        print(f'    Make Histogram - {self.metric} {self.proj} {self.tiling}  {self.quality_str} - {self.bins} bins')
 
         self.fitter = load_pickle(self.fitter_pickle_file)
 
-        index = self.tiling_list.index(self.tiling) + 1
+        index1 = self.tiling_list.index(self.tiling)
+        index2 = self.quality_list.index(self.quality)
+        index = 6 * index1 + index2 + 1
 
         width = self.fitter.x[1] - self.fitter.x[0]
         cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
@@ -944,7 +996,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
 
         # <editor-fold desc="Make PDF">
         # Make bars of histogram
-        ax: axes.Axes = self.fig_pdf.add_subplot(1, 5, index)
+        ax: axes.Axes = self.fig_pdf.add_subplot(5, 6, index)
         ax.bar(self.fitter.x, self.fitter.y, label='empirical', color='#dbdbdb', width=width)
 
         # Make plot for n_dist distributions
@@ -955,7 +1007,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
 
         ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
         ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-        ax.set_title(f'{self.proj.upper()} - {self.tiling}')
+        ax.set_title(f'{self.proj.upper()} - {self.tiling} - {self.quality_str}')
         ax.set_xlabel(xlabel)
         ax.set_ylabel('Density' if index in [1] else None)
         ax.legend(loc='upper right')
@@ -964,7 +1016,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
 
         # <editor-fold desc="Make CDF">
         # Make bars of CDF
-        ax: axes.Axes = self.fig_cdf.add_subplot(1, 5, index)
+        ax: axes.Axes = self.fig_cdf.add_subplot(5, 6, index)
         ax.bar(self.fitter.x, cdf_bins_height, label='empirical', color='#dbdbdb', width=width)
 
         # make plot for n_dist distributions cdf
@@ -977,7 +1029,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
 
         ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
         ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-        ax.set_title(f'{self.proj.upper()}-{self.tiling}')
+        ax.set_title(f'{self.proj.upper()}-{self.tiling}-{self.quality_str}')
         ax.set_xlabel(xlabel)
         ax.set_ylabel('Cumulative' if index in [1] else None)
         ax.legend(loc='lower right')
@@ -1177,19 +1229,9 @@ class ByPatternByQuality(ByPatternByQualityProps):
                 print(f'  Saving the figure')
                 fig.savefig(img_file)
 
-    @property
-    def json_metrics(self):
-        return {'rate': self.bitrate_result_json,
-                'time': self.dectime_result_json,
-                'time_std': self.dectime_result_json,
-                # 'MSE': self.quality_result_json,
-                # 'WS-MSE': self.quality_result_json,
-                # 'S-MSE': self.quality_result_json
-                }[self.metric]
-
 
 DectimeGraphsOptions = {'0': ByPattern,
-                        '1': ByPattern,
+                        '1': ByPatternByQuality,
                         '2': ByPattern,
                         '3': ByPattern,
                         '4': ByPattern,
