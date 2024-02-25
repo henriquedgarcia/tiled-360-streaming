@@ -54,7 +54,7 @@ class DectimeGraphsPaths(TileDecodeBenchmarkPaths):
         Need None
         :return:
         """
-        path = self.workfolder_data / f'data_bucket_{self.metric}.json'
+        path = self.workfolder_data / f'data_bucket_{self.metric}_{self.proj}_{self.tiling}.json'
         return path
 
     @property
@@ -330,7 +330,7 @@ class ByPattern(ByPatternProps):
         print(f'\n====== Make hist - error_type={self.error_type}, n_dist={self.n_dist} ======')
 
         for self.metric in self.metric_list:
-            for self.proj in ['erp', 'cmp']:
+            for self.proj in self.proj_list:
                 for self.tiling in self.tiling_list:
                     # Get samples
                     self.get_data_bucket()
@@ -367,7 +367,7 @@ class ByPattern(ByPatternProps):
         # total - 1812534 chunks - 181/181 tiles por tiling
 
         try:
-            self.data_bucket = load_pickle(self.data_bucket_file)
+            self.data_bucket = load_json(self.data_bucket_file)
             return
         except FileNotFoundError:
             pass
@@ -376,37 +376,29 @@ class ByPattern(ByPatternProps):
             self.data_bucket = AutoDict()
 
             for self.name in self.name_list:
-                print(f'\r  {self.metric} {self.vid_proj} {self.tiling} {self.name}. len = ', end='')
-                vid_data = load_json(json_metrics(self.metric))[self.vid_proj]
-                bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling]
+                print(f'\r  {self.metric} {self.proj} {self.tiling} {self.name}. len = ', end='')
+
+                vid_data = load_json(self.json_metrics)
+                bucket = self.data_bucket[self.metric][self.proj][self.tiling]
 
                 for self.quality in self.quality_list:
                     for self.tile in self.tile_list:
                         for self.chunk in self.chunk_list:
-                            chunk_data = vid_data[self.name][self.tiling][self.quality][self.tile][self.chunk]
+                            chunk_data = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
                             chunk_data = process(chunk_data)
 
                             try:
                                 bucket.append(chunk_data)
                             except AttributeError:
-                                bucket = self.data_bucket[self.metric][self.vid_proj][self.tiling] = [chunk_data]
+                                bucket = self.data_bucket[self.metric][self.proj][self.tiling] = [chunk_data]
 
-                    print(len(bucket))
+                print(len(bucket))
 
             # remove_outliers(self.data_bucket)
 
             print(f'  Saving ... ', end='')
             save_json(self.data_bucket, self.data_bucket_file)
             print(f'  Finished.')
-
-        def json_metrics(metric):
-            return {'rate': self.bitrate_result_json,
-                    'time': self.dectime_result_json,
-                    'time_std': self.dectime_result_json,
-                    # 'MSE': self.quality_result_json,
-                    # 'WS-MSE': self.quality_result_json,
-                    # 'S-MSE': self.quality_result_json
-                    }[metric]
 
         def process(value):
             # Process value according the metric
@@ -727,6 +719,15 @@ class ByPattern(ByPatternProps):
                 print(f'  Saving the figure')
                 fig.savefig(img_file)
 
+    @property
+    def json_metrics(self):
+        return {'rate': self.bitrate_result_json,
+                'time': self.dectime_result_json,
+                'time_std': self.dectime_result_json,
+                # 'MSE': self.quality_result_json,
+                # 'WS-MSE': self.quality_result_json,
+                # 'S-MSE': self.quality_result_json
+                }[self.metric]
 
 DectimeGraphsOptions = {'0': ByPattern,
                         '1': ByPattern,
