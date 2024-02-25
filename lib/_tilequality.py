@@ -36,9 +36,9 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
 
     @property
     def quality_result_img(self) -> Path:
-        folder = self.project_path / self.quality_folder / '_metric plots'
+        folder = self.project_path / self.quality_folder / '_metric plots' / f'{self.video}'
         folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'{self.video}_{self.tiling}_crf{self.quality}.png'
+        return folder / f'{self.tiling}_crf{self.quality}.png'
 
 
 class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
@@ -139,6 +139,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
 
 class SegmentsQuality(SegmentsQualityProps):
+    _skip: bool
+
     def main(self):
         self.init()
         for _ in self.iterator():
@@ -325,56 +327,87 @@ class SegmentsQuality(SegmentsQualityProps):
 
 
 class CollectResults(SegmentsQualityProps):
+    """
+           The result dict have a following structure:
+        results[video_name][tile_pattern][quality][tile_id][chunk_id]
+                ['times'|'rate']
+        [video_proj]    : The video projection
+        [video_name]    : The video name
+        [tile_pattern]  : The tile tiling. e.g. "6x4"
+        [quality]       : Quality. An int like in crf or qp.
+        [tile_id]           : the tile number. ex. max = 6*4
+        [chunk_id]           : the chunk number. Start with 1.
+
+        'MSE': float
+        'SSIM': float
+        'WS-MSE': float
+        'S-MSE': float
+    """
+
+    chunk_quality_df: pd.DataFrame
     _skip: bool
+    change_flag: bool
 
     def main(self):
+        # self.get_tile_image()
         for self.video in self.videos_list:
-            self.get_chunk_value()
-            self.check()
-            # self.get_tile_image()
+            self.results = AutoDict()
+            self.change_flag = True
+            if self.skip1(): continue
 
-    def check(self):
-        for self.video in self.videos_list:
-            self.results = load_json(self.quality_result_json)
-            for _ in self.loop1():
-                print(self.state_str())
-                for metric in self.metric_list:
-                    chunk_results = self.chunk_results[metric]
-                    if 0 in chunk_results:
-                        self.log(f'ERROR {self.metric} == 0 FOUND', self.quality_result_json)
-                    if len(chunk_results) < 30:
-                        self.log(f'ERROR len(chunk_results) < 30', self.quality_result_json)
+            try:
+                for self.tiling in self.tiling_list:
+                    for self.quality in self.quality_list:
+                        for self.tile in self.tile_list:
+                            for self.chunk in self.chunk_list:
+                                self.work()
 
+                if self.change_flag:
+                    print('\nSaving.')
+                    save_json(self.results, self.quality_result_json)
+            except (FileNotFoundError, pd.errors.EmptyDataError):
+                pass
 
-    def get_chunk_value(self):
+    def skip1(self, check_result=False):
         if self.quality_result_json.exists():
-            print(Bcolors.FAIL + f'The file {self.quality_result_json} exist. Loading.' + Bcolors.ENDC)
-            return
-
-        self.results = AutoDict()
-
-        for _ in self.loop1():
-            self.work()
-
-        print('')
-        save_json(self.results, self.quality_result_json)
+            self.change_flag = False
+            print(Bcolors.FAIL + f'\n    The file {self.quality_result_json} exist.' + Bcolors.ENDC)
+            if check_result:
+                self.results = load_json(self.quality_result_json,
+                                         object_hook=AutoDict)
+                return False
+            return True
+        return False
 
     def work(self):
-        print(f'Processing {self.state_str()} ', end='')
+        print(f'\r{self.state_str()} ', end='')
 
         try:
-            chunk_quality_df = self.read_video_quality_csv()
-        except (FileNotFoundError, pd.errors.EmptyDataError):
-            return
+            self.read_video_quality_csv()
+        except (FileNotFoundError, pd.errors.EmptyDataError) as e:
+            self.log(f'video_quality_csv not found', self.video_quality_csv)
+            print(f'\n    video_quality_csv not found. Skipping')
+            raise e
 
         # https://ffmpeg.org/ffmpeg-filters.html#psnr
-        for metric in self.metric_list:
-            chunk_quality_list = chunk_quality_df[metric].tolist()
-            if 0 in chunk_quality_list:
-                self.log(f'ERROR {self.metric} == 0 FOUND', self.video_quality_csv)
-            self.chunk_results[metric] = chunk_quality_list
+        chunk_quality_df = self.chunk_quality_df[self.metric_list]
+        chunk_quality_dict = chunk_quality_df.to_dict(orient='list')
 
-        print('')
+        if self.chunk_results == chunk_quality_dict:
+            return
+        elif self.change_flag is False:
+            self.change_flag = True
+
+        self.chunk_results.update(chunk_quality_dict)
+
+        for metric in self.metric_list:
+            if 0 in self.chunk_results[metric]:
+                self.log(f'ERROR {self.metric} == 0 FOUND', self.video_quality_csv)
+                print(f'\n    {self.metric} == 0 FOUND. Continuing.')
+
+            if len(self.chunk_results[metric]) < 30:
+                self.log(f'ERROR len(chunk_results) < 30', self.quality_result_json)
+                print(f'\n    {self.metric} == len(chunk_results) < 30. Continuing.')
 
     def read_video_quality_csv(self):
         try:
@@ -394,7 +427,7 @@ class CollectResults(SegmentsQualityProps):
             self.log(f'MISSING_FRAMES', self.video_quality_csv)
             raise FileNotFoundError
 
-        return chunk_quality_df
+        self.chunk_quality_df = chunk_quality_df
 
     def loop1(self):
         for self.tiling in self.tiling_list:
@@ -403,43 +436,58 @@ class CollectResults(SegmentsQualityProps):
                     for self.chunk in self.chunk_list:
                         yield
 
-    def get_tile_image(self):
+    @property
+    def video(self):
+        return self._video
+
+    @video.setter
+    def video(self, value):
+        self._video = value
+        self._skip = False
+        self.results = AutoDict()
+
+    @property
+    def chunk_results(self):
+        results = self.results
+        for state in self.state:
+            results = results[state]
+        return results
+
+
+class MakePlot(SegmentsQualityProps):
+    chunk_quality_df: pd.DataFrame
+    _skip: bool
+    change_flag: bool
+
+    def main(self):
         for self.video in self.videos_list:
+            self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
-                    self.work2()
+                    self.get_tile_image()
 
-    def work2(self):
+    def get_tile_image(self):
         if self.quality_result_img.exists():
             print(Bcolors.FAIL + f'The file {self.quality_result_img} exist. Skipping.' + Bcolors.ENDC)
             return
 
         print(f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
 
-        fig, axes = plt.subplots(2, 4, figsize=(8, 5), dpi=200)
+        fig, axes = plt.subplots(2, 2, figsize=(8, 5), dpi=200)
         axes: list[plt.Axes] = list(np.ravel(axes))
         fig: plt.Figure
 
-        for self.tile in self.tile_list:
-            for i, metric in enumerate(self.metric_list):
-                try:
-                    result = self.get_result(metric)[:]
-                except TypeError:
-                    self.results = load_json(self.quality_result_json)
-                    result = self.get_result(metric)
-
+        for i, self.metric in enumerate(self.metric_list):
+            for self.tile in self.tile_list:
+                result = [np.average(self.chunk_results[self.metric]) for self.chunk in self.chunk_list]
                 axes[i].plot(result, label=f'{self.tile}')
-                axes[i].set_title(metric)
+            axes[i].set_title(self.metric)
 
-        fig.suptitle(f'[{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}][tile{self.tile}]')
+        fig.suptitle(f'{self.state_str()}')
         fig.tight_layout()
         # fig.show()
         fig.savefig(self.quality_result_img)
         plt.close()
-
-    def get_result(self, metric):
-        result = [self.results[chunk][metric] for chunk in self.chunk_list]
-        return result
 
     @property
     def video(self):
@@ -461,4 +509,5 @@ class CollectResults(SegmentsQualityProps):
 
 QualityAssessmentOptions = {'0': SegmentsQuality,
                             '1': CollectResults,
+                            '2': MakePlot,
                             }
