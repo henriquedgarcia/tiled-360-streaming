@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Union
+from math import prod
 
 import numpy as np
 import pandas as pd
@@ -69,7 +70,8 @@ class Factors:
     tile: str = None
     chunk: str = None
     proj: str = None
-    _name_list: list[str]
+    _name_list: list[str] = None
+    _proj_list: list[str] = None
     config: Config
     user: int
 
@@ -80,12 +82,17 @@ class Factors:
 
     @property
     def name_list(self) -> list[str]:
-        return list(set([video.replace('_cmp', '').replace('_erp', '') for video in self.videos_list]))
+        if self._name_list is None:
+            _name_list = set([video.replace('_cmp', '').replace('_erp', '') for video in self.videos_list])
+            self._name_list = list(_name_list)
+        return self._name_list
 
     @property
     def proj_list(self) -> list[str]:
-        projs = set([self.videos_list[video]['projection'] for video in self.videos_list])
-        return list(projs)
+        if self._proj_list is None:
+            _proj_set = set([self.videos_list[video]['projection'] for video in self.videos_list])
+            self._proj_list = list(_proj_set)
+        return self._proj_list
 
     @property
     def tiling_list(self) -> list[str]:
@@ -98,8 +105,9 @@ class Factors:
 
     @property
     def tile_list(self) -> list[str]:
-        tile_m, tile_n = map(int, self.tiling.split('x'))
-        return list(map(str, range(tile_n * tile_m)))
+        splitx(self.tiling)
+        n_tiles = prod(splitx(self.tiling))
+        return list(map(str, range(n_tiles)))
 
     @property
     def chunk_list(self) -> list[str]:
@@ -119,10 +127,9 @@ class Factors:
     @property
     def video(self) -> str:
         if self._video is None and self.name is not None:
-            video = self.name.replace('_nas', f'_{self.proj}_nas')
+            return self.name.replace('_nas', f'_{self.proj}_nas')
         else:
-            video = self._video
-        return video
+            return self._video
 
     @video.setter
     def video(self, value):
