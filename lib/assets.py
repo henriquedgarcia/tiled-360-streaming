@@ -125,6 +125,18 @@ class Factors:
         return self.videos_list[self.video]['group']
 
     @property
+    def quality_str(self) -> str:
+        return f'{self.rate_control}{self.quality}'
+
+    @property
+    def chunk_str(self) -> str:
+        return f'chunk{self.chunk}'
+
+    @property
+    def tile_str(self) -> str:
+        return f'tile{self.tile}'
+
+    @property
     def video(self) -> str:
         if self._video is None and self._name is not None:
             return self._name.replace('_nas', f'_{self.proj}_nas')
@@ -279,7 +291,7 @@ class Log(Factors):
 
     def save_log(self):
         cls_name = self.__class__.__name__
-        filename = f'log_{cls_name}_{datetime.datetime.now()}.csv'
+        filename = f'log/log_{cls_name}_{datetime.datetime.now()}.csv'
         filename = filename.replace(':', '-')
         df_log_text = pd.DataFrame(self.log_text)
         df_log_text.to_csv(filename, encoding='utf-8')
