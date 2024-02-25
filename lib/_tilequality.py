@@ -330,7 +330,21 @@ class CollectResults(SegmentsQualityProps):
     def main(self):
         for self.video in self.videos_list:
             self.get_chunk_value()
+            self.check()
             # self.get_tile_image()
+
+    def check(self):
+        for self.video in self.videos_list:
+            self.results = load_json(self.quality_result_json)
+            for _ in self.loop1():
+                print(self.state_str())
+                for metric in self.metric_list:
+                    chunk_results = self.chunk_results[metric]
+                    if 0 in chunk_results:
+                        self.log(f'ERROR {self.metric} == 0 FOUND', self.quality_result_json)
+                    if len(chunk_results) < 30:
+                        self.log(f'ERROR len(chunk_results) < 30', self.quality_result_json)
+
 
     def get_chunk_value(self):
         if self.quality_result_json.exists():
