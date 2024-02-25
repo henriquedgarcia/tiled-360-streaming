@@ -2,10 +2,10 @@ import datetime
 import json
 from collections import defaultdict
 from contextlib import contextmanager
+from math import prod
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Union
-from math import prod
 
 import numpy as np
 import pandas as pd
