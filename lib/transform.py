@@ -1,9 +1,9 @@
 from math import ceil
 from typing import Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 def ______basic_____(): ...
@@ -492,18 +492,14 @@ def teste_mn_face2mn_proj():
     plt.show()
 
 
-def teste_hcs2uv():
+def teste_cart2uv_cmp():
     ax: plt.Axes
     ax = plt.figure().add_subplot()
     lu, lv, lface = [], [], []
 
     for angle in range(0, 360):
-        elevation = np.deg2rad(angle)
-        elevation = 0
-        azimuth = 0
-        azimuth = np.deg2rad(angle)
-
-        u, v, face = hcs2uv_cmp(azimuth, elevation)
+        x, y, z = hcs2cart(angle, np.deg2rad(0.0))
+        u, v, face = cart2uv_cmp(x, y, z)
         lu.append(u)
         lv.append(v)
         lface.append(face)
