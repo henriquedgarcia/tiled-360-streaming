@@ -1,27 +1,18 @@
 from collections import defaultdict
-from itertools import combinations
 from logging import warning
-from operator import mul
 from pathlib import Path
 from typing import Any, Union
 
-import matplotlib as mpl
-import matplotlib.axes as axes
-import matplotlib.figure as figure
-import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
-import scipy.stats
-from cycler import cycler
-from fitter import Fitter
 from matplotlib import pyplot as plt
 
 from .assets import GlobalPaths, Config, Log, AutoDict, Bcolors, Utils, SiTi
-from .util import save_pickle, load_pickle, save_json, load_json, run_command, decode_file, get_times
 from .transform import splitx
+from .util import save_json, load_json, run_command, decode_file, get_times
 
 
-class TileDecodeBenchmarkPaths(GlobalPaths, Utils, Log):
+class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     # Folders
     original_folder = Path('original')
     lossless_folder = Path('lossless')
@@ -418,7 +409,7 @@ class Decode(TileDecodeBenchmarkPaths):
     def skip(self):
         self.turn = 0
         try:
-            content = self.dectime_log.read_text(encoding='utf-8').splitlines()
+            content = self.dectime_log.read_text(encoding='utf-8')
             times = get_times(content)
             self.turn = len(times)
             if self.turn < self.decoding_num:
@@ -459,8 +450,6 @@ class GetBitrate(TileDecodeBenchmarkPaths):
        [tile_id]           : the tile number. ex. max = 6*4
        [chunk_id]           : the chunk number. Start with 1.
 
-       'times': list(float, float, float)
-       'rate': float
     """
     turn: int
     _video: str
@@ -491,9 +480,10 @@ class GetBitrate(TileDecodeBenchmarkPaths):
                                              object_hook=AutoDict)
                 return False
             return True
+        return False
 
     def bitrate(self) -> Any:
-        print(f'\rBitrate [{self.vid_proj}][{self.video}][{self.tiling}][CRF{self.quality}][tile{self.tile}][chunk{self.chunk}]]', end='')
+        print(f'\r{self.state_str()} ', end='')
 
         try:
             chunk_size = self.segment_file.stat().st_size
@@ -506,15 +496,13 @@ class GetBitrate(TileDecodeBenchmarkPaths):
             return
 
         bitrate = 8 * chunk_size / self.chunk_dur
-
-        old_bitrate = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-        if bitrate == old_bitrate:
-            return
-
         value = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-        if self.change_flag is False and value != bitrate:
+
+        if value == bitrate:
+            return
+        elif not self.change_flag:
             self.change_flag = True
-        if not self.change_flag: self.change_flag = True
+
         self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
 
     @property
@@ -560,7 +548,7 @@ class GetDectime(TileDecodeBenchmarkPaths):
             if self.change_flag:
                 save_json(self.result_times, self.dectime_result_json)
 
-    def skip1(self, check_result=True):
+    def skip1(self, check_result=False):
         if self.dectime_result_json.exists():
             print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
 
@@ -583,7 +571,6 @@ class GetDectime(TileDecodeBenchmarkPaths):
         return False
 
     def check_time(self):
-
         if len(self.times) < self.decoding_num:
             print(f'\n{Bcolors.WARNING}    The dectime is lower than {self.decoding_num}: {Bcolors.ENDC}')
             self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(self.times)}', self.dectime_log)
@@ -593,7 +580,7 @@ class GetDectime(TileDecodeBenchmarkPaths):
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
 
     def get_dectime(self) -> Any:
-        print(f'{self.state_str()} = ', end='')
+        print(f'\r{self.state_str()} = ', end='')
         if self.skip2(): return
 
         content = self.dectime_log.read_text(encoding='utf-8')
