@@ -69,9 +69,9 @@ def run_command(command: str):
     return process.stdout
 
 
-def get_times(content):
+def get_times(content: str):
     times = []
-    for line in content:
+    for line in content.splitlines():
         if 'utime' in line:
             t = float(line.strip().split(' ')[1].split('=')[1][:-1])
             if t > 0:
