@@ -1,17 +1,23 @@
 import os
-from time import time
 from collections import defaultdict
 from logging import warning
 from pathlib import Path
+from time import time
 from typing import Any, Union
 
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from .assets import GlobalPaths, Config, Log, AutoDict, Bcolors, Utils, SiTi
+from .assets import GlobalPaths, Config, Log, AutoDict, Utils, SiTi, print_fail
 from .transform import splitx
 from .util import save_json, load_json, run_command, decode_file, get_times
+
+v = ['wingsuit_dubai_cmp_nas']
+t = ['9x6', '12x8']
+
+
+# v=['angel_falls_erp_nas', 'angel_falls_cmp_nas', 'blue_angels_cmp_nas', 'blue_angels_erp_nas', 'cable_cam_erp_nas', 'cable_cam_cmp_nas', 'chariot_race_cmp_nas', 'chariot_race_erp_nas', 'closet_tour_erp_nas', 'closet_tour_cmp_nas', 'drone_chases_car_erp_nas', 'drone_chases_car_cmp_nas', 'drone_footage_erp_nas', 'drone_footage_cmp_nas', 'drone_video_erp_nas', 'drone_video_cmp_nas', 'drop_tower_erp_nas', 'drop_tower_cmp_nas', 'dubstep_dance_erp_nas', 'dubstep_dance_cmp_nas', 'elevator_lift_erp_nas', 'elevator_lift_cmp_nas', 'glass_elevator_erp_nas', 'glass_elevator_cmp_nas', 'montana_erp_nas', 'montana_cmp_nas', 'motorsports_park_erp_nas', 'motorsports_park_cmp_nas', 'nyc_drive_erp_nas', 'nyc_drive_cmp_nas', 'pac_man_erp_nas', 'pac_man_cmp_nas', 'penthouse_erp_nas', 'penthouse_cmp_nas', 'petite_anse_erp_nas', 'petite_anse_cmp_nas', 'rhinos_erp_nas', 'rhinos_cmp_nas', 'sunset_erp_nas', 'sunset_cmp_nas', 'three_peaks_erp_nas', 'three_peaks_cmp_nas', 'video_04_erp_nas', 'video_04_cmp_nas', 'video_19_erp_nas', 'video_19_cmp_nas', 'video_20_erp_nas', 'video_20_cmp_nas', 'video_22_erp_nas', 'video_22_cmp_nas', 'video_23_erp_nas', 'video_23_cmp_nas', 'video_24_erp_nas', 'video_24_cmp_nas', 'wingsuit_dubai_erp_nas', 'wingsuit_dubai_cmp_nas']
 
 
 class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
@@ -270,13 +276,13 @@ class Compress(TileDecodeBenchmarkPaths):
 
         if 'encoded 1800 frames' not in compressed_log_text:
             self.log('compressed_log is corrupt', self.compressed_log)
-            print(f'{Bcolors.FAIL}The file {self.compressed_log} is corrupt. Skipping.{Bcolors.ENDC}')
+            print_fail(f'The file {self.compressed_log} is corrupt. Skipping.')
             self.clean_compress()
             return False
 
         if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
             self.log('CODEC ERROR', self.compressed_log)
-            print(f'{Bcolors.FAIL}The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.{Bcolors.ENDC}')
+            print_fail(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
             self.clean_compress()
             return False
 
@@ -284,12 +290,12 @@ class Compress(TileDecodeBenchmarkPaths):
         if decode:
             stdout = decode_file(self.compressed_file)
             if "frame= 1800" not in stdout:
-                print(f'{Bcolors.FAIL}Compress Decode Error. Cleaning.{Bcolors.ENDC}.')
+                print_fail(f'Compress Decode Error. Cleaning..')
                 self.log(f'Compress Decode Error.', self.compressed_file)
                 self.clean_compress()
                 return False
 
-        print(f'{Bcolors.FAIL}The file {self.compressed_file} is OK.{Bcolors.ENDC}')
+        print_fail(f'The file {self.compressed_file} is OK.')
         return True
 
     def clean_compress(self):
@@ -301,11 +307,10 @@ class Segment(TileDecodeBenchmarkPaths):
     def main(self):
         for self.video in self.videos_list:
             for self.tiling in self.tiling_list:
-                with self.multi() as _:
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-
-                            self.worker()
+                # with self.multi() as _:
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        self.worker()
 
     def worker(self) -> Any:
         if self.skip(): return
@@ -325,58 +330,63 @@ class Segment(TileDecodeBenchmarkPaths):
         self.command_pool.append(cmd)
         # run_command(cmd)
 
-    def skip(self, decode=False):
-        # first compressed file
-        if not self.compressed_file.exists():
-            self.log('compressed_file NOTFOUND.', self.compressed_file)
-            print(f'{Bcolors.FAIL}The file {self.compressed_file} not exist. Skipping.{Bcolors.ENDC}')
-            return True
+    segment_log_txt: str
 
-        # second check segment log
-        try:
-            segment_log = self.segment_log.read_text()
-        except FileNotFoundError:
-            self.clean_segments()
-            return False
-
-        if 'file 60 done' not in segment_log:
+    def check_segment_log(self, decode=False):
+        if 'file 60 done' not in self.segment_log_txt:
             # self.compressed_file.unlink(missing_ok=True)
             # self.compressed_log.unlink(missing_ok=True)
-            print(f'{Bcolors.FAIL}The file {self.segment_log} is corrupt. Processing.{Bcolors.ENDC}')
+            print_fail(f'The file {self.segment_log} is corrupt. Cleaning.')
             self.log('Segment_log is corrupt. Cleaning', self.segment_log)
-            self.clean_segments()
-            return False
+            raise FileNotFoundError
 
         # Se log está ok; verifique os segmentos.
         for self.chunk in self.chunk_list:
-            # Se segmento existe
             try:
                 segment_file_size = self.segment_file.stat().st_size
-            except FileNotFoundError:
-                # um segmento não existe e o Log diz que está ok. limpeza.
-                print(f'{Bcolors.FAIL}Segmentlog is OK. The file not exist. Cleaning.{Bcolors.ENDC}')
-                self.log(f'Segmentlog is OK. The file {self.segment_file} not exist.', self.segment_log)
-                self.clean_segments()
-                return False
+            except FileNotFoundError as e:
+                self.log(f'Segmentlog is OK, but segment not exist.', self.segment_log)
+                print_fail(f'Segmentlog is OK, but segment not exist. Cleaning.')
+                raise e
 
             if segment_file_size == 0:
                 # um segmento size 0 e o Log diz que está ok. limpeza.
-                print(f'{Bcolors.FAIL}Segmentlog is OK. The file SIZE 0. Cleaning.{Bcolors.ENDC}')
+                print_fail(f'Segmentlog is OK. The file SIZE 0. Cleaning.')
                 self.log(f'Segmentlog is OK. The file {self.segment_file} SIZE 0', self.segment_file)
-                self.clean_segments()
-                return False
+                raise FileNotFoundError
 
             # decodifique os segmentos
             if decode:
                 stdout = decode_file(self.segment_file)
 
                 if "frame=   30" not in stdout:
-                    print(f'{Bcolors.FAIL}Segment Decode Error. Cleaning.{Bcolors.ENDC}.')
+                    print_fail(f'Segment Decode Error. Cleaning..')
                     self.log(f'Segment Decode Error.', self.segment_file)
-                    self.clean_segments()
-                    return False
+                    raise FileNotFoundError
 
-        print(f'{Bcolors.FAIL}The {self.segment_log} IS OK. Skipping.{Bcolors.ENDC}')
+    def read_segment_log(self):
+        try:
+            self.segment_log_txt = self.segment_log.read_text()
+            self.check_segment_log()
+        except FileNotFoundError as e:
+            self.clean_segments()
+            raise e
+
+    def skip(self, decode=False):
+        # first compressed file
+        if not self.compressed_file.exists():
+            self.log('compressed_file NOTFOUND.', self.compressed_file)
+            print_fail(f'The file {self.compressed_file} not exist. Skipping.')
+            return True
+
+        # second check segment log
+        try:
+            self.read_segment_log()
+        except FileNotFoundError:
+            return False
+
+
+        print_fail(f'The {self.segment_log} IS OK. Skipping.')
         return True
 
     def clean_segments(self):
@@ -425,8 +435,7 @@ class Decode(TileDecodeBenchmarkPaths):
             if self.segment_file.exists():
                 return False
             else:
-                print(f'{Bcolors.WARNING} The segment not exist. '
-                      f'{Bcolors.ENDC}')
+                print_fail(f'The segment not exist. ')
                 self.log("segment_file not exist.", self.segment_file)
                 return True
 
@@ -465,6 +474,7 @@ class GetBitrate(TileDecodeBenchmarkPaths):
 
     def main(self):
         for self.video in self.videos_list:
+            if list(self.videos_list).index(self.video) < 0: continue
             self.result_rate = AutoDict()
             self.change_flag = True
             self.error = False
@@ -499,8 +509,7 @@ class GetBitrate(TileDecodeBenchmarkPaths):
         except FileNotFoundError:
             self.error = True
             self.log('BITRATE FILE NOT FOUND', self.dectime_log)
-            print(f'\n{Bcolors.FAIL}\n\tThe segment not exist. Skipping.'
-                  f'{Bcolors.ENDC}')
+            print_fail(f'\n\n\tThe segment not exist. Skipping.')
             return
 
         if self.check_result:
@@ -582,8 +591,7 @@ class GetDectime(TileDecodeBenchmarkPaths):
         except FileNotFoundError:
             self.error = True
             self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
-            print(f'\n{Bcolors.FAIL}\tThe dectime log not exist. Skipping.'
-                  f'{Bcolors.ENDC}')
+            print_fail(f'\n\tThe dectime log not exist. Skipping.')
             return
 
         if self.check_result:
@@ -614,11 +622,11 @@ class GetDectime(TileDecodeBenchmarkPaths):
         times = sorted(times)
 
         if len(times) < self.decoding_num:
-            print(f'\n{Bcolors.WARNING}    The dectime is lower than {self.decoding_num}: {Bcolors.ENDC}')
+            print_fail(f'\n    The dectime is lower than {self.decoding_num}: ')
             self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}', self.dectime_log)
 
         if 0 in times:
-            print(f'\n{Bcolors.WARNING}    0  found: {Bcolors.ENDC}')
+            print_fail(f'\n    0  found: ')
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
 
         return times
