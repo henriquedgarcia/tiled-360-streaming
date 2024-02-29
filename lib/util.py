@@ -2,7 +2,7 @@ import json
 import os
 import pickle
 from pathlib import Path
-from subprocess import run, STDOUT, PIPE
+from subprocess import run, STDOUT, PIPE, Popen
 from typing import Union
 
 import numpy as np
@@ -65,8 +65,15 @@ def decode_file(filename, threads=None):
 
 def run_command(command: str):
     print(command)
-    process = run(command, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    return process.stdout
+    os.system(command)
+    # process = run(command, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    # process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True, encoding='UTF-8')
+    # process.wait()
+    # while True:
+    #     line = process.stdout.readline()
+    #     line = line.replace(b'\r\x1b[0m\x1b[37m')
+    #     if not line: break
+    #     print(f'{line}')
 
 
 def get_times(content: str):
