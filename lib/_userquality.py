@@ -11,12 +11,11 @@ from PIL import Image
 from skvideo.io import FFmpegWriter, FFmpegReader
 
 import lib.video360 as vp
-from ._tilequality import SegmentsQualityPaths
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
-from .util import load_json, save_json
+from ._tilequality import SegmentsQualityPaths
+from .assets import Config, AutoDict, print_fail
 from .transform import cart2hcs, lin_interpol, idx2xy, splitx
-from .assets import Config, AutoDict
-
+from .util import load_json, save_json
 
 pi = np.pi
 pi2 = np.pi * 2
@@ -154,6 +153,7 @@ class ProcessNasrabadi(GetTilesPath):
 
 
 class GetTilesProps(GetTilesPath):
+    get_tiles_data: dict
     results: AutoDict
     _dataset: dict
 
@@ -202,10 +202,8 @@ class GetTiles(GetTilesProps):
     cmp_list: dict[str, vp.ProjBase]
     tiles_1x1: dict[str, dict[str, Union[vp.ProjBase], list, dict]]
 
-    def init(self, config):
-        self.print_resume()
+    def init(self):
         self.n_frames = 1800
-        self.config = Config(config)
         self.erp_list = {self.tiling: vp.ERP(self.tiling, '576x288', self.fov)
                          for self.tiling in self.tiling_list}
         self.cmp_list = {self.tiling: vp.CMP(self.tiling, '432x288', self.fov)
@@ -213,55 +211,67 @@ class GetTiles(GetTilesProps):
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
                           'chunks': {str(i): ["0"] for i in range(1, int(self.duration) + 1)}}
 
-    def __init__(self, config):
-        self.init(config)
+    error: bool
+
+    def main(self):
+        self.init()
 
         for self.video in self.videos_list:
             self.results = AutoDict()
-            self.worker()
+
+            for self.tiling in self.tiling_list:
+                for self.user in self.users_list:
+                    self.worker()
+
+            if self.change_flag and not self.error:
+                print('\n\tSaving.')
+                save_json(self.results, self.get_tiles_json)
 
             # self.count_tiles()
             # self.heatmap()
             # self.plot_test()
 
+    change_flag:bool
+    def skip(self, check_result=True):
+        if self.get_tiles_json.exists():
+            print_fail(f'\n    The file get_tiles_json exist.')
+            if check_result:
+                self.change_flag = False
+                self.get_tiles_data = load_json(self.get_tiles_json,
+                                           object_hook=AutoDict)
+            return
+
     def worker(self):
-        if self.get_tiles_json.exists(): return
+        print(f'{self.name} - tiling {self.tiling} - User {self.user}')
 
-        for self.tiling in self.tiling_list:
-            for self.user in self.users_list:
-                print(f'{self.name} - tiling {self.tiling} - User {self.user}')
+        if self.tiling == '1x1':
+            self.results[self.vid_proj][self.name][self.tiling][self.user] = self.tiles_1x1
+            # self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = [["0"]] * self.n_frames
+            # self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = {str(i): ["0"] for i in range(1, int(self.duration) + 1)}
+            return
 
-                if self.tiling == '1x1':
-                    self.results[self.vid_proj][self.name][self.tiling][self.user] = self.tiles_1x1
-                    # self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = [["0"]] * self.n_frames
-                    # self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = {str(i): ["0"] for i in range(1, int(self.duration) + 1)}
-                    continue
+        if self.vid_proj == 'erp':
+            self.projection = self.erp_list[self.tiling]
+        elif self.vid_proj == 'cmp':
+            self.projection = self.cmp_list[self.tiling]
 
-                if self.vid_proj == 'erp':
-                    self.projection = self.erp_list[self.tiling]
-                elif self.vid_proj == 'cmp':
-                    self.projection = self.cmp_list[self.tiling]
+        result_frames = []
+        result_chunks = {}
+        tiles_in_chunk = set()
 
-                result_frames = []
-                result_chunks = {}
-                tiles_in_chunk = set()
+        for frame, (yaw_pitch_roll) in enumerate(self.dataset[self.name][self.user]):
+            vptiles: list[str] = self.projection.get_vptiles(yaw_pitch_roll)
+            tiles_in_chunk.update(vptiles)
+            result_frames.append(vptiles)
 
-                for frame, (yaw_pitch_roll) in enumerate(self.dataset[self.name][self.user]):
-                    vptiles: list[str] = self.projection.get_vptiles(yaw_pitch_roll)
-                    tiles_in_chunk.update(vptiles)
-                    result_frames.append(vptiles)
+            if (frame + 1) % 30 == 0:
+                # vptiles by chunk start from 1 gpac defined
+                chunk = frame // 30 + 1
+                result_chunks[f'{chunk}'] = list(tiles_in_chunk)
+                tiles_in_chunk.clear()
 
-                    if (frame + 1) % 30 == 0:
-                        # vptiles by chunk start from 1 gpac defined
-                        chunk = frame // 30 + 1
-                        result_chunks[f'{chunk}'] = list(tiles_in_chunk)
-                        tiles_in_chunk.clear()
-
-                self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = result_frames
-                self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = result_chunks
-
-        print(f'Saving {self.get_tiles_json}')
-        save_json(self.results, self.get_tiles_json)
+        self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = result_frames
+        self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = result_chunks
 
     # def diferences(self):
     #     if not self.get_tiles_json.exists():
@@ -336,7 +346,7 @@ class GetTiles(GetTilesProps):
             tiling_result = results[self.tiling]
 
             h, w = splitx(self.tiling)[::-1]
-            grade = np.zeros((h*w,))
+            grade = np.zeros((h * w,))
 
             for item in tiling_result: grade[int(item)] = tiling_result[item]
             grade = grade.reshape((h, w))
@@ -528,12 +538,12 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                 # for self.tiling in ['6x4']:
                 for self.tiling in self.tiling_list:
                     for self.user in self.users_list:
-                        yield 
+                        yield
 
         for _ in loop_video_tiling_user():
             if img_name().exists(): continue
             print(f'\r{img_name()}', end='')
-            
+
             fig: plt.Figure
             ax: list[plt.Axes]
             fig, ax = plt.subplots(2, 4, figsize=(12, 5), dpi=200)
@@ -561,12 +571,15 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                         tile_metric_value = [seen_tiles_metric[self.metric][tile] for tile in tiles_list]
                         percentile = list(np.percentile(tile_metric_value, [0, 25, 50, 75, 100]))
                         try:
-                            result_by_quality[self.quality][f'{self.metric}_sum'].append(np.sum(tile_metric_value))         # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
+                            result_by_quality[self.quality][f'{self.metric}_sum'].append(
+                                np.sum(tile_metric_value))  # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
                         except AttributeError:
                             result_by_quality[self.quality] = defaultdict(list)
-                            result_by_quality[self.quality][f'{self.metric}_sum'].append(np.sum(tile_metric_value))         # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
+                            result_by_quality[self.quality][f'{self.metric}_sum'].append(
+                                np.sum(tile_metric_value))  # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
 
-                        result_by_quality[self.quality][f'{self.metric}_avg'].append(np.average(tile_metric_value))     # tempo médio de um chunk (com decodificação paralela) (média dos tempos de decodificação dos tiles)
+                        result_by_quality[self.quality][f'{self.metric}_avg'].append(
+                            np.average(tile_metric_value))  # tempo médio de um chunk (com decodificação paralela) (média dos tempos de decodificação dos tiles)
                         result_by_quality[self.quality][f'{self.metric}_std'].append(np.std(tile_metric_value))
                         result_by_quality[self.quality][f'{self.metric}_min'].append(percentile[0])
                         result_by_quality[self.quality][f'{self.metric}_q1'].append(percentile[1])
@@ -622,10 +635,10 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
             ax = list(ax.flat)
 
             for self.quality in self.quality_list:
-                result_lv2 = defaultdict(list)    # By chunk
+                result_lv2 = defaultdict(list)  # By chunk
 
                 for self.user in self.users_list:
-                    result_lv1 = defaultdict(list)    # By chunk
+                    result_lv1 = defaultdict(list)  # By chunk
 
                     for self.chunk in self.chunk_list:
                         seen_tiles_data = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
@@ -635,8 +648,10 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                         for self.metric in ['time', 'rate', 'PSNR', 'WS-PSNR', 'S-PSNR']:
                             value = [seen_tiles_data[self.metric][tile] for tile in tiles_list]
                             percentile = list(np.percentile(value, [0, 25, 50, 75, 100]))
-                            result_lv1[f'{self.metric}_sum'].append(np.sum(value))         # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
-                            result_lv1[f'{self.metric}_avg'].append(np.average(value))     # tempo médio de um chunk (com decodificação paralela) (média dos tempos de decodificação dos tiles)
+                            result_lv1[f'{self.metric}_sum'].append(
+                                np.sum(value))  # Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação dos tiles)
+                            result_lv1[f'{self.metric}_avg'].append(
+                                np.average(value))  # tempo médio de um chunk (com decodificação paralela) (média dos tempos de decodificação dos tiles)
                             result_lv1[f'{self.metric}_std'].append(np.std(value))
                             result_lv1[f'{self.metric}_min'].append(percentile[0])
                             result_lv1[f'{self.metric}_q1'].append(percentile[1])
@@ -645,12 +660,12 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                             result_lv1[f'{self.metric}_max'].append(percentile[4])
 
                     # each metrics represent the metrics by complete reprodution of the one vídeo with one tiling in one quality for one user
-                    result_lv2[f'time_total'].append(np.sum(result_lv1[f'time_sum']))         # tempo total sem decodificação paralela
-                    result_lv2[f'time_avg_sum'].append(np.average(result_lv1[f'time_sum']))   # tempo médio sem decodificação paralela
-                    result_lv2[f'time_total_avg'].append(np.sum(result_lv1[f'time_avg']))     # tempo total com decodificação paralela
-                    result_lv2[f'time_avg_avg'].append(np.average(result_lv1[f'time_avg']))   # tempo total com decodificação paralela
-                    result_lv2[f'rate_total'].append(np.sum(result_lv1[f'rate_sum']))         # taxa de bits sempre soma
-                    result_lv2[f'psnr_avg'].append(np.average(result_lv1[f'PSNR_avg']))       # qualidade sempre é média
+                    result_lv2[f'time_total'].append(np.sum(result_lv1[f'time_sum']))  # tempo total sem decodificação paralela
+                    result_lv2[f'time_avg_sum'].append(np.average(result_lv1[f'time_sum']))  # tempo médio sem decodificação paralela
+                    result_lv2[f'time_total_avg'].append(np.sum(result_lv1[f'time_avg']))  # tempo total com decodificação paralela
+                    result_lv2[f'time_avg_avg'].append(np.average(result_lv1[f'time_avg']))  # tempo total com decodificação paralela
+                    result_lv2[f'rate_total'].append(np.sum(result_lv1[f'rate_sum']))  # taxa de bits sempre soma
+                    result_lv2[f'psnr_avg'].append(np.average(result_lv1[f'PSNR_avg']))  # qualidade sempre é média
                     result_lv2[f'ws_psnr_avg'].append(np.average(result_lv1[f'WS-PSNR_avg']))
                     result_lv2[f's_psnr_avg'].append(np.average(result_lv1[f'S-PSNR_avg']))
                     result_lv2[f'n_tiles_avg'].append(np.average(result_lv1[f'n_tiles']))
@@ -917,6 +932,7 @@ class ViewportPSNR(ViewportPSNRProps):
         if self.tiling == '1x1': return
         # vheight, vwidth  = np.array([90, 110]) * 6
         width, height = 576, 288
+
         # yaw_pitch_roll_frames = self.dataset[self.name][self.user]
 
         def debug_img() -> Path:
@@ -1181,7 +1197,8 @@ class TestDataset(ViewportPSNRProps):
                         yaw_pitch_roll_frames = iter(users_data[user])
 
                         for self.chunk in self.chunk_list:
-                            get_tiles_val: list[int] = get_tiles_data[self.vid_proj][self.name][self.tiling][user]['chunks'][0][self.chunk]  # Foi um erro colocar isso na forma de lista. Remover o [0] um dia
+                            get_tiles_val: list[int] = get_tiles_data[self.vid_proj][self.name][self.tiling][user]['chunks'][0][
+                                self.chunk]  # Foi um erro colocar isso na forma de lista. Remover o [0] um dia
                             tiles_reader: dict[str, FFmpegReader] = {str(self.tile): FFmpegReader(f'{self.segment_file}').nextFrame() for self.tile in get_tiles_val}
                             img_proj = np.zeros((proj_h, proj_w, n_channels), dtype='uint8')
 
