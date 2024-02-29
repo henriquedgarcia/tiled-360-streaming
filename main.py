@@ -19,7 +19,7 @@ worker_list: dict[str, dict[str, Type]] = {
     # '5': ('Dashing', 'QualityAssessment'),
     # '6': ('QualityAssessment', 'QualityAssessment'),
     # '7': ('Siti', 'QualityAssessment'),
-    '8': lib.UserMetricsOptions,
+    # '8': lib.UserMetricsOptions,
 }
 
 
