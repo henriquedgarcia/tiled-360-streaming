@@ -1,3 +1,5 @@
+import os
+from time import time
 from collections import defaultdict
 from logging import warning
 from pathlib import Path
@@ -158,8 +160,10 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     def __init__(self, config: str):
         self.config = Config(config)
         self.print_resume()
+        start = time()
         with self.logger():
             self.main()
+        print(f"\n\tTotal time={time() - start}.")
 
     def main(self):
         ...
@@ -300,22 +304,23 @@ class Segment(TileDecodeBenchmarkPaths):
                 with self.multi() as _:
                     for self.quality in self.quality_list:
                         for self.tile in self.tile_list:
-                            if self.skip(): return
 
                             self.worker()
 
     def worker(self) -> Any:
+        if self.skip(): return
         print(f'==== Segment {self.compressed_file} ====')
         # todo: Alternative:
         # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
         # ime 1 -reset_timestamps 1 output%03d.mp4
-
-        cmd = f'bash -k -c '
-        cmd += '"bin/MP4Box '
+        cmd = 'bin/MP4Box '
         cmd += '-split 1 '
         cmd += f'{self.compressed_file.as_posix()} '
         cmd += f"-out {self.segments_folder.as_posix()}/tile{self.tile}_'$'num%03d$.mp4"
-        cmd += f'|& tee {self.segment_log.as_posix()}"'
+        cmd += f'|& tee {self.segment_log.as_posix()}'
+
+        if os.name == 'nt':
+            cmd = f'bash -c "{cmd}"'
 
         self.command_pool.append(cmd)
         # run_command(cmd)
@@ -454,12 +459,15 @@ class GetBitrate(TileDecodeBenchmarkPaths):
     turn: int
     _video: str
     result_rate: AutoDict
+    error: bool
     change_flag: bool
+    check_result = True
 
     def main(self):
         for self.video in self.videos_list:
             self.result_rate = AutoDict()
             self.change_flag = True
+            self.error = False
             if self.skip1(): continue
 
             for self.tiling in self.tiling_list:
@@ -468,14 +476,15 @@ class GetBitrate(TileDecodeBenchmarkPaths):
                         for self.chunk in self.chunk_list:
                             self.bitrate()
 
-            if self.change_flag:
+            if self.change_flag and not self.error:
+                print('Saving.')
                 save_json(self.result_rate, self.bitrate_result_json)
 
-    def skip1(self, check_result=True):
+    def skip1(self, ):
         if self.bitrate_result_json.exists():
-            self.change_flag = False
-            print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
-            if check_result:
+            print(f'\n[{self.vid_proj}][{self.video}] - The bitrate_result_json exist.')
+            if self.check_result:
+                self.change_flag = False
                 self.result_rate = load_json(self.bitrate_result_json,
                                              object_hook=AutoDict)
                 return False
@@ -483,27 +492,38 @@ class GetBitrate(TileDecodeBenchmarkPaths):
         return False
 
     def bitrate(self) -> Any:
-        print(f'\r{self.state_str()} ', end='')
+        print(f'\r{self.state_str()}: ', end='')
 
         try:
-            chunk_size = self.segment_file.stat().st_size
+            bitrate = self.get_bitrate()
         except FileNotFoundError:
-            self.log('SEGMENT_FILE_NOT_FOUND', self.segment_file)
+            self.error = True
+            self.log('BITRATE FILE NOT FOUND', self.dectime_log)
+            print(f'\n{Bcolors.FAIL}\n\tThe segment not exist. Skipping.'
+                  f'{Bcolors.ENDC}')
             return
+
+        if self.check_result:
+            old_value = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            if old_value == bitrate:
+                return
+            elif not self.change_flag:
+                self.change_flag = True
+
+        self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
+        print(f'{self.bitrate}', end='')
+
+    def get_bitrate(self):
+        chunk_size = self.segment_file.stat().st_size
 
         if chunk_size == 0:
             self.log('BITRATE==0', self.segment_file)
-            return
+            self.segment_file.unlink()
+            raise FileNotFoundError
 
         bitrate = 8 * chunk_size / self.chunk_dur
-        value = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
 
-        if value == bitrate:
-            return
-        elif not self.change_flag:
-            self.change_flag = True
-
-        self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
+        return bitrate
 
     @property
     def quality_list(self) -> list[str]:
@@ -533,70 +553,80 @@ class GetDectime(TileDecodeBenchmarkPaths):
     """
     result_times: AutoDict
     change_flag: bool
-    times: list
+    check_result = True
+    error: bool
 
     def main(self):
         for self.video in self.videos_list:
+            if list(self.videos_list).index(self.video) < 38: continue
+            self.result_times = AutoDict()
+            self.change_flag = True
+            self.error = False
             if self.skip1(): continue
 
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     for self.tile in self.tile_list:
                         for self.chunk in self.chunk_list:
-                            self.get_dectime()
+                            self.dectime()
 
-            if self.change_flag:
+            if self.change_flag and not self.error:
+                print('Saving.')
                 save_json(self.result_times, self.dectime_result_json)
 
-    def skip1(self, check_result=False):
-        if self.dectime_result_json.exists():
-            print(f'\n[{self.vid_proj}][{self.video}] - The result_json exist.')
+    def dectime(self) -> Any:
+        print(f'\r{self.state_str()} = ', end='')
 
-            if check_result:
+        try:
+            times = self.get_dectime()
+        except FileNotFoundError:
+            self.error = True
+            self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
+            print(f'\n{Bcolors.FAIL}\tThe dectime log not exist. Skipping.'
+                  f'{Bcolors.ENDC}')
+            return
+
+        if self.check_result:
+            old_value = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            if old_value == times:
+                return
+            elif not self.change_flag:
+                self.change_flag = True
+
+        self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
+        print(f'{times}', end='')
+
+    def skip1(self):
+        if self.dectime_result_json.exists():
+            print(f'\n[{self.vid_proj}][{self.video}] - The dectime_result_json exist.')
+            if self.check_result:
                 self.change_flag = False
                 self.result_times = load_json(self.dectime_result_json,
                                               object_hook=AutoDict)
                 return False
-
-            return True
-        else:
-            return False
-
-    def skip2(self):
-        if not self.dectime_log.exists():
-            print(f'\n{Bcolors.FAIL}    The dectime log not exist. Skipping.'
-                  f'{Bcolors.ENDC}')
-            self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
             return True
         return False
 
-    def check_time(self):
-        if len(self.times) < self.decoding_num:
-            print(f'\n{Bcolors.WARNING}    The dectime is lower than {self.decoding_num}: {Bcolors.ENDC}')
-            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(self.times)}', self.dectime_log)
+    def get_dectime(self) -> Any:
+        content = self.dectime_log.read_text(encoding='utf-8')
+        times = get_times(content)
+        times = times[-self.decoding_num:]
+        times = sorted(times)
 
-        if 0 in self.times:
+        if len(times) < self.decoding_num:
+            print(f'\n{Bcolors.WARNING}    The dectime is lower than {self.decoding_num}: {Bcolors.ENDC}')
+            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}', self.dectime_log)
+
+        if 0 in times:
             print(f'\n{Bcolors.WARNING}    0  found: {Bcolors.ENDC}')
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
 
-    def get_dectime(self) -> Any:
-        print(f'\r{self.state_str()} = ', end='')
-        if self.skip2(): return
+        return times
 
-        content = self.dectime_log.read_text(encoding='utf-8')
-
-        self.times = get_times(content)
-        self.times = self.times[-self.decoding_num:]
-        self.times = sorted(self.times)
-        self.check_time()
-
-        result_times = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-
-        if self.change_flag is False and result_times != self.times:
-            self.change_flag = True
-
-        self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = self.times
-        print(f'{self.times}', end='')
+    def skip2(self):
+        if not self.dectime_log.exists():
+            return True
+        return False
 
     @property
     def video(self):
@@ -605,8 +635,6 @@ class GetDectime(TileDecodeBenchmarkPaths):
     @video.setter
     def video(self, value):
         self._video = value
-        self.result_times = AutoDict()
-        self.change_flag = True
 
     @property
     def quality_list(self) -> list[str]:
