@@ -3,7 +3,6 @@ import json
 from collections import defaultdict
 from contextlib import contextmanager
 from math import prod
-from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Union
 
@@ -22,15 +21,37 @@ class AutoDict(dict):
 
 
 class Bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+    CYAN = '\033[96m'
+    PINK = '\033[95m'
+    BLUE = '\033[94m'
+    YELLOW = '\033[93m'
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    GRAY = '\033[90m'
+
+    BG_GRAY = '\033[47m'
+    BG_CYAN = '\033[46m'
+    BG_PINK = '\033[45m'
+    BG_BLUE = '\033[44m'
+    BG_YELLOW = '\033[43m'
+    BG_GREEN = '\033[42m'
+    BG_RED = '\033[41m'
+    BG_BLACK = '\033[40m'
+
+    INVERT = '\033[6m'
+    BLINK = '\033[5m'
     UNDERLINE = '\033[4m'
+    ITALIC = '\033[3m'
+    WEAK = '\033[2m'
+    BOLD = '\033[1m'
+
+    CLEAR = '\033[A'
+
+    ENDC = '\033[0m'
+
+
+def print_fail(msg: str):
+    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}')
 
 
 class Config:
@@ -121,10 +142,6 @@ class Factors:
 
     # <editor-fold desc="Video Property">
     @property
-    def group(self) -> str:
-        return self.videos_list[self.video]['group']
-
-    @property
     def quality_str(self) -> str:
         return f'{self.rate_control}{self.quality}'
 
@@ -137,11 +154,14 @@ class Factors:
         return f'tile{self.tile}'
 
     @property
+    def group(self) -> str:
+        return self.videos_list[self.video]['group']
+
+    @property
     def video(self) -> str:
-        if self._video is None and self._name is not None:
+        if self._video is None and self._name is not None and self.proj is not None:
             return self._name.replace('_nas', f'_{self.proj}_nas')
-        else:
-            return self._video
+        return self._video
 
     @video.setter
     def video(self, value):
@@ -150,10 +170,8 @@ class Factors:
     @property
     def name(self) -> str:
         if self._name is None and self._video is not None:
-            name = self._video.replace('_cmp', '').replace('_erp', '')
-        else:
-            name = self._name
-        return name
+            return self._video.replace('_cmp', '').replace('_erp', '')
+        return self._name
 
     @name.setter
     def name(self, value):
@@ -162,7 +180,7 @@ class Factors:
     @property
     def proj(self) -> str:
         if self._proj is None:
-            self._proj = self.vid_proj
+            return self.vid_proj
         return self._proj
 
     @proj.setter
@@ -174,6 +192,11 @@ class Factors:
         if self.video is None:
             return ''
         return self.videos_list[self.video]['projection']
+
+    @property
+    def scale(self) -> str:
+
+        return self.videos_list[self.video]['scale']
 
     @property
     def resolution(self) -> str:
@@ -351,10 +374,10 @@ class Utils(GlobalPaths):
         self.command_pool = []
         try:
             yield
-            with Pool(5) as p:
-                p.map(run_command, self.command_pool)
-            # for command in self.command_pool:
-            #     self.run_command(command)
+            # with Pool(5) as p:
+            #     p.map(run_command, self.command_pool)
+            for command in self.command_pool:
+                run_command(command)
         finally:
             pass
 
