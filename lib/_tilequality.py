@@ -9,8 +9,8 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
-from .assets import Bcolors, Log, AutoDict
-from .transform import hcs2erp, hcs2cmp
+from .assets import Log, AutoDict, print_fail
+from .transform import hcs2erp, hcs2cmp, splitx
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame
 
 
@@ -42,18 +42,19 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
 
 
 class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
+    tile_position: dict
+    change_flag: bool
+    error: bool
+    chunk_quality_df: pd.DataFrame
     sph_points_mask: np.ndarray
     weight_ndarray: Union[np.ndarray, object]
-    mask: np.ndarray
+    tile_mask: np.ndarray
     chunk_quality: dict[str, list]
     results: AutoDict
     old_tile: str
     results_dataframe: pd.DataFrame
     method = dict[str, Callable]
     original_quality = '0'
-    log_text: dict
-    _video = None
-    _tiling: str = None
     metric_list = ['MSE', 'SSIM', 'WS-MSE', 'S-MSE']
 
     def init(self):
@@ -61,24 +62,30 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         self.weight_ndarray = np.zeros(0)
         self.old_tile = ''
 
-    def _prepare_weight_ndarray(self):
-        height, width = self.video_shape[:2]
-        weight_ndarray_file = Path(
-            f'datasets/weight_ndarray_{self.vid_proj}_{width}x{height}.pickle')
+    def load_weight_ndarray(self):
+        weight_ndarray_file = Path(f'datasets/'
+                                   f'weight_ndarray'
+                                   f'_{self.vid_proj}'
+                                   f'_{self.resolution}'
+                                   f'.pickle')
 
         try:
-            weight_ndarray = load_pickle(weight_ndarray_file)
-            self.weight_ndarray = weight_ndarray
+            self.weight_ndarray = load_pickle(weight_ndarray_file)
             return
         except FileNotFoundError:
-            pass
+            self.make_weight_ndarray()
+            save_pickle(self.weight_ndarray, weight_ndarray_file)
 
-        r = height / 4
+    def make_weight_ndarray(self):
+        height, width = self.video_shape[:2]
 
         if self.vid_proj == 'erp':
             def func(y, x):
                 return np.cos((y + 0.5 - height / 2) * np.pi / height)
+
         elif self.vid_proj == 'cmp':
+            r = height / 4
+
             def func(y, x):
                 x = x % (height / 2)
                 y = y % (height / 2)
@@ -88,45 +95,101 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             raise ValueError(f'Wrong self.vid_proj. Value == {self.vid_proj}')
 
         self.weight_ndarray = np.fromfunction(func, (height, width), dtype='float')
-        save_pickle(self.weight_ndarray, weight_ndarray_file)
 
-    def load_sph_file(self, shape: tuple[int, int] = None):
+    def load_sph_file(self):
         """
         Load 655362 sample points (elevation, azimuth). Angles in degree.
 
-        :param shape:
         :return:
         """
-        sph_points_mask_file = Path(
-            f'datasets/sph_points_{self.vid_proj}_{"x".join(map(str, shape[::-1]))}_mask.pickle')
-        # sph_points_mask_file = Path(f'config/sph_points_erp_4320x2160_mask.pickle')
+
+        sph_points_mask_file = Path(f'datasets/'
+                                    f'sph_points'
+                                    f'_{self.vid_proj}'
+                                    f'_{self.resolution}_mask'
+                                    f'.pickle')
+
         try:
             self.sph_points_mask = load_pickle(sph_points_mask_file)
             return
         except FileNotFoundError:
-            pass
+            self.process_sphere_file()
+            save_pickle(self.sph_points_mask, sph_points_mask_file)
 
-        shape = self.video_shape[:2] if shape is None else shape
-        sph_points_mask = np.zeros(shape)
-
+    def process_sphere_file(self):
+        self.sph_points_mask = np.zeros(self.video_shape)
         sph_file = Path('datasets/sphere_655362.txt')
-        iter_file = sph_file.read_text().splitlines()[1:]
+        sph_file_lines = sph_file.read_text().splitlines()[1:]
         # for each line (sample), convert to cartesian system and horizontal system
-        for line in iter_file:
+        for line in sph_file_lines:
             el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
 
             if self.vid_proj == 'erp':
-                # convert to erp image coordinate
-                m, n = hcs2erp(az, el, shape)
+                m, n = hcs2erp(az, el, self.video_shape)
             elif self.vid_proj == 'cmp':
-                m, n, face = hcs2cmp(az, el, shape)
+                m, n, face = hcs2cmp(az, el, self.video_shape)
             else:
-                raise ValueError(f'wrong value to self.vid_proj == {self.vid_proj}')
+                raise ValueError(f'wrong value to {self.vid_proj=}')
 
-            sph_points_mask[n, m] = 1
+            self.sph_points_mask[n, m] = 1
 
-        save_pickle(sph_points_mask, sph_points_mask_file)
-        self.sph_points_mask = sph_points_mask
+    def read_video_quality_csv(self):
+        try:
+            self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
+        except FileNotFoundError as e:
+            print(f'CSV_NOTFOUND_ERROR')
+            self.log('CSV_NOTFOUND_ERROR', self.video_quality_csv)
+            raise e
+        except pd.errors.EmptyDataError as e:
+            self.video_quality_csv.unlink(missing_ok=True)
+            print(f'CSV_EMPTY_DATA_ERROR')
+            self.log('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
+            raise e
+
+        self.check_video_quality_csv()
+
+    def update_tile_position(self):
+        self.tile_position = {}
+        for self.tile in self.tile_list:
+            proj_h, proj_w = self.video_shape[:2]
+
+            tiling_m, tiling_n = splitx(self.tiling)
+            tile_w, tile_h = int(proj_w / tiling_m), int(proj_h / tiling_n)
+            tile_x, tile_y = int(self.tile) % tiling_m, int(self.tile) // tiling_m
+            x1, x2 = tile_x * tile_w, tile_x * tile_w + tile_w  # not inclusive
+            y1, y2 = tile_y * tile_h, tile_y * tile_h + tile_h  # not inclusive
+            self.tile_position[self.tile] = [x1, y1, x2, y2]
+
+    def check_video_quality_csv(self):
+        if len(self.chunk_quality_df['frame']) != int(self.gop):
+            self.video_quality_csv.unlink(missing_ok=True)
+            print(f'MISSING_FRAMES')
+            self.log(f'MISSING_FRAMES', self.video_quality_csv)
+            raise FileNotFoundError
+
+        perfect = True
+        if 1 in self.chunk_quality_df['SSIM'].to_list():
+            self.log(f'CSV SSIM has 0.', self.segment_file)
+            print_fail(f'\nCSV SSIM has 0.')
+            perfect = False
+
+        if 0 in self.chunk_quality_df['MSE'].to_list():
+            self.log('CSV MSE has 0.', self.segment_file)
+            print_fail(f'\nCSV MSE has 0.')
+            perfect = False
+
+        if 0 in self.chunk_quality_df['WS-MSE'].to_list():
+            self.log('CSV WS-MSE has 0.', self.segment_file)
+            print_fail(f'\nCSV WS-MSE has 0.')
+            perfect = False
+
+        if 0 in self.chunk_quality_df['S-MSE'].to_list():
+            self.log('CSV S-MSE has 0.', self.segment_file)
+            print_fail(f'\nCSV S-MSE has 0.')
+            perfect = False
+
+        if perfect:
+            print(f'CSV OK.', end='')
 
     @property
     def quality_list(self) -> list[str]:
@@ -139,66 +202,71 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
 
 class SegmentsQuality(SegmentsQualityProps):
-    _skip: bool
 
     def main(self):
-        self.init()
         for _ in self.iterator():
-            if self.skip(): continue
-            self.all()
+            self.work()
 
-    def all(self):
-        print(f'{self.state_str()}')
+    def work(self):
+        print(f'\r{self.state_str()}: ', end='')
+
+        if self.skip(): return
+        return
         chunk_quality = defaultdict(list)
         start = time()
-
         iter_reference_segment = iter_frame(self.reference_segment)
         iter_segment = iter_frame(self.segment_file)
         zip_frames = zip(iter_reference_segment, iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r{frame=}', end='')
+            print(f'\r\t{frame=}', end='')
             chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
             chunk_quality['MSE'].append(self._mse(frame1, frame2))
             chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
             chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
+
         pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\n\ttime={time() - start}.")
 
     def skip(self):
+        skip = False
         if not self.segment_file.exists():
             self.log('segment_file NOTFOUND', self.segment_file)
-            return True
+            print_fail(f'segment_file NOTFOUND')
+            skip = True
 
         if not self.reference_segment.exists():
             self.log('reference_segment NOTFOUND', self.reference_segment)
-            return True
+            print_fail(f'reference_segment NOTFOUND')
+            skip = True
 
         try:
-            if self.check_video_quality_csv(): return True
-        except FileNotFoundError:
-            pass
+            self.read_video_quality_csv()
+        except (FileNotFoundError, pd.errors.EmptyDataError):
+            self.error = True
+            print('')
+            return skip
 
-        return False
-
-    def check_video_quality_csv(self):
-        chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
-
-        if len(chunk_quality_df['frame']) == 30:
-            print(f'[{self.vid_proj}][{self.video}][{self.tiling}]'
-                  f'[crf{self.quality}][tile{self.tile}][chunk{self.chunk}]]'
-                  f' - EXIST', end='\r')
-            return True
-        else:
-            self.log('video_quality_csv SMALL. Cleaning.', self.segment_file)
-            self.video_quality_csv.unlink(missing_ok=True)
-        return False
+        return True
 
     def iterator(self):
+        self.init()
         for self.video in self.videos_list:
+            self.results = AutoDict()
+            shape = self.video_shape[:2]
+            if self.weight_ndarray.shape != shape:  # suppose that changed projection, the resolution is changed too.
+                self.load_weight_ndarray()
+            if self.sph_points_mask.shape != shape:  # suppose that change the projection
+                self.load_sph_file()
+
             for self.tiling in self.tiling_list:
+                self.update_tile_position()
+
                 for self.quality in self.quality_list:
                     for self.tile in self.tile_list:
+                        x1, y1, x2, y2 = self.tile_position[self.tile]
+                        self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
+
                         for self.chunk in self.chunk_list:
                             yield
 
@@ -251,24 +319,24 @@ class SegmentsQuality(SegmentsQualityProps):
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
         return wmse
 
-    def _smse_nn(self, im_ref: np.ndarray, im_deg: np.ndarray):
+    def _smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
         resolution.
 
-        :param im_ref: The original image
-        :param im_deg: The image degraded
+        :param tile_ref: The original image
+        :param tile_deg: The image degraded
         :return:
         """
         if self.tile != self.old_tile or self.tile == '0':
             x1, y1, x2, y2 = self.tile_position[self.tile]
-            self.mask = self.sph_points_mask[y1:y2, x1:x2]
+            self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
             self.old_tile = self.tile
 
-        im_ref_m = im_ref * self.mask
-        im_deg_m = im_deg * self.mask
+        tile_ref_m = tile_ref * self.tile_mask
+        tile_deg_m = tile_deg * self.tile_mask
 
-        sqr_dif = (im_ref_m - im_deg_m) ** 2
+        sqr_dif = (tile_ref_m - tile_deg_m) ** 2
 
         smse_nn = sqr_dif.sum() / 655362
         return smse_nn
@@ -293,38 +361,6 @@ class SegmentsQuality(SegmentsQualityProps):
                 break
         return psnr
 
-    @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-        self._skip = False
-        self.results = AutoDict()
-        shape = self.video_shape[:2]
-        if self.weight_ndarray.shape != shape:  # suppose that changed projection, the resolution is changed too.
-            self._prepare_weight_ndarray()
-        if self.sph_points_mask.shape != shape:  # suppose that change the projection
-            self.load_sph_file(shape)
-
-    @property
-    def tiling(self) -> str:
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value: str):
-        self._tiling = value
-        self.tile_position = {}
-        for self.tile in self.tile_list:
-            ph, pw = self.video_shape[:2]
-            tiling_m, tiling_n = tuple(map(int, self.tiling.split('x')))
-            tw, th = int(pw / tiling_m), int(ph / tiling_n)
-            tile_x, tile_y = int(self.tile) % tiling_m, int(self.tile) // tiling_m
-            x1, x2 = tile_x * tw, tile_x * tw + tw  # not inclusive
-            y1, y2 = tile_y * th, tile_y * th + th  # not inclusive
-            self.tile_position[self.tile] = [x1, y1, x2, y2]
-
 
 class CollectResults(SegmentsQualityProps):
     """
@@ -344,40 +380,24 @@ class CollectResults(SegmentsQualityProps):
         'S-MSE': float
     """
 
-    chunk_quality_df: pd.DataFrame
-    _skip: bool
-    change_flag: bool
-
     def main(self):
         # self.get_tile_image()
         for self.video in self.videos_list:
-            self.results = AutoDict()
-            self.change_flag = True
+            # if list(self.videos_list).index(self.video) < 3: continue
+            print(f'\n{self.video}')
+
             if self.skip1(): continue
+            self.error = False
 
-            try:
-                for self.tiling in self.tiling_list:
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-                            for self.chunk in self.chunk_list:
-                                self.work()
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            self.work()
 
-                if self.change_flag:
-                    print('\nSaving.')
-                    save_json(self.results, self.quality_result_json)
-            except (FileNotFoundError, pd.errors.EmptyDataError):
-                pass
-
-    def skip1(self, check_result=False):
-        if self.quality_result_json.exists():
-            self.change_flag = False
-            print(Bcolors.FAIL + f'\n    The file {self.quality_result_json} exist.' + Bcolors.ENDC)
-            if check_result:
-                self.results = load_json(self.quality_result_json,
-                                         object_hook=AutoDict)
-                return False
-            return True
-        return False
+            if self.change_flag and not self.error:
+                print('\nSaving.')
+                save_json(self.results, self.quality_result_json)
 
     def work(self):
         print(f'\r{self.state_str()} ', end='')
@@ -385,9 +405,8 @@ class CollectResults(SegmentsQualityProps):
         try:
             self.read_video_quality_csv()
         except (FileNotFoundError, pd.errors.EmptyDataError) as e:
-            self.log(f'video_quality_csv not found', self.video_quality_csv)
-            print(f'\n    video_quality_csv not found. Skipping')
-            raise e
+            self.error = True
+            return
 
         # https://ffmpeg.org/ffmpeg-filters.html#psnr
         chunk_quality_df = self.chunk_quality_df[self.metric_list]
@@ -396,38 +415,25 @@ class CollectResults(SegmentsQualityProps):
         if self.chunk_results == chunk_quality_dict:
             return
         elif self.change_flag is False:
+            print(f'CSV_UPDATE')
+            # self.log('CSV_UPDATE', self.video_quality_csv)
             self.change_flag = True
 
         self.chunk_results.update(chunk_quality_dict)
 
-        for metric in self.metric_list:
-            if 0 in self.chunk_results[metric]:
-                self.log(f'ERROR {self.metric} == 0 FOUND', self.video_quality_csv)
-                print(f'\n    {self.metric} == 0 FOUND. Continuing.')
+    def skip1(self, check_result=True):
+        if self.quality_result_json.exists():
+            print_fail(f'\n    The file quality_result_json exist.')
+            if check_result:
+                self.change_flag = False
+                self.results = load_json(self.quality_result_json,
+                                         object_hook=AutoDict)
+                return False
+            return True
 
-            if len(self.chunk_results[metric]) < 30:
-                self.log(f'ERROR len(chunk_results) < 30', self.quality_result_json)
-                print(f'\n    {self.metric} == len(chunk_results) < 30. Continuing.')
-
-    def read_video_quality_csv(self):
-        try:
-            chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
-        except FileNotFoundError as e:
-            print(f'CSV_NOTFOUND_ERROR')
-            self.log('NOTFOUND_ERROR', self.video_quality_csv)
-            raise e
-        except pd.errors.EmptyDataError as e:
-            self.video_quality_csv.unlink(missing_ok=True)
-            print(f'CSV_EMPTY_DATA_ERROR')
-            self.log('NOTFOUND_ERROR', self.video_quality_csv)
-            raise e
-        if len(chunk_quality_df['frame']) != 30:
-            self.video_quality_csv.unlink(missing_ok=True)
-            print(f'MISSING_FRAMES')
-            self.log(f'MISSING_FRAMES', self.video_quality_csv)
-            raise FileNotFoundError
-
-        self.chunk_quality_df = chunk_quality_df
+        self.change_flag = True
+        self.results = AutoDict()
+        return False
 
     def loop1(self):
         for self.tiling in self.tiling_list:
@@ -443,8 +449,6 @@ class CollectResults(SegmentsQualityProps):
     @video.setter
     def video(self, value):
         self._video = value
-        self._skip = False
-        self.results = AutoDict()
 
     @property
     def chunk_results(self):
@@ -468,7 +472,7 @@ class MakePlot(SegmentsQualityProps):
 
     def get_tile_image(self):
         if self.quality_result_img.exists():
-            print(Bcolors.FAIL + f'The file {self.quality_result_img} exist. Skipping.' + Bcolors.ENDC)
+            print_fail(f'The file quality_result_img exist. Skipping.')
             return
 
         print(f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
