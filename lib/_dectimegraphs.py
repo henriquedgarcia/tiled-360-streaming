@@ -898,7 +898,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
 
             if tiles_num[self.tiling] != len(bucket):
                 self.log(f'bucket size error', self.data_bucket_file)
-                print(f'{Bcolors.FAIL}\n    bucket size error')
+                print(f'{Bcolors.RED}\n    bucket size error')
 
             # remove_outliers(self.data_bucket)
 
