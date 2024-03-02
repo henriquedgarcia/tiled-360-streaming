@@ -443,14 +443,6 @@ class CollectResults(SegmentsQualityProps):
                         yield
 
     @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-
-    @property
     def chunk_results(self):
         results = self.results
         for state in self.state:
@@ -465,6 +457,7 @@ class MakePlot(SegmentsQualityProps):
 
     def main(self):
         for self.video in self.videos_list:
+            self._skip = False
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
@@ -492,16 +485,6 @@ class MakePlot(SegmentsQualityProps):
         # fig.show()
         fig.savefig(self.quality_result_img)
         plt.close()
-
-    @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-        self._skip = False
-        self.results = AutoDict()
 
     @property
     def chunk_results(self):

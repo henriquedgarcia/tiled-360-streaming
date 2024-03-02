@@ -174,6 +174,17 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     def main(self):
         ...
 
+    @property
+    def quality_list(self) -> list[str]:
+        quality_list: list = self.config['quality_list']
+
+        try:
+            quality_list.remove('0')
+        except ValueError:
+            pass
+
+        return quality_list
+
 
 class Prepare(TileDecodeBenchmarkPaths):
     def main(self):
@@ -302,6 +313,14 @@ class Compress(TileDecodeBenchmarkPaths):
         self.compressed_log.unlink(missing_ok=True)
         self.compressed_file.unlink(missing_ok=True)
 
+    @property
+    def quality_list(self) -> list[str]:
+        quality_list: list = self.config['quality_list']
+        if '0' not in quality_list:
+            return ['0'] + quality_list
+        return quality_list
+
+
 
 class Segment(TileDecodeBenchmarkPaths):
     def main(self):
@@ -394,6 +413,13 @@ class Segment(TileDecodeBenchmarkPaths):
         for self.chunk in self.chunk_list:
             self.segment_file.unlink(missing_ok=True)
 
+    @property
+    def quality_list(self) -> list[str]:
+        quality_list: list = self.config['quality_list']
+        if '0' not in quality_list:
+            return ['0'] + quality_list
+        return quality_list
+
 
 class Decode(TileDecodeBenchmarkPaths):
     turn: int
@@ -406,17 +432,6 @@ class Decode(TileDecodeBenchmarkPaths):
                         for self.tile in self.tile_list:
                             for self.chunk in self.chunk_list:
                                 self.worker()
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-
-        return quality_list
 
     def clean_dectime_log(self):
         self.dectime_log.unlink(missing_ok=True)
@@ -534,16 +549,6 @@ class GetBitrate(TileDecodeBenchmarkPaths):
 
         return bitrate
 
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
-
 
 class GetDectime(TileDecodeBenchmarkPaths):
     """
@@ -635,24 +640,6 @@ class GetDectime(TileDecodeBenchmarkPaths):
         if not self.dectime_log.exists():
             return True
         return False
-
-    @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
 
 
 class MakeSiti(TileDecodeBenchmarkPaths):

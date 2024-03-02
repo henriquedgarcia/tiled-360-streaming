@@ -81,20 +81,21 @@ class Config:
 
 
 class Factors:
-    bins: Union[int, str] = None
-    _video: str = None
-    _name: str = None
-    _proj: str = None
+    bins: Optional[Union[int, str]] = None
+    _video: Optional[str] = None
+    _name: Optional[str] = None
+    _proj: Optional[str] = None
     quality_ref: str = '0'
-    quality: str = None
-    tiling: str = None
-    metric: str = None
-    tile: str = None
-    chunk: str = None
-    _name_list: list[str] = None
-    _proj_list: list[str] = None
+    quality: Optional[str] = None
+    tiling: Optional[str] = None
+    metric: Optional[str] = None
+    tile: Optional[str] = None
+    chunk: Optional[str] = None
+    _name_list: Optional[list[str]] = None
+    _proj_list: Optional[list[str]] = None
     config: Config
     user: int
+    turn: int
 
     # <editor-fold desc="Main lists">
     @property
@@ -159,7 +160,7 @@ class Factors:
 
     @property
     def video(self) -> str:
-        if self._video is None and self._name is not None and self.proj is not None:
+        if self._video is None and None not in (self._name, self.proj):
             return self._name.replace('_nas', f'_{self.proj}_nas')
         return self._video
 
@@ -188,14 +189,13 @@ class Factors:
         self._proj = value
 
     @property
-    def vid_proj(self) -> str:
-        if self.video is None:
-            return ''
+    def vid_proj(self) -> Optional[str]:
+        if not self.video:
+            return None
         return self.videos_list[self.video]['projection']
 
     @property
     def scale(self) -> str:
-
         return self.videos_list[self.video]['scale']
 
     @property
@@ -214,7 +214,7 @@ class Factors:
 
     @property
     def video_shape(self) -> tuple:
-        w, h = splitx(self.videos_list[self.video]['scale'])
+        w, h = splitx(self.resolution)
         return h, w, 3
 
     @property
@@ -342,17 +342,17 @@ class Utils(GlobalPaths):
     @property
     def state(self):
         s = []
-        if self.vid_proj:
+        if self.vid_proj is not None:
             s.append(self.vid_proj)
-        if self.name:
+        if self.name is not None:
             s.append(self.name)
-        if self.tiling:
+        if self.tiling is not None:
             s.append(self.tiling)
-        if self.quality:
+        if self.quality is not None:
             s.append(self.quality)
-        if self.tile:
+        if self.tile is not None:
             s.append(self.tile)
-        if self.chunk:
+        if self.chunk is not None:
             s.append(self.chunk)
         return s
 

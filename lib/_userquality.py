@@ -435,23 +435,6 @@ class UserProjectionMetricsProps(GetTilesProps, SegmentsQualityPaths):
     get_tiles_data: dict
 
     @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list = self.config['quality_list']
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
-
-    @property
     def tiling(self):
         return self._tiling
 
@@ -744,13 +727,6 @@ class ViewportPSNRProps(GetTilesProps):
         return quality_list
 
     ## Properties #############################################
-    @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
 
     @property
     def get_seen_tiles(self) -> dict[str, list]:
@@ -1019,8 +995,14 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
         self.workfolder.mkdir(parents=True, exist_ok=True)
 
         for self.video in self.videos_list:
+            self.get_tiles_data = load_json(self.get_tiles_json)
+            self.erp_list = {tiling: vp.ERP(tiling, self.resolution, self.fov) for tiling in self.tiling_list}
+
             for self.tiling in self.tiling_list:
+                self.erp = self.erp_list[self.tiling]
+                self.tile_h, self.tile_w = self.erp.tile_res[:2]
                 for self.user in self.users_list:
+                    self.yaw_pitch_roll_frames = self.dataset[self.name][self.user]
                     if self.output_exist(False): continue
                     # sse_frame = load_json(self.viewport_psnr_file)
 
@@ -1041,47 +1023,12 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
         self._quality = value
 
     @property
-    def user(self):
-        return self._user
-
-    @user.setter
-    def user(self, value):
-        self._user = value
-        self.yaw_pitch_roll_frames = self.dataset[self.name][self.user]
-
-    @property
-    def video(self):
-        return self._video
-
-    @video.setter
-    def video(self, value):
-        self._video = value
-        self.get_tiles_data = load_json(self.get_tiles_json)
-        self.erp_list = {tiling: vp.ERP(tiling, self.resolution, self.fov) for tiling in self.tiling_list}
-
-    @property
     def tile(self):
         return self._tile
 
     @tile.setter
     def tile(self, value):
         self._tile = value
-
-    @property
-    def tiling(self):
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value):
-        self._tiling = value
-        self.erp = self.erp_list[self.tiling]
-        self.tile_h, self.tile_w = self.erp.tile_res[:2]
-
-    def output_exist(self, overwrite=False):
-        if self.viewport_psnr_file.exists() and not overwrite:
-            print(f'  The data file "{self.viewport_psnr_file}" exist.')
-            return True
-        return False
 
 
 # class CheckViewportPSNR(ViewportPSNR):

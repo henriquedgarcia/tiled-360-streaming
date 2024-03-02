@@ -206,14 +206,6 @@ class ByPatternProps(DectimeGraphsPaths):
         self._metric = value
 
     @property
-    def proj(self):
-        return self._proj
-
-    @proj.setter
-    def proj(self, value):
-        self._proj = value
-
-    @property
     def tiling(self):
         return self._tiling
 
