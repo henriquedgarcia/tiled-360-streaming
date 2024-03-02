@@ -209,7 +209,7 @@ class SegmentsQuality(SegmentsQualityProps):
         print(f'\r{self.state_str()}: ', end='')
 
         if self.skip(): return
-        return
+
         chunk_quality = defaultdict(list)
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
