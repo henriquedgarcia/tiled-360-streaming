@@ -192,13 +192,11 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             print(f'CSV OK.', end='')
 
     @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
+    def chunk_results(self):
+        results = self.results
+        for state in self.state:
+            results = results[state]
+        return results
 
 
 class SegmentsQuality(SegmentsQualityProps):
@@ -442,13 +440,6 @@ class CollectResults(SegmentsQualityProps):
                     for self.chunk in self.chunk_list:
                         yield
 
-    @property
-    def chunk_results(self):
-        results = self.results
-        for state in self.state:
-            results = results[state]
-        return results
-
 
 class MakePlot(SegmentsQualityProps):
     chunk_quality_df: pd.DataFrame
@@ -456,6 +447,14 @@ class MakePlot(SegmentsQualityProps):
     change_flag: bool
 
     def main(self):
+        for self.video in self.videos_list:
+            self._skip = False
+            self.results = load_json(self.quality_result_json)
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    self.get_tile_image()
+
+    def main2(self):
         for self.video in self.videos_list:
             self._skip = False
             self.results = load_json(self.quality_result_json)
@@ -485,13 +484,6 @@ class MakePlot(SegmentsQualityProps):
         # fig.show()
         fig.savefig(self.quality_result_img)
         plt.close()
-
-    @property
-    def chunk_results(self):
-        results = self.results
-        for state in self.state:
-            results = results[state]
-        return results
 
 
 QualityAssessmentOptions = {'0': SegmentsQuality,
