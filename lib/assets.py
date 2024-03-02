@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from contextlib import contextmanager
 from math import prod
+from multiprocessing import Pool
 from pathlib import Path
 from typing import Optional, Union
 
@@ -374,10 +375,10 @@ class Utils(GlobalPaths):
         self.command_pool = []
         try:
             yield
-            # with Pool(5) as p:
-            #     p.map(run_command, self.command_pool)
-            for command in self.command_pool:
-                run_command(command)
+            with Pool(4) as p:
+                p.map(run_command, self.command_pool)
+            # for command in self.command_pool:
+            #     run_command(command)
         finally:
             pass
 

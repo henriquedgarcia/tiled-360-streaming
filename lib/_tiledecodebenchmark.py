@@ -321,15 +321,14 @@ class Compress(TileDecodeBenchmarkPaths):
         return quality_list
 
 
-
 class Segment(TileDecodeBenchmarkPaths):
     def main(self):
         for self.video in self.videos_list:
             for self.tiling in self.tiling_list:
-                # with self.multi() as _:
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        self.worker()
+                with self.multi() as _:
+                    for self.quality in self.quality_list:
+                        for self.tile in self.tile_list:
+                            self.worker()
 
     def worker(self) -> Any:
         if self.skip(): return
@@ -403,7 +402,6 @@ class Segment(TileDecodeBenchmarkPaths):
             self.read_segment_log()
         except FileNotFoundError:
             return False
-
 
         print_fail(f'The {self.segment_log} IS OK. Skipping.')
         return True
