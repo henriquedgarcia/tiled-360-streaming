@@ -169,7 +169,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
         perfect = True
         if 1 in self.chunk_quality_df['SSIM'].to_list():
-            self.log(f'CSV SSIM has 0.', self.segment_file)
+            self.log(f'CSV SSIM has 1.', self.segment_file)
             print_fail(f'\nCSV SSIM has 0.')
             perfect = False
 
