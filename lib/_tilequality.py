@@ -360,7 +360,7 @@ class SegmentsQuality(SegmentsQualityProps):
         return psnr
 
 
-class CollectResults(SegmentsQualityProps):
+class CollectQuality(SegmentsQualityProps):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
@@ -487,6 +487,6 @@ class MakePlot(SegmentsQualityProps):
 
 
 QualityAssessmentOptions = {'0': SegmentsQuality,
-                            '1': CollectResults,
+                            '1': CollectQuality,
                             '2': MakePlot,
                             }
