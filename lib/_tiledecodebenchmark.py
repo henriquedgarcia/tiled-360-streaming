@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from .assets import GlobalPaths, Config, Log, AutoDict, Utils, SiTi, print_fail
+from .assets import GlobalPaths, Config, Log, AutoDict, Utils, SiTi, print_error
 from .transform import splitx
 from .util import save_json, load_json, run_command, decode_file, get_times
 
@@ -287,13 +287,13 @@ class Compress(TileDecodeBenchmarkPaths):
 
         if 'encoded 1800 frames' not in compressed_log_text:
             self.log('compressed_log is corrupt', self.compressed_log)
-            print_fail(f'The file {self.compressed_log} is corrupt. Skipping.')
+            print_error(f'The file {self.compressed_log} is corrupt. Skipping.')
             self.clean_compress()
             return False
 
         if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
             self.log('CODEC ERROR', self.compressed_log)
-            print_fail(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
+            print_error(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
             self.clean_compress()
             return False
 
@@ -301,12 +301,12 @@ class Compress(TileDecodeBenchmarkPaths):
         if decode:
             stdout = decode_file(self.compressed_file)
             if "frame= 1800" not in stdout:
-                print_fail(f'Compress Decode Error. Cleaning..')
+                print_error(f'Compress Decode Error. Cleaning..')
                 self.log(f'Compress Decode Error.', self.compressed_file)
                 self.clean_compress()
                 return False
 
-        print_fail(f'The file {self.compressed_file} is OK.')
+        print_error(f'The file {self.compressed_file} is OK.')
         return True
 
     def clean_compress(self):
@@ -354,7 +354,7 @@ class Segment(TileDecodeBenchmarkPaths):
         if 'file 60 done' not in self.segment_log_txt:
             # self.compressed_file.unlink(missing_ok=True)
             # self.compressed_log.unlink(missing_ok=True)
-            print_fail(f'The file {self.segment_log} is corrupt. Cleaning.')
+            print_error(f'The file {self.segment_log} is corrupt. Cleaning.')
             self.log('Segment_log is corrupt. Cleaning', self.segment_log)
             raise FileNotFoundError
 
@@ -364,12 +364,12 @@ class Segment(TileDecodeBenchmarkPaths):
                 segment_file_size = self.segment_file.stat().st_size
             except FileNotFoundError as e:
                 self.log(f'Segmentlog is OK, but segment not exist.', self.segment_log)
-                print_fail(f'Segmentlog is OK, but segment not exist. Cleaning.')
+                print_error(f'Segmentlog is OK, but segment not exist. Cleaning.')
                 raise e
 
             if segment_file_size == 0:
                 # um segmento size 0 e o Log diz que está ok. limpeza.
-                print_fail(f'Segmentlog is OK. The file SIZE 0. Cleaning.')
+                print_error(f'Segmentlog is OK. The file SIZE 0. Cleaning.')
                 self.log(f'Segmentlog is OK. The file {self.segment_file} SIZE 0', self.segment_file)
                 raise FileNotFoundError
 
@@ -378,7 +378,7 @@ class Segment(TileDecodeBenchmarkPaths):
                 stdout = decode_file(self.segment_file)
 
                 if "frame=   30" not in stdout:
-                    print_fail(f'Segment Decode Error. Cleaning..')
+                    print_error(f'Segment Decode Error. Cleaning..')
                     self.log(f'Segment Decode Error.', self.segment_file)
                     raise FileNotFoundError
 
@@ -394,7 +394,7 @@ class Segment(TileDecodeBenchmarkPaths):
         # first compressed file
         if not self.compressed_file.exists():
             self.log('compressed_file NOTFOUND.', self.compressed_file)
-            print_fail(f'The file {self.compressed_file} not exist. Skipping.')
+            print_error(f'The file {self.compressed_file} not exist. Skipping.')
             return True
 
         # second check segment log
@@ -403,7 +403,7 @@ class Segment(TileDecodeBenchmarkPaths):
         except FileNotFoundError:
             return False
 
-        print_fail(f'The {self.segment_log} IS OK. Skipping.')
+        print_error(f'The {self.segment_log} IS OK. Skipping.')
         return True
 
     def clean_segments(self):
@@ -448,7 +448,7 @@ class Decode(TileDecodeBenchmarkPaths):
             if self.segment_file.exists():
                 return False
             else:
-                print_fail(f'The segment not exist. ')
+                print_error(f'The segment not exist. ')
                 self.log("segment_file not exist.", self.segment_file)
                 return True
 
@@ -522,7 +522,7 @@ class GetBitrate(TileDecodeBenchmarkPaths):
         except FileNotFoundError:
             self.error = True
             self.log('BITRATE FILE NOT FOUND', self.dectime_log)
-            print_fail(f'\n\n\tThe segment not exist. Skipping.')
+            print_error(f'\n\n\tThe segment not exist. Skipping.')
             return
 
         if self.check_result:
@@ -594,7 +594,7 @@ class GetDectime(TileDecodeBenchmarkPaths):
         except FileNotFoundError:
             self.error = True
             self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
-            print_fail(f'\n\tThe dectime log not exist. Skipping.')
+            print_error(f'\n\tThe dectime log not exist. Skipping.')
             return
 
         if self.check_result:
@@ -625,11 +625,11 @@ class GetDectime(TileDecodeBenchmarkPaths):
         times = sorted(times)
 
         if len(times) < self.decoding_num:
-            print_fail(f'\n    The dectime is lower than {self.decoding_num}: ')
+            print_error(f'\n    The dectime is lower than {self.decoding_num}: ')
             self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}', self.dectime_log)
 
         if 0 in times:
-            print_fail(f'\n    0  found: ')
+            print_error(f'\n    0  found: ')
             self.log('DECTIME_ZERO_FOUND', self.dectime_log)
 
         return times
