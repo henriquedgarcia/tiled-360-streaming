@@ -221,28 +221,79 @@ def uv_cmp2mn_face(u, v, side_size: int):
     return m, n
 
 
-def mn_face2mn_proj(m, n, face, side_size):
+def mn_face2uv_cmp(m, n, side_size):
+    u = (m + 0.5) * 2 / side_size - 1
+    v = (n + 0.5) * 2 / side_size - 1
+    return u, v
+
+
+def uv_cmp2cart(u, v, face, side_size):
+    face_one = np.ones(shape=(side_size, side_size))
+    x = np.zeros(shape=u.shape)
+    y = np.zeros(shape=u.shape)
+    z = np.zeros(shape=u.shape)
+
+    # if face == 0:
+    x[face == 0] = -face_one
+    y[face == 0] = v[face == 0]
+    z[face == 0] = u[face == 0]
+
+    # elif face == 1:
+    x[face == 1] = u[face == 1]
+    y[face == 1] = v[face == 1]
+    z[face == 1] = face_one
+
+    # elif face == 2:
+    x[face == 2] = face_one
+    y[face == 2] = v[face == 2]
+    z[face == 2] = -u[face == 2]
+    # elif face == 3:
+    x[face == 3] = -u[face == 3]
+    y[face == 3] = face_one
+    z[face == 3] = v[face == 3]
+    # elif face == 4:
+    x[face == 4] = -u[face == 4]
+    y[face == 4] = v[face == 4]
+    z[face == 4] = -face_one
+    # elif face == 5:
+    x[face == 5] = -u[face == 5]
+    y[face == 5] = -face_one
+    z[face == 5] = -v[face == 5]
+
+    return x, y, z
+
+
+def mn_face2mn_proj(face_m, face_n, face, side_size):
     new_m, new_n = None, None
     if face == 0:
-        new_m = m
-        new_n = n
+        new_m = face_m
+        new_n = face_n
     elif face == 1:
-        new_m = m + side_size
-        new_n = n
+        new_m = face_m + side_size
+        new_n = face_n
     elif face == 2:
-        new_m = m + 2 * side_size
-        new_n = n
+        new_m = face_m + 2 * side_size
+        new_n = face_n
     elif face == 3:
-        new_m = side_size - n - 1
-        new_n = m + side_size
+        new_m = side_size - face_n - 1
+        new_n = face_m + side_size
     elif face == 4:
-        new_m = 2 * side_size - n - 1
-        new_n = m + side_size
+        new_m = 2 * side_size - face_n - 1
+        new_n = face_m + side_size
     elif face == 5:
-        new_m = 3 * side_size - n - 1
-        new_n = m + side_size
+        new_m = 3 * side_size - face_n - 1
+        new_n = face_m + side_size
 
     return new_m, new_n
+
+
+def cmp2mn_face(m, n, side_size):
+    face_m = m % side_size
+    face_n = n % side_size
+
+    face = m // side_size + n // side_size * 3
+
+    return face_m, face_n, face
 
 
 def hcs2cmp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int, int]:
@@ -543,6 +594,11 @@ def idx2xy(idx: int, shape: tuple):
     tile_x = idx % shape[1]
     tile_y = idx // shape[1]
     return tile_x, tile_y
+
+
+def xy2idx(tile_x, tile_y, shape: tuple):
+    idx = tile_x + tile_y * shape[0]
+    return idx
 
 
 def splitx(string: str) -> tuple[int, ...]:
