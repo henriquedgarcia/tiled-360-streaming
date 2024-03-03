@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from math import pi
 from typing import Union, Callable
 
@@ -5,13 +6,15 @@ import cv2
 import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
-from abc import ABC, abstractmethod
 
 try:
-    from .transform import rot_matrix, splitx
+    from .transform import (rot_matrix, splitx,
+                            cmp2mn_face, mn_face2uv_cmp, uv_cmp2cart,
+                            cart2uv_cmp, uv_cmp2mn_face, mn_face2mn_proj)
 except ImportError:
-    from transform import rot_matrix
-    from util import splitx
+    from transform import (rot_matrix, splitx,
+                           cmp2mn_face, mn_face2uv_cmp, uv_cmp2cart,
+                           cart2uv_cmp, uv_cmp2mn_face, mn_face2mn_proj)
 
 
 class Viewport:
@@ -403,7 +406,11 @@ class CMP(ProjBase):
         :param shape: (N, M)
         :return: x, y, z
         """
-        ...
+        side_size = shape[0] / 2
+        face_m, face_n, face = cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
+        u, v = mn_face2uv_cmp(face_m, face_n, side_size)
+        x, y, z = uv_cmp2cart(u, v, face, side_size)
+        return x, y, z
 
     @staticmethod
     def xyz2nm(xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
@@ -415,7 +422,11 @@ class CMP(ProjBase):
         :param round_nm: round the coords? is not needed.
         :return:
         """
-        ...
+        side_size = shape[0] / 3
+        u, v, face = cart2uv_cmp(xyz_coord[:, :, 0], xyz_coord[:, :, 1], xyz_coord[:, :, 2])
+        face_m, face_n = uv_cmp2mn_face(u, v, side_size)
+        m, n = mn_face2mn_proj(face_m, face_n, face, side_size)
+        return m, n
 
 
 def show1(projection: np.ndarray):
@@ -451,7 +462,7 @@ def get_borders(*, coord_nm: Union[tuple, np.ndarray] = None, shape=None, thickn
     return np.c_[top, right, bottom, left]
 
 
-def main():
+def test_erp():
     # erp '144x72', '288x144','432x216','576x288'
     # cmp '144x96', '288x192','432x288','576x384'
     yaw_pitch_roll = np.deg2rad((70, 0, 0))
@@ -495,5 +506,50 @@ def main():
     print(f'The viewport touch the tiles {tiles}.')
 
 
+def test_cmp():
+    # erp '144x72', '288x144','432x216','576x288'
+    # cmp '144x96', '288x192','432x288','576x384'
+    yaw_pitch_roll = np.deg2rad((70, 0, 0))
+    height, width = 384, 576
+
+    cover_red = Image.new("RGB", (width, height), (255, 0, 0))
+    cover_green = Image.new("RGB", (width, height), (0, 255, 0))
+    cover_gray = Image.new("RGB", (width, height), (200, 200, 200))
+    cover_blue = Image.new("RGB", (width, height), (0, 0, 255))
+
+    ########################################
+    # Open Image
+    frame_img: Union[Image, list] = Image.open('images/cmp1.png')
+    frame_img = frame_img.resize((width, height))
+    frame_array = np.asarray(frame_img)
+
+    cmp = CMP('6x4', f'{width}x{height}', '110x90')
+    tiles = cmp.get_vptiles(yaw_pitch_roll)
+
+    viewport_array = cmp.get_viewport(frame_array, yaw_pitch_roll)
+    vp_image = Image.fromarray(viewport_array)
+    width_vp = int(np.round(height * vp_image.width / vp_image.height))
+    vp_image_resized = vp_image.resize((width_vp, height))
+
+    # Get masks
+    mask_all_tiles_borders = Image.fromarray(cmp.draw_all_tiles_borders())
+    mask_vp_tiles = Image.fromarray(cmp.draw_vp_tiles(yaw_pitch_roll))
+    mask_vp = Image.fromarray(cmp.draw_vp_mask(yaw_pitch_roll, lum=200))
+    mask_vp_borders = Image.fromarray(cmp.draw_vp_borders(yaw_pitch_roll))
+
+    # Composite mask with projection
+    frame_img = Image.composite(cover_red, frame_img, mask=mask_all_tiles_borders)
+    frame_img = Image.composite(cover_green, frame_img, mask=mask_vp_tiles)
+    frame_img = Image.composite(cover_gray, frame_img, mask=mask_vp)
+    frame_img = Image.composite(cover_blue, frame_img, mask=mask_vp_borders)
+
+    new_im = Image.new('RGB', (width + width_vp + 2, height), (255, 255, 255))
+    new_im.paste(frame_img, (0, 0))
+    new_im.paste(vp_image_resized, (width + 2, 0))
+    new_im.show()
+    print(f'The viewport touch the tiles {tiles}.')
+
+
 if __name__ == '__main__':
-    main()
+    # test_erp()
+    test_cmp()
