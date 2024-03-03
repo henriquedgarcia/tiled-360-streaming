@@ -13,7 +13,7 @@ from skvideo.io import FFmpegWriter, FFmpegReader
 import lib.video360 as vp
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
 from ._tilequality import SegmentsQualityPaths
-from .assets import Config, AutoDict, print_fail
+from .assets import Config, AutoDict, print_error
 from .transform import cart2hcs, lin_interpol, idx2xy, splitx
 from .util import load_json, save_json
 
@@ -84,14 +84,11 @@ class GetTilesPath(TileDecodeBenchmarkPaths):
 
 
 class ProcessNasrabadi(GetTilesPath):
-    user_map = {}
     dataset_final = AutoDict()
     previous_line: tuple
     frame_counter: int
 
-    def __init__(self, config):
-        self.config = config
-        self.print_resume()
+    def main(self):
         print(f'Processing dataset {self.dataset_folder}.')
         if self.dataset_json.exists(): return
 
@@ -177,7 +174,7 @@ class GetTilesProps(GetTilesPath):
 
     @property
     def get_tiles_json(self) -> Path:
-        path = self.get_tiles_folder / f'get_tiles_{self.config["dataset_name"]}_{self.vid_proj}_{self.name}_fov{self.fov}.json'
+        path = self.get_tiles_folder / f'get_tiles_{self.config["dataset_name"]}_{self.proj}_{self.name}_fov{self.fov}.json'
         return path
 
     @property
@@ -198,9 +195,11 @@ class GetTilesProps(GetTilesPath):
 class GetTiles(GetTilesProps):
     projection: vp.ProjBase
     n_frames: int
+    changed_flag: bool
     erp_list: dict[str, vp.ProjBase]
     cmp_list: dict[str, vp.ProjBase]
     tiles_1x1: dict[str, dict[str, Union[vp.ProjBase], list, dict]]
+    error: bool
 
     def init(self):
         self.n_frames = 1800
@@ -211,43 +210,42 @@ class GetTiles(GetTilesProps):
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
                           'chunks': {str(i): ["0"] for i in range(1, int(self.duration) + 1)}}
 
-    error: bool
-
     def main(self):
         self.init()
 
-        for self.video in self.videos_list:
-            self.results = AutoDict()
+        for self.proj in self.proj_list:
+            for self.name in self.name_list:
+                self.results = AutoDict()
+                self.changed_flag = False
+                self.error = False
+                if self.skip(): continue
 
-            for self.tiling in self.tiling_list:
-                for self.user in self.users_list:
-                    self.worker()
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list:
+                        self.worker()
 
-            if self.change_flag and not self.error:
-                print('\n\tSaving.')
-                save_json(self.results, self.get_tiles_json)
+                if self.changed_flag and not self.error:
+                    print('\n\tSaving.')
+                    save_json(self.results, self.get_tiles_json)
 
             # self.count_tiles()
             # self.heatmap()
             # self.plot_test()
 
-    change_flag:bool
     def skip(self, check_result=True):
         if self.get_tiles_json.exists():
-            print_fail(f'\n    The file get_tiles_json exist.')
+            print_error(f'\n    The file get_tiles_json exist.')
             if check_result:
-                self.change_flag = False
+                self.changed_flag = False
                 self.get_tiles_data = load_json(self.get_tiles_json,
-                                           object_hook=AutoDict)
+                                                object_hook=AutoDict)
             return
 
     def worker(self):
-        print(f'{self.name} - tiling {self.tiling} - User {self.user}')
+        print(f'{self.proj} {self.name} {self.tiling} - User {self.user}')
 
         if self.tiling == '1x1':
             self.results[self.vid_proj][self.name][self.tiling][self.user] = self.tiles_1x1
-            # self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = [["0"]] * self.n_frames
-            # self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = {str(i): ["0"] for i in range(1, int(self.duration) + 1)}
             return
 
         if self.vid_proj == 'erp':
