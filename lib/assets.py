@@ -51,8 +51,8 @@ class Bcolors:
     ENDC = '\033[0m'
 
 
-def print_fail(msg: str):
-    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}')
+def print_error(msg: str, end: str='\n'):
+    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}', end=end)
 
 
 class Config:
