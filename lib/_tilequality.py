@@ -9,17 +9,23 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
-from .assets import Log, AutoDict, print_fail
+from .assets import Log, AutoDict, print_error
 from .transform import hcs2erp, hcs2cmp, splitx
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame
 
 
 class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
-    quality_folder = Path('quality')
+    _quality_folder = Path('quality')
+
+    @property
+    def quality_folder(self) -> Path:
+        folder = self.quality_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
 
     @property
     def video_quality_folder(self) -> Path:
-        folder = self.project_path / self.quality_folder / self.basename2
+        folder = self.quality_folder / self.basename2
         # folder = self.project_path / self.quality_folder / self.basename
         folder.mkdir(parents=True, exist_ok=True)
         return folder
@@ -30,13 +36,13 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
 
     @property
     def quality_result_json(self) -> Path:
-        folder = self.project_path / self.quality_folder
+        folder = self.project_path / self._quality_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder / f'quality_{self.video}.json'
 
     @property
     def quality_result_img(self) -> Path:
-        folder = self.project_path / self.quality_folder / '_metric plots' / f'{self.video}'
+        folder = self.quality_folder / '_metric plots' / f'{self.video}'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / f'{self.tiling}_crf{self.quality}.png'
 
@@ -137,12 +143,12 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         try:
             self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
         except FileNotFoundError as e:
-            print(f'CSV_NOTFOUND_ERROR')
+            print(f'\n\t\tCSV_NOTFOUND_ERROR')
             self.log('CSV_NOTFOUND_ERROR', self.video_quality_csv)
             raise e
         except pd.errors.EmptyDataError as e:
             self.video_quality_csv.unlink(missing_ok=True)
-            print(f'CSV_EMPTY_DATA_ERROR')
+            print(f'\n\t\tCSV_EMPTY_DATA_ERROR')
             self.log('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
             raise e
 
@@ -163,33 +169,25 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
     def check_video_quality_csv(self):
         if len(self.chunk_quality_df['frame']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
-            print(f'MISSING_FRAMES')
+            print_error(f'\n\t\tMISSING_FRAMES', end='')
             self.log(f'MISSING_FRAMES', self.video_quality_csv)
             raise FileNotFoundError
 
-        perfect = True
         if 1 in self.chunk_quality_df['SSIM'].to_list():
             self.log(f'CSV SSIM has 1.', self.segment_file)
-            print_fail(f'\nCSV SSIM has 0.')
-            perfect = False
+            print_error(f'\n\t\tCSV SSIM has 0.', end='')
 
         if 0 in self.chunk_quality_df['MSE'].to_list():
             self.log('CSV MSE has 0.', self.segment_file)
-            print_fail(f'\nCSV MSE has 0.')
-            perfect = False
+            print_error(f'\n\t\tCSV MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['WS-MSE'].to_list():
             self.log('CSV WS-MSE has 0.', self.segment_file)
-            print_fail(f'\nCSV WS-MSE has 0.')
-            perfect = False
+            print_error(f'\n\t\tCSV WS-MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['S-MSE'].to_list():
             self.log('CSV S-MSE has 0.', self.segment_file)
-            print_fail(f'\nCSV S-MSE has 0.')
-            perfect = False
-
-        if perfect:
-            print(f'CSV OK.', end='')
+            print_error(f'\n\t\tCSV S-MSE has 0.', end='')
 
     @property
     def chunk_results(self):
@@ -230,12 +228,12 @@ class SegmentsQuality(SegmentsQualityProps):
         skip = False
         if not self.segment_file.exists():
             self.log('segment_file NOTFOUND', self.segment_file)
-            print_fail(f'segment_file NOTFOUND')
+            print_error(f'segment_file NOTFOUND')
             skip = True
 
         if not self.reference_segment.exists():
             self.log('reference_segment NOTFOUND', self.reference_segment)
-            print_fail(f'reference_segment NOTFOUND')
+            print_error(f'reference_segment NOTFOUND')
             skip = True
 
         try:
@@ -380,25 +378,56 @@ class CollectQuality(SegmentsQualityProps):
 
     def main(self):
         # self.get_tile_image()
+
         for self.video in self.videos_list:
             # if list(self.videos_list).index(self.video) < 3: continue
             print(f'\n{self.video}')
+            if self.quality_json_exist(): continue
 
-            if self.skip1(): continue
             self.error = False
 
-            for self.tiling in self.tiling_list:
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        for self.chunk in self.chunk_list:
-                            self.work()
+            for _ in self.main_loop():
+                self.work()
 
             if self.change_flag and not self.error:
-                print('\nSaving.')
+                print('\n\tSaving.')
                 save_json(self.results, self.quality_result_json)
 
+    def main_loop(self):
+        for self.tiling in self.tiling_list:
+            for self.quality in self.quality_list:
+                for self.tile in self.tile_list:
+                    for self.chunk in self.chunk_list:
+                        yield
+
+    def quality_json_exist(self, check_result=True):
+        try:
+            self.results = load_json(self.quality_result_json,
+                                     AutoDict)
+        except FileNotFoundError:
+            self.change_flag = True
+            self.results = AutoDict()
+            return False
+
+        print_error(f'\tThe file quality_result_json exist.')
+        if check_result:
+            self.change_flag = False
+            return False
+        return True
+
+    def check_qlt_results(self):
+        for self.metric in self.metric_list:
+            if len(self.chunk_results[self.metric]) != 30:
+                break
+        else:
+            return
+
     def work(self):
-        print(f'\r{self.state_str()} ', end='')
+        print(f'\r\t{self.state_str()} ', end='')
+        try:
+            self.check_qlt_results()
+        except KeyError:
+            pass
 
         try:
             self.read_video_quality_csv()
@@ -413,58 +442,78 @@ class CollectQuality(SegmentsQualityProps):
         if self.chunk_results == chunk_quality_dict:
             return
         elif self.change_flag is False:
-            print(f'CSV_UPDATE')
+            print(f'\n\t\tCSV_UPDATED')
             # self.log('CSV_UPDATE', self.video_quality_csv)
             self.change_flag = True
 
         self.chunk_results.update(chunk_quality_dict)
-
-    def skip1(self, check_result=True):
-        if self.quality_result_json.exists():
-            print_fail(f'\n    The file quality_result_json exist.')
-            if check_result:
-                self.change_flag = False
-                self.results = load_json(self.quality_result_json,
-                                         object_hook=AutoDict)
-                return False
-            return True
-
-        self.change_flag = True
-        self.results = AutoDict()
-        return False
-
-    def loop1(self):
-        for self.tiling in self.tiling_list:
-            for self.quality in self.quality_list:
-                for self.tile in self.tile_list:
-                    for self.chunk in self.chunk_list:
-                        yield
 
 
 class MakePlot(SegmentsQualityProps):
     chunk_quality_df: pd.DataFrame
     _skip: bool
     change_flag: bool
+    folder: Path
 
     def main(self):
+
+        def get_serie(value1, value2):
+            # self.results[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk][self.metric]
+            results = self.results[self.proj][self.name][self.tiling][self.quality]
+
+            return [np.average(results[value2][chunk][value1])
+                    for chunk in self.chunk_list]
+
         for self.video in self.videos_list:
-            self._skip = False
+            folder = self.quality_folder / '_metric plots' / f'{self.video}'
+            folder.mkdir(parents=True, exist_ok=True)
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
-                    self.get_tile_image()
+                    # self.get_tile_image()
+                    quality_plot_file = folder / f'{self.tiling}_crf{self.quality}.png'
+                    self.make_tile_image(self.metric_list, self.tile_list,
+                                         quality_plot_file,
+                                         get_serie,
+                                         nrows=2, ncols=2,
+                                         figsize=(8, 5), dpi=200)
 
     def main2(self):
         for self.video in self.videos_list:
-            self._skip = False
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     self.get_tile_image()
 
+    def make_tile_image(self, iter1, iter2, quality_plot_file: Path,
+                        get_serie: Callable,
+                        nrows=1, ncols=1,
+                        figsize=(8, 5), dpi=200):
+        if quality_plot_file.exists():
+            print_error(f'The file quality_result_img exist. Skipping.')
+            return
+
+        print(f'\r{self.state_str()}', end='')
+
+        fig, axes = plt.subplots(nrows, ncols, figsize=figsize, dpi=dpi)
+        axes: list[plt.Axes] = list(np.ravel([axes]))
+        fig: plt.Figure
+
+        for i, value1 in enumerate(iter1):
+            for value2 in iter2:
+                result = get_serie(value1, value2)
+                axes[i].plot(result, label=f'{value2}')
+            axes[i].set_title(value1)
+
+        fig.suptitle(f'{self.state_str()}')
+        fig.tight_layout()
+        # fig.show()
+        fig.savefig(self.quality_result_img)
+        plt.close()
+
     def get_tile_image(self):
         if self.quality_result_img.exists():
-            print_fail(f'The file quality_result_img exist. Skipping.')
+            print_error(f'The file quality_result_img exist. Skipping.')
             return
 
         print(f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
