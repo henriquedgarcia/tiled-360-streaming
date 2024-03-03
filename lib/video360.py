@@ -410,7 +410,8 @@ class CMP(ProjBase):
         face_m, face_n, face = cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
         u, v = mn_face2uv_cmp(face_m, face_n, side_size)
         x, y, z = uv_cmp2cart(u, v, face, side_size)
-        return x, y, z
+        xyz_coord = np.array([x, y, z])
+        return xyz_coord
 
     @staticmethod
     def xyz2nm(xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
@@ -426,7 +427,7 @@ class CMP(ProjBase):
         u, v, face = cart2uv_cmp(xyz_coord[:, :, 0], xyz_coord[:, :, 1], xyz_coord[:, :, 2])
         face_m, face_n = uv_cmp2mn_face(u, v, side_size)
         m, n = mn_face2mn_proj(face_m, face_n, face, side_size)
-        return m, n
+        return np.array([n, m])
 
 
 def show1(projection: np.ndarray):
