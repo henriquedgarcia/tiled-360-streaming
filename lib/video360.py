@@ -20,7 +20,7 @@ except ImportError:
 class Viewport:
     base_normals: np.ndarray
     fov: np.ndarray
-    updated_array: set
+    vp_state: set
     vp_coord_xyz: np.ndarray
     vp_shape: np.ndarray
 
@@ -43,7 +43,7 @@ class Viewport:
         """
         self.fov = fov
         self.vp_shape = vp_shape
-        self.updated_array = set()
+        self.vp_state = set()
         self._make_base_normals()
         self._make_base_vp_coord()
 
@@ -66,9 +66,9 @@ class Viewport:
         return self._is_in_vp
 
     def rotate_vp(self) -> np.ndarray:
-        if "rotate_vp" not in self.updated_array:
+        if "rotate_vp" not in self.vp_state:
             self._vp_rotated_xyz = np.tensordot(self.mat_rot, self.vp_coord_xyz, axes=1)
-            self.updated_array.update(["rotate_vp"])
+            self.vp_state.update(["rotate_vp"])
         return self._vp_rotated_xyz
 
     def get_vp(self, frame: np.ndarray, xyz2nm: Callable) -> np.ndarray:
@@ -96,9 +96,9 @@ class Viewport:
         :return: np.ndarray (shape == (1,HxW,3)
         """
         self.rotate_vp()
-        if "get_vp_borders_xyz" not in self.updated_array:
+        if "get_vp_borders_xyz" not in self.vp_state:
             self._vp_borders_xyz = get_borders(coord_nm=self._vp_rotated_xyz, thickness=thickness)
-            self.updated_array.update(["get_vp_borders_xyz"])
+            self.vp_state.update(["get_vp_borders_xyz"])
         return self._vp_borders_xyz
 
     def _make_base_normals(self) -> None:
@@ -173,65 +173,277 @@ class Viewport:
         """
         if not np.all(self.yaw_pitch_roll == value):
             self._yaw_pitch_roll = value
-            self.updated_array = set()
+            self.vp_state = set()
 
     @property
     def mat_rot(self) -> np.ndarray:
-        if "mat_rot" not in self.updated_array:
+        if "mat_rot" not in self.vp_state:
             self._mat_rot = rot_matrix(self.yaw_pitch_roll)
-            self.updated_array.update(["mat_rot"])
+            self.vp_state.update(["mat_rot"])
         return self._mat_rot
 
     @property
     def rotated_normals(self) -> np.ndarray:
-        if "rotated_normals" not in self.updated_array:
+        if "rotated_normals" not in self.vp_state:
             self._rotated_normals = self.mat_rot @ self.base_normals
-            self.updated_array.update(["rotated_normals"])
+            self.vp_state.update(["rotated_normals"])
         return self._rotated_normals
 
 
-class ProjBase(ABC):
-    tiling: np.ndarray  # The shape of tiling
-    viewport: Viewport
-    n_tiles: int
-    borders_xyz: Union[np.ndarray, list]  # shape = (3, H, W) "WxH array" | (3, N) "N points"
-    tile_border_base: np.ndarray
-    tile_position_list: np.ndarray
-    projection: np.ndarray
-    xyz2nm: Callable
-    vptiles: list
+class ProjProps(ABC):
+    proj_res: str
+    tiling: str
+    fov: str
+    frame_img = np.zeros([0])
+
+    @abstractmethod
+    def nm2xyz(self, nm_coord: np.ndarray, shape: np.ndarray) -> np.ndarray:
+        pass
+
+    @abstractmethod
+    def xyz2nm(self, xyz_coord: np.ndarray, shape: np.ndarray, round_nm: bool) -> np.ndarray:
+        pass
+
+    # <editor-fold desc="About the Projection">
+    _proj_shape: np.ndarray = None
+
+    @property
+    def proj_shape(self) -> np.ndarray:
+        if self._proj_shape is None:
+            self._proj_shape = np.array(splitx(self.proj_res)[::-1], dtype=int)
+        return self._proj_shape
+
+    _proj_h: int = None
+
+    @property
+    def proj_h(self) -> int:
+        if not self._proj_h:
+            self._proj_h = self.proj_shape[0]
+        return self._proj_h
+
+    _proj_w: int = None
+
+    @property
+    def proj_w(self) -> int:
+        if not self._proj_w:
+            self._proj_w = self.proj_shape[1]
+        return self._proj_w
+
+    _projection: np.ndarray = None
+
+    @property
+    def projection(self) -> np.ndarray:
+        if not self._projection:
+            self._projection = np.zeros(self.proj_shape, dtype='uint8')
+        return self._projection
+
+    _proj_coord_nm: np.ndarray = None
+
+    @property
+    def proj_coord_nm(self) -> np.ndarray:
+        if not self._proj_coord_nm:
+            self._proj_coord_nm = np.mgrid[range(self.proj_h), range(self.proj_w)]
+        return self._proj_coord_nm
+
+    _proj_coord_xyz: np.ndarray = None
+
+    @property
+    def proj_coord_xyz(self) -> np.ndarray:
+        if not self._proj_coord_xyz:
+            self._proj_coord_xyz = self.nm2xyz(self.proj_coord_nm, self.proj_shape)
+        return self._proj_coord_xyz
+
+    # </editor-fold>
+
+    # <editor-fold desc="About Tiling">
+    _tiling_shape: np.ndarray = None
+
+    @property
+    def tiling_shape(self) -> np.ndarray:
+        if self._tiling_shape is None:
+            self._tiling_shape = np.array(splitx(self.tiling)[::-1], dtype=int)
+        return self._tiling_shape
+
+    _tiling_h: int = None
+
+    @property
+    def tiling_h(self) -> int:
+        if not self._tiling_h:
+            self._tiling_h = self.tiling_shape[0]
+        return self._tiling_h
+
+    _tiling_w: int = None
+
+    @property
+    def tiling_w(self) -> int:
+        if not self.tiling_w:
+            self._tiling_w = self.tiling_shape[1]
+        return self.tiling_w
+
+    # </editor-fold>
+
+    # <editor-fold desc="About Tiles">
+    _n_tiles: int = None
+
+    @property
+    def n_tiles(self) -> int:
+        if not self._n_tiles:
+            self._n_tiles = self.tiling_shape[0] * self.tiling_shape[1]
+        return self._n_tiles
+
+    _tile_shape: np.ndarray = None
+
+    @property
+    def tile_shape(self) -> np.ndarray:
+        if self._tile_shape is None:
+            self._tile_shape = (self.proj_shape / self.tiling_shape).astype(int)
+        return self._tile_shape
+
+    _tile_h: int = None
+
+    @property
+    def tile_h(self) -> int:
+        if not self._tile_h:
+            self._tile_h = self.tile_shape[0]
+        return self._tile_h
+
+    _tile_w: int = None
+
+    @property
+    def tile_w(self) -> int:
+        if not self._tile_w:
+            self._tile_w = self.tile_shape[1]
+        return self._tile_w
+
+    _tile_position_list: np.ndarray = None
+
+    @property
+    def tile_position_list(self) -> np.ndarray:
+        """
+        top-left pixel position
+        :return: (N,2)
+        """
+        if self._tile_position_list is None:
+            tile_position_list = []
+            for n in range(0, self.proj_shape[0], self.tile_shape[0]):
+                for m in range(0, self.proj_shape[1], self.tile_shape[1]):
+                    tile_position_list.append((n, m))
+            self._tile_position_list = np.array(tile_position_list)
+        return self._tile_position_list
+
+    _tile_border_base: np.ndarray = None
+
+    @property
+    def tile_border_base(self) -> np.ndarray:
+        """
+
+        :return: shape==(2, 2*(tile_height+tile_weight)
+        """
+        if self._tile_border_base is None:
+            self._tile_border_base = get_borders(shape=self.tile_shape)
+        return self._tile_border_base
+
+    _tile_borders_nm: np.ndarray = None
+
+    @property
+    def tile_borders_nm(self) -> np.ndarray:
+        """
+
+        :return:
+        """
+        # projection agnostic
+        if self._tile_borders_nm is None:
+            _tile_borders_nm = []
+            for tile in range(self.n_tiles):
+                tile_position = self.tile_position_list[tile].reshape(2, -1)
+                _tile_borders_nm.append(self.tile_border_base + tile_position)
+            self._tile_borders_nm = np.array(_tile_borders_nm)
+        return self._tile_borders_nm
+
+    _tile_borders_xyz: list = None
+
+    @property
+    def tile_borders_xyz(self) -> list:
+        """
+        shape = (3, H, W) "WxH array" OR (3, N) "N points (z, y, x)"
+        :return:
+        """
+        if not self._tile_borders_xyz:
+            self._tile_borders_xyz = []
+            for tile in range(self.n_tiles):
+                borders_nm = self.tile_borders_nm[tile]
+                borders_xyz = self.nm2xyz(nm_coord=borders_nm,
+                                          shape=self.proj_shape)
+                self._tile_borders_xyz.append(borders_xyz)
+        return self._tile_borders_xyz
+
+    # </editor-fold>
+
+    # <editor-fold desc="About Viewport">
+    _fov_shape: np.ndarray = None
+
+    @property
+    def fov_shape(self) -> np.ndarray:
+        if self._fov_shape is None:
+            self._fov_shape = np.deg2rad(splitx(self.fov)[::-1])
+        return self._fov_shape
+
+    _vp_shape: np.ndarray = None
+
+    @property
+    def vp_shape(self) -> np.ndarray:
+        if self._vp_shape is None:
+            self._vp_shape = np.round(self.fov_shape * self.proj_shape / (pi, 2 * pi)).astype('int')
+        return self._vp_shape
+
+    @vp_shape.setter
+    def vp_shape(self, value: np.ndarray):
+        self._vp_shape = value
+
+    _viewport: Viewport = None
+
+    @property
+    def viewport(self) -> Viewport:
+        if not self._viewport:
+            self._viewport = Viewport(self.vp_shape, self.fov_shape)
+        return self._viewport
+
+    @property
+    def vptiles(self) -> list:
+        vptiles = [str(tile) for tile in range(self.n_tiles)
+                   if self.viewport.is_viewport(self.tile_borders_xyz[tile])]
+        return vptiles
+
+    _vp_image: np.ndarray = None
+
+    @property
+    def vp_image(self) -> np.ndarray:
+        self._vp_image = self.viewport.get_vp(frame=self.frame_img, xyz2nm=self.xyz2nm)
+        return self._vp_image
+
+    # </editor-fold>
+
+    # <editor-fold desc="About Position">
+    @property
+    def yaw_pitch_roll(self) -> np.ndarray:
+        return self.viewport.yaw_pitch_roll
+
+    @yaw_pitch_roll.setter
+    def yaw_pitch_roll(self, value: Union[np.ndarray, list]):
+        self.viewport.yaw_pitch_roll = np.array(value)
+    # </editor-fold>
+
+
+class ProjBase(ProjProps, ABC):
     vp_image: np.ndarray
 
     def __init__(self, *, proj_res: str, tiling: str,
                  fov: str, vp_shape: np.ndarray = None):
-        # Create the projection
-        self.shape = np.array(splitx(proj_res)[::-1], dtype=int)
-        self.projection = np.zeros(self.shape, dtype='uint8')
-        self.proj_coord_nm = np.mgrid[range(self.shape[0]), range(self.shape[1])]
-        self.proj_coord_xyz = self.nm2xyz(self.proj_coord_nm, self.shape)
-
-        # Create the tiling
-        self.tiling = np.array(splitx(tiling)[::-1], dtype=int)
-        self.n_tiles = self.tiling[0] * self.tiling[1]
-        self.tile_res = (self.shape / self.tiling).astype(int)
-        self.tile_position_list = np.array([(n, m)
-                                            for n in range(0, self.shape[0], self.tile_res[0])
-                                            for m in range(0, self.shape[1], self.tile_res[1])])
-
-        # Create tiles border
-        self.tile_border_base = get_borders(shape=self.tile_res)
-        self.borders_xyz = []
-        for tile in range(self.n_tiles):
-            borders_nm = self.get_tile_borders(tile)
-            self.borders_xyz.append(self.nm2xyz(nm_coord=borders_nm, shape=self.shape))
-
-        # Create the viewport
-        self.fov = np.deg2rad(splitx(fov)[::-1])
-        if vp_shape is None:
-            self.vp_shape = np.round(self.fov * self.shape / (pi, 2 * pi)).astype('int')
-        else:
-            self.vp_shape = vp_shape
-        self.viewport = Viewport(self.vp_shape, self.fov)
+        self.proj_res = proj_res
+        self.tiling = tiling
+        self.fov = fov
+        self.vp_shape = vp_shape
+        self.yaw_pitch_roll = [0, 0, 0]
 
     def get_vptiles(self, yaw_pitch_roll) -> list[str]:
         """
@@ -239,39 +451,17 @@ class ProjBase(ABC):
         :param yaw_pitch_roll: The coordinate of center of VP.
         :return:
         """
-        if tuple(self.tiling) == (1, 1): return ['0']
-
+        if self.tiling == '1x1': return ['0']
         self.yaw_pitch_roll = yaw_pitch_roll
-        self.vptiles = [str(tile) for tile in range(self.n_tiles)
-                        if self.viewport.is_viewport(self.borders_xyz[tile])]
         return self.vptiles
 
-    def get_viewport(self, frame: np.ndarray, yaw_pitch_roll: np.ndarray) -> np.ndarray:
+    def get_viewport(self, frame_img: np.ndarray, yaw_pitch_roll: np.ndarray) -> np.ndarray:
+        self.frame_img = frame_img
         self.yaw_pitch_roll = yaw_pitch_roll
-        self.vp_image = self.viewport.get_vp(frame=frame, xyz2nm=self.xyz2nm)
         return self.vp_image
-
-    def get_tile_borders(self, idx: int):
-        # projection agnostic
-        return self.tile_border_base + self.tile_position_list[idx].reshape(2, -1)
 
     def show(self):
         show1(self.projection)
-
-    @staticmethod
-    @abstractmethod
-    def nm2xyz(nm_coord: np.ndarray, shape: np.ndarray):
-        pass
-
-    ##############################################
-    # Properties
-    @property
-    def yaw_pitch_roll(self):
-        return self.viewport.yaw_pitch_roll
-
-    @yaw_pitch_roll.setter
-    def yaw_pitch_roll(self, value: np.ndarray):
-        self.viewport.yaw_pitch_roll = value
 
     ##############################################
     # Draw methods
@@ -286,6 +476,10 @@ class ProjBase(ABC):
         for tile in self.get_vptiles(yaw_pitch_roll):
             self._draw_tile_border(idx=int(tile), lum=lum)
         return self.projection
+
+    def _draw_tile_border(self, idx, lum=255):
+        n, m = self.tile_borders_nm[idx]
+        self.projection[n, m] = lum
 
     def draw_vp_mask(self, yaw_pitch_roll, lum=255) -> np.ndarray:
         """
@@ -314,30 +508,17 @@ class ProjBase(ABC):
         self.yaw_pitch_roll = yaw_pitch_roll
 
         vp_borders_xyz = self.viewport.get_vp_borders_xyz(thickness=thickness)
-        nm_coord = self.xyz2nm(vp_borders_xyz, shape=self.shape, round_nm=True).astype(int)
+        nm_coord = self.xyz2nm(vp_borders_xyz, shape=self.proj_shape, round_nm=True).astype(int)
         self.projection[nm_coord[0, ...], nm_coord[1, ...]] = lum
         return self.projection
 
-    def _draw_tile_border(self, idx, lum=255):
-        borders = self.get_tile_borders(idx)
-        n, m = borders
-        self.projection[n, m] = lum
-
     def clear_projection(self):
         # self.projection = np.zeros(self.proj_res.shape, dtype='uint8')
-        self.projection = np.zeros(self.shape, dtype='uint8')
+        self.projection = np.zeros(self.proj_shape, dtype='uint8')
 
 
 class ERP(ProjBase):
-    vptiles: list
-
-    def __init__(self, tiling: str, proj_res: str, fov: str,
-                 vp_shape: np.ndarray = None):
-        super().__init__(tiling=tiling, proj_res=proj_res, fov=fov,
-                         vp_shape=vp_shape)
-
-    @staticmethod
-    def nm2xyz(nm_coord: np.ndarray, shape: np.ndarray):
+    def nm2xyz(self, nm_coord: np.ndarray, shape: np.ndarray):
         """
         ERP specific.
 
@@ -355,8 +536,7 @@ class ERP(ProjBase):
         xyz_coord = np.array([x, y, z])
         return xyz_coord
 
-    @staticmethod
-    def xyz2nm(xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
+    def xyz2nm(self, xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
         """
         ERP specific.
 
@@ -389,16 +569,7 @@ class ERP(ProjBase):
 
 
 class CMP(ProjBase):
-    vp_image: np.ndarray  # A RGB image
-    vptiles: list
-
-    def __init__(self, tiling: str, proj_res: str, fov: str,
-                 vp_shape: np.ndarray = None):
-        super().__init__(tiling=tiling, proj_res=proj_res, fov=fov,
-                         vp_shape=vp_shape)
-
-    @staticmethod
-    def nm2xyz(nm_coord: np.ndarray, shape: np.ndarray):
+    def nm2xyz(self, nm_coord: np.ndarray, shape: np.ndarray):
         """
         CMP specific.
 
@@ -406,15 +577,19 @@ class CMP(ProjBase):
         :param shape: (N, M)
         :return: x, y, z
         """
-        side_size = shape[0] / 2
+        side_size = shape[0] // 2
         face_m, face_n, face = cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
         u, v = mn_face2uv_cmp(face_m, face_n, side_size)
         x, y, z = uv_cmp2cart(u, v, face, side_size)
         xyz_coord = np.array([x, y, z])
         return xyz_coord
 
-    @staticmethod
-    def xyz2nm(xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
+    def uv_cmp2mn_face(self, u, v, side_size: int):
+        m = int((u + 1) * side_size / 2)
+        n = int((v + 1) * side_size / 2)
+        return m, n
+
+    def xyz2nm(self, xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
         """
         CMP specific.
 
@@ -424,7 +599,7 @@ class CMP(ProjBase):
         :return:
         """
         side_size = shape[0] / 3
-        u, v, face = cart2uv_cmp(xyz_coord[:, :, 0], xyz_coord[:, :, 1], xyz_coord[:, :, 2])
+        u, v, face = cart2uv_cmp(xyz_coord[0, :, :], xyz_coord[1, :, :], xyz_coord[2, :, :])
         face_m, face_n = uv_cmp2mn_face(u, v, side_size)
         m, n = mn_face2mn_proj(face_m, face_n, face, side_size)
         return np.array([n, m])
@@ -442,7 +617,7 @@ def show2(projection: np.ndarray):
 
 def get_borders(*, coord_nm: Union[tuple, np.ndarray] = None, shape=None, thickness=1):
     """
-    frame must be shape==(C, N, M)
+    coord_nm must be shape==(C, N, M)
     :param coord_nm:
     :param shape:
     :param thickness:
@@ -524,7 +699,7 @@ def test_cmp():
     frame_img = frame_img.resize((width, height))
     frame_array = np.asarray(frame_img)
 
-    cmp = CMP('6x4', f'{width}x{height}', '110x90')
+    cmp = CMP(tiling='6x4', proj_res=f'{width}x{height}', fov='110x90')
     tiles = cmp.get_vptiles(yaw_pitch_roll)
 
     viewport_array = cmp.get_viewport(frame_array, yaw_pitch_roll)
