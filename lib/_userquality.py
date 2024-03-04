@@ -203,9 +203,9 @@ class GetTiles(GetTilesProps):
 
     def init(self):
         self.n_frames = 1800
-        self.erp_list = {self.tiling: vp.ERP(self.tiling, '576x288', self.fov)
+        self.erp_list = {self.tiling: vp.ERP(tiling=self.tiling, proj_res='576x288', fov=self.fov)
                          for self.tiling in self.tiling_list}
-        self.cmp_list = {self.tiling: vp.CMP(self.tiling, '432x288', self.fov)
+        self.cmp_list = {self.tiling: vp.CMP(tiling=self.tiling, proj_res='432x288', fov=self.fov)
                          for self.tiling in self.tiling_list}
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
                           'chunks': {str(i): ["0"] for i in range(1, int(self.duration) + 1)}}
@@ -817,9 +817,9 @@ class ViewportPSNRProps(GetTilesProps):
                 is_ok, tile_frame = self.readers[self.quality][self.tile].read()
 
             m, n = idx2xy(idx=int(self.tile), shape=splitx(self.tiling)[::-1])
-            tile_y, tile_x = self.erp.tile_res[-2] * n, self.erp.tile_res[-1] * m
+            tile_y, tile_x = self.erp.tile_shape[-2] * n, self.erp.tile_shape[-1] * m
             # tile_frame = cv.cvtColor(tile_frame, cv.COLOR_BGR2YUV)[:, :, 0]
-            proj_frame[tile_y:tile_y + self.erp.tile_res[-2], tile_x:tile_x + self.erp.tile_res[-1], :] = tile_frame
+            proj_frame[tile_y:tile_y + self.erp.tile_shape[-2], tile_x:tile_x + self.erp.tile_shape[-1], :] = tile_frame
 
     def output_exist(self, overwrite=False):
         if self.viewport_psnr_file.exists() and not overwrite:
@@ -862,8 +862,8 @@ class ViewportPSNR(ViewportPSNRProps):
             return
 
         qlt_by_frame = AutoDict()
-        proj_frame = np.zeros(tuple(self.erp.shape) + (3,), dtype='uint8')
-        proj_frame_ref = np.zeros(tuple(self.erp.shape) + (3,), dtype='uint8')
+        proj_frame = np.zeros(tuple(self.erp.proj_shape) + (3,), dtype='uint8')
+        proj_frame_ref = np.zeros(tuple(self.erp.proj_shape) + (3,), dtype='uint8')
 
         self.seen_tiles_by_chunks = self.seen_tiles[self.vid_proj][self.name][self.tiling][self.user]['chunks']
 
@@ -998,7 +998,7 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
             for self.tiling in self.tiling_list:
                 self.erp = self.erp_list[self.tiling]
-                self.tile_h, self.tile_w = self.erp.tile_res[:2]
+                self.tile_h, self.tile_w = self.erp.tile_shape[:2]
                 for self.user in self.users_list:
                     self.yaw_pitch_roll_frames = self.dataset[self.name][self.user]
                     if self.output_exist(False): continue
