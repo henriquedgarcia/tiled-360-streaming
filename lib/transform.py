@@ -170,47 +170,52 @@ def hcs2erp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int]:
 def ______cmp_____(): ...
 
 
-def cart2uv_cmp(x, y, z):
-    u = v = face = None
+def cart2uv_cmp(x: np.ndarray, y: np.ndarray, z: np.ndarray):
+    x, y, z = np.array(x), np.array(y), np.array(z)
+
+    u = np.zeros(x.shape)
+    v = np.zeros(x.shape)
+    face = np.zeros(x.shape)
+
     ax, ay, az = np.abs((x, y, z))
 
-    if -x >= -z and -x > z \
-            and -x >= -y and -x > y \
-            and x < 0:  # face 0
-        face = 0
-        u = z / ax
-        v = y / ax
-    if z >= -x and z > x \
-            and z >= -y and z > y \
-            and z > 0:  # face 1
-        face = 1
-        u = x / az
-        v = y / az
-    if x >= z and x > -z \
-            and x >= -y and x > y \
-            and x > 0:
-        face = 2
-        u = -z / ax
-        v = y / ax
+    def selection(v1, v2, v3, v4, v5):
+        selection1 = np.logical_and(v1, v2)
+        selection2 = np.logical_and(selection1, v3)
+        selection3 = np.logical_and(selection2, v4)
+        selection4 = np.logical_and(selection3, v5)
+        return selection4
 
-    if y >= x and y > -x \
-            and y >= -z and y > z \
-            and y > 0:
-        face = 3
-        u = -x / ay
-        v = z / ay
-    if -z >= x and -z > -x \
-            and -z >= -y and -z > y \
-            and z < 0:
-        face = 4
-        u = -x / az
-        v = y / az
-    if -y >= x and -y > -x \
-            and -y >= z and -y > -z \
-            and y < 0:
-        face = 5
-        u = -x / ay
-        v = z / ay
+    sel = selection(-x >= -z, -x > z, -x >= -y, -x > y, x < 0)
+    face[sel] = 0
+    u[sel] = z[sel]
+    u[sel] = z[sel] / ax[sel]
+    v[sel] = y[sel] / ax[sel]
+
+    sel = selection(z >= -x, z > x, z >= -y, z > y, z > 0)
+    face[sel] = 1
+    u[sel] = x[sel] / az[sel]
+    v[sel] = y[sel] / az[sel]
+
+    sel = selection(x >= z, x > -z, x >= -y, x > y, x > 0)
+    face[sel] = 2
+    u[sel] = -z[sel] / ax[sel]
+    v[sel] = y[sel] / ax[sel]
+
+    sel = selection(y >= x, y > -x, y >= -z, y > z, y > 0)
+    face[sel] = 3
+    u[sel] = -x[sel] / ay[sel]
+    v[sel] = z[sel] / ay[sel]
+
+    sel = selection(-z >= x, -z > -x, -z >= -y, -z > y, z < 0)
+    face[sel] = 4
+    u[sel] = -x[sel] / az[sel]
+    v[sel] = y[sel] / az[sel]
+
+    sel = selection(-y >= x, -y > -x, -y >= z, -y > -z, y < 0)
+    face[sel] = 5
+    u[sel] = -x[sel] / ay[sel]
+    v[sel] = z[sel] / ay[sel]
 
     return u, v, face
 
@@ -228,36 +233,35 @@ def mn_face2uv_cmp(m, n, side_size):
 
 
 def uv_cmp2cart(u, v, face, side_size):
-    face_one = np.ones(shape=(side_size, side_size))
     x = np.zeros(shape=u.shape)
     y = np.zeros(shape=u.shape)
     z = np.zeros(shape=u.shape)
 
     # if face == 0:
-    x[face == 0] = -face_one
+    x[face == 0] = -1
     y[face == 0] = v[face == 0]
     z[face == 0] = u[face == 0]
 
     # elif face == 1:
     x[face == 1] = u[face == 1]
     y[face == 1] = v[face == 1]
-    z[face == 1] = face_one
+    z[face == 1] = 1
 
     # elif face == 2:
-    x[face == 2] = face_one
+    x[face == 2] = 1
     y[face == 2] = v[face == 2]
     z[face == 2] = -u[face == 2]
     # elif face == 3:
     x[face == 3] = -u[face == 3]
-    y[face == 3] = face_one
+    y[face == 3] = 1
     z[face == 3] = v[face == 3]
     # elif face == 4:
     x[face == 4] = -u[face == 4]
     y[face == 4] = v[face == 4]
-    z[face == 4] = -face_one
+    z[face == 4] = -1
     # elif face == 5:
     x[face == 5] = -u[face == 5]
-    y[face == 5] = -face_one
+    y[face == 5] = -1
     z[face == 5] = -v[face == 5]
 
     return x, y, z
