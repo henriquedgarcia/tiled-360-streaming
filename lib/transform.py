@@ -38,7 +38,8 @@ def cart2hcs(x, y, z) -> tuple[float, float]:
 #     return np.array([azimuth, elevation]).T
 
 
-def hcs2cart(azimuth: Union[np.ndarray, float], elevation: Union[np.ndarray, float]) \
+def hcs2cart(azimuth: Union[np.ndarray, float],
+             elevation: Union[np.ndarray, float]) \
         -> tuple[Union[np.ndarray, float], Union[np.ndarray, float], Union[np.ndarray, float]]:
     """
     Convert from horizontal coordinate system  in radians to cartesian system.
@@ -170,14 +171,76 @@ def hcs2erp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int]:
 def ______cmp_____(): ...
 
 
-def cart2uv_cmp(x: np.ndarray, y: np.ndarray, z: np.ndarray):
-    x, y, z = np.array(x), np.array(y), np.array(z)
+def cmp2mnface(mn: np.ndarray):
+    """
 
-    u = np.zeros(x.shape)
-    v = np.zeros(x.shape)
-    face = np.zeros(x.shape)
+    :param mn: mn coords
+    :return:
+    """
+    new_shape = (3,) + mn.shape
+    mn_face = np.zeros(new_shape)
+    side_size = mn.shape[0] // 2
 
-    ax, ay, az = np.abs((x, y, z))
+    mn_face[:2] = mn % side_size
+    mn_face[2] = mn[0] // side_size + mn[1] // side_size * 3
+    return mn_face
+
+
+def mnface2uvface(mn_face):
+    """
+
+    :param mn_face: (3, H, W)
+    :return:
+    """
+    uvface = np.zeros(mn_face.shape)
+    side_size = mn_face.shape[1] / 2
+    v_normalize = np.vectorize(lambda n: int((n + 1) * side_size / 2))
+    mn_cmp: np.ndarray = v_normalize(uvface[1:, ...])
+    return mn_cmp.astype(int)
+
+
+def uvface2xyz(u_v_face):
+    x_y_z = np.zeros(u_v_face.shape)
+
+    # if u_v_face[2] == 0:
+    x_y_z[0][u_v_face[2] == 0] = -1
+    x_y_z[1][u_v_face[2] == 0] = u_v_face[1][u_v_face[2] == 0]
+    x_y_z[2][u_v_face[2] == 0] = u_v_face[0][u_v_face[2] == 0]
+
+    # elif u_v_face[2] == 1:
+    x_y_z[0][u_v_face[2] == 1] = u_v_face[0][u_v_face[2] == 1]
+    x_y_z[1][u_v_face[2] == 1] = u_v_face[1][u_v_face[2] == 1]
+    x_y_z[2][u_v_face[2] == 1] = 1
+
+    # elif u_v_face[2] == 2:
+    x_y_z[0][u_v_face[2] == 2] = 1
+    x_y_z[1][u_v_face[2] == 2] = u_v_face[1][u_v_face[2] == 2]
+    x_y_z[2][u_v_face[2] == 2] = -u_v_face[0][u_v_face[2] == 2]
+    # elif u_v_face[2] == 3:
+    x_y_z[0][u_v_face[2] == 3] = -u_v_face[0][u_v_face[2] == 3]
+    x_y_z[1][u_v_face[2] == 3] = 1
+    x_y_z[2][u_v_face[2] == 3] = u_v_face[1][u_v_face[2] == 3]
+    # elif u_v_face[2] == 4:
+    x_y_z[0][u_v_face[2] == 4] = -u_v_face[0][u_v_face[2] == 4]
+    x_y_z[1][u_v_face[2] == 4] = u_v_face[1][u_v_face[2] == 4]
+    x_y_z[2][u_v_face[2] == 4] = -1
+    # elif u_v_face[2] == 5:
+    x_y_z[0][u_v_face[2] == 5] = -u_v_face[0][u_v_face[2] == 5]
+    x_y_z[1][u_v_face[2] == 5] = -1
+    x_y_z[2][u_v_face[2] == 5] = -u_v_face[1][u_v_face[2] == 5]
+
+    return x_y_z
+
+
+def xyz2uvface(xyz: np.ndarray) -> np.ndarray:
+    """
+
+    :param xyz: (3, H, W)
+    :return:
+    """
+
+    u_v_face = np.zeros(xyz.shape)
+    ax_ay_az = np.abs(xyz)
 
     def selection(v1, v2, v3, v4, v5):
         selection1 = np.logical_and(v1, v2)
@@ -186,121 +249,74 @@ def cart2uv_cmp(x: np.ndarray, y: np.ndarray, z: np.ndarray):
         selection4 = np.logical_and(selection3, v5)
         return selection4
 
-    sel = selection(-x >= -z, -x > z, -x >= -y, -x > y, x < 0)
-    face[sel] = 0
-    u[sel] = z[sel]
-    u[sel] = z[sel] / ax[sel]
-    v[sel] = y[sel] / ax[sel]
+    sel = selection(-xyz[0] >= -xyz[2], -xyz[0] > xyz[2], -xyz[0] >= -xyz[1], -xyz[0] > xyz[1], xyz[0] < 0)
+    u_v_face[2][sel] = 0
+    u_v_face[0][sel] = xyz[2][sel]
+    u_v_face[0][sel] = xyz[2][sel] / ax_ay_az[0][sel]
+    u_v_face[1][sel] = xyz[1][sel] / ax_ay_az[0][sel]
 
-    sel = selection(z >= -x, z > x, z >= -y, z > y, z > 0)
-    face[sel] = 1
-    u[sel] = x[sel] / az[sel]
-    v[sel] = y[sel] / az[sel]
+    sel = selection(xyz[2] >= -xyz[0], xyz[2] > xyz[0], xyz[2] >= -xyz[1], xyz[2] > xyz[1], xyz[2] > 0)
+    u_v_face[2][sel] = 1
+    u_v_face[0][sel] = xyz[0][sel] / ax_ay_az[2][sel]
+    u_v_face[1][sel] = xyz[1][sel] / ax_ay_az[2][sel]
 
-    sel = selection(x >= z, x > -z, x >= -y, x > y, x > 0)
-    face[sel] = 2
-    u[sel] = -z[sel] / ax[sel]
-    v[sel] = y[sel] / ax[sel]
+    sel = selection(xyz[0] >= xyz[2], xyz[0] > -xyz[2], xyz[0] >= -xyz[1], xyz[0] > xyz[1], xyz[0] > 0)
+    u_v_face[2][sel] = 2
+    u_v_face[0][sel] = -xyz[2][sel] / ax_ay_az[0][sel]
+    u_v_face[1][sel] = xyz[1][sel] / ax_ay_az[0][sel]
 
-    sel = selection(y >= x, y > -x, y >= -z, y > z, y > 0)
-    face[sel] = 3
-    u[sel] = -x[sel] / ay[sel]
-    v[sel] = z[sel] / ay[sel]
+    sel = selection(xyz[1] >= xyz[0], xyz[1] > -xyz[0], xyz[1] >= -xyz[2], xyz[1] > xyz[2], xyz[1] > 0)
+    u_v_face[2][sel] = 3
+    u_v_face[0][sel] = -xyz[0][sel] / ax_ay_az[1][sel]
+    u_v_face[1][sel] = xyz[2][sel] / ax_ay_az[1][sel]
 
-    sel = selection(-z >= x, -z > -x, -z >= -y, -z > y, z < 0)
-    face[sel] = 4
-    u[sel] = -x[sel] / az[sel]
-    v[sel] = y[sel] / az[sel]
+    sel = selection(-xyz[2] >= xyz[0], -xyz[2] > -xyz[0], -xyz[2] >= -xyz[1], -xyz[2] > xyz[1], xyz[2] < 0)
+    u_v_face[2][sel] = 4
+    u_v_face[0][sel] = -xyz[0][sel] / ax_ay_az[2][sel]
+    u_v_face[1][sel] = xyz[1][sel] / ax_ay_az[2][sel]
 
-    sel = selection(-y >= x, -y > -x, -y >= z, -y > -z, y < 0)
-    face[sel] = 5
-    u[sel] = -x[sel] / ay[sel]
-    v[sel] = z[sel] / ay[sel]
+    sel = selection(-xyz[1] >= xyz[0], -xyz[1] > -xyz[0], -xyz[1] >= xyz[2], -xyz[1] > -xyz[2], xyz[1] < 0)
+    u_v_face[2][sel] = 5
+    u_v_face[0][sel] = -xyz[0][sel] / ax_ay_az[1][sel]
+    u_v_face[1][sel] = xyz[2][sel] / ax_ay_az[1][sel]
 
-    return u, v, face
-
-
-def uv_cmp2mn_face(u, v, side_size: int):
-    m = int((u + 1) * side_size / 2)
-    n = int((v + 1) * side_size / 2)
-    return m, n
+    return u_v_face
 
 
-def mn_face2uv_cmp(m, n, side_size):
-    u = (m + 0.5) * 2 / side_size - 1
-    v = (n + 0.5) * 2 / side_size - 1
-    return u, v
+def uvface2mn_face(u_v_face, side_size: int):
+    mn_cmp = np.zeros(u_v_face.shape)
+    v_normalize = np.vectorize(lambda n: int((n + 1) * side_size / 2))
+    mn_cmp[1:, ...] = v_normalize(u_v_face[1:, ...])
+    return mn_cmp.astype(int)
 
 
-def uv_cmp2cart(u, v, face, side_size):
-    x = np.zeros(shape=u.shape)
-    y = np.zeros(shape=u.shape)
-    z = np.zeros(shape=u.shape)
+def mn_face2cmp(m_n_face, side_size):
+    new_shape = m_n_face.shape[1:]
+    m_n = np.zeros(new_shape)
 
-    # if face == 0:
-    x[face == 0] = -1
-    y[face == 0] = v[face == 0]
-    z[face == 0] = u[face == 0]
+    selection = m_n_face[2] == 0
+    m_n[selection] = m_n_face[1:][selection]
 
-    # elif face == 1:
-    x[face == 1] = u[face == 1]
-    y[face == 1] = v[face == 1]
-    z[face == 1] = 1
+    selection = m_n_face[2] == 1
+    m_n[0][selection] = m_n_face[0][selection] + side_size
+    m_n[1][selection] = m_n_face[1][selection]
+    selection = m_n_face[2] == 2
+    m_n[0][selection] = m_n_face[0][selection] + 2 * side_size
+    m_n[1][selection] = m_n_face[1][selection]
+    selection = m_n_face[2] == 3
+    m_n[0][selection] = - m_n_face[1][selection] + side_size - 1
+    m_n[1][selection] = m_n_face[0][selection] + side_size
+    selection = m_n_face[2] == 4
+    m_n[0][selection] = - m_n_face[1][selection] + 2 * side_size - 1
+    m_n[1][selection] = m_n_face[0][selection] + side_size
+    selection = m_n_face[2] == 5
+    m_n[0][selection] = - m_n_face[1][selection] + 3 * side_size - 1
+    m_n[1][selection] = m_n_face[0][selection] + side_size
 
-    # elif face == 2:
-    x[face == 2] = 1
-    y[face == 2] = v[face == 2]
-    z[face == 2] = -u[face == 2]
-    # elif face == 3:
-    x[face == 3] = -u[face == 3]
-    y[face == 3] = 1
-    z[face == 3] = v[face == 3]
-    # elif face == 4:
-    x[face == 4] = -u[face == 4]
-    y[face == 4] = v[face == 4]
-    z[face == 4] = -1
-    # elif face == 5:
-    x[face == 5] = -u[face == 5]
-    y[face == 5] = -1
-    z[face == 5] = -v[face == 5]
-
-    return x, y, z
+    return m_n
 
 
-def mn_face2mn_proj(face_m, face_n, face, side_size):
-    new_m, new_n = None, None
-    if face == 0:
-        new_m = face_m
-        new_n = face_n
-    elif face == 1:
-        new_m = face_m + side_size
-        new_n = face_n
-    elif face == 2:
-        new_m = face_m + 2 * side_size
-        new_n = face_n
-    elif face == 3:
-        new_m = side_size - face_n - 1
-        new_n = face_m + side_size
-    elif face == 4:
-        new_m = 2 * side_size - face_n - 1
-        new_n = face_m + side_size
-    elif face == 5:
-        new_m = 3 * side_size - face_n - 1
-        new_n = face_m + side_size
-
-    return new_m, new_n
-
-
-def cmp2mn_face(m, n, side_size):
-    face_m = m % side_size
-    face_n = n % side_size
-
-    face = m // side_size + n // side_size * 3
-
-    return face_m, face_n, face
-
-
-def hcs2cmp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int, int]:
+def hcs2cmp(azimuth: float, elevation: float, shape: tuple) -> np.ndarray:
     """
 
     :param azimuth: in rad
@@ -312,10 +328,9 @@ def hcs2cmp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int, i
     side_size = int(proj_h / 2)  # suppose the face is a square
 
     x, y, z = hcs2cart(azimuth, elevation)
-    u, v, face = cart2uv_cmp(x, y, z)
-    m, n = uv_cmp2mn_face(u, v, side_size)
-    m, n = mn_face2mn_proj(m, n, face, side_size)
-    return m, n, face
+    u_v_face = xyz2uvface(np.array([x, y, z]))
+    mn_face = uvface2mn_face(u_v_face, side_size)
+    return mn_face
 
 
 # def cmp2cart(n: int, m: int, shape: tuple[int, int], f: int = 0) -> tuple[float, float, float]:
@@ -554,7 +569,7 @@ def teste_cart2uv_cmp():
 
     for angle in range(0, 360):
         x, y, z = hcs2cart(angle, np.deg2rad(0.0))
-        u, v, face = cart2uv_cmp(x, y, z)
+        u, v, face = xyz2uvface(x, y, z)
         lu.append(u)
         lv.append(v)
         lface.append(face)
