@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 
 try:
     from .transform import (rot_matrix, splitx,
-                            cmp2mn_face, mn_face2uv_cmp, uv_cmp2cart,
-                            cart2uv_cmp, uv_cmp2mn_face, mn_face2mn_proj)
+                            mn_cmp2mn_face, mn_face2uv_cmp, uvface2xyz,
+                            xyz2uvface, uv_cmp2mn_face, mn_face2mn_proj)
 except ImportError:
     from transform import (rot_matrix, splitx,
-                           cmp2mn_face, mn_face2uv_cmp, uv_cmp2cart,
-                           cart2uv_cmp, uv_cmp2mn_face, mn_face2mn_proj)
+                           mn_cmp2mn_face, mn_face2uv_cmp, uvface2xyz,
+                           xyz2uvface, uv_cmp2mn_face, mn_face2mn_proj)
 
 
 class Viewport:
@@ -29,10 +29,9 @@ class Viewport:
     _rotated_normals: np.ndarray
     _vp_rotated_xyz: np.ndarray
     _vp_borders_xyz: np.ndarray
-    _is_in_vp: bool
-    _out: np.ndarray
+    _vp_img: np.ndarray
 
-    def __init__(self, vp_shape: np.ndarray, fov: np.ndarray):
+    def __init__(self, vp_shape: Union[np.ndarray, tuple], fov: np.ndarray):
         """
         Viewport Class used to extract view pixels in projections.
         The vp is an image as numpy array with shape (H, M, 3).
@@ -48,58 +47,6 @@ class Viewport:
         self._make_base_vp_coord()
 
         self._yaw_pitch_roll = np.array([0, 0, 0])
-
-    def is_viewport(self, x_y_z: np.ndarray) -> bool:
-        """
-        Check if the plane equation is true to viewport
-        x1 * m + y1 * n + z1 * z < 0
-        If True, the "point" is on the viewport
-        Obs: is_in só retorna true se todas as expressões forem verdadeiras
-
-        :param x_y_z: A 3D Point list in the space [(x, y, z), ...].T, shape == (3, ...)
-        :return: A boolean         belong = np.all(inner_product <= 0, axis=0).reshape(self.shape)
-
-        """
-        inner_prod = self.rotated_normals.T @ x_y_z
-        px_in_vp = np.all(inner_prod <= 0, axis=0)
-        self._is_in_vp = np.any(px_in_vp)
-        return self._is_in_vp
-
-    def rotate_vp(self) -> np.ndarray:
-        if "rotate_vp" not in self.vp_state:
-            self._vp_rotated_xyz = np.tensordot(self.mat_rot, self.vp_coord_xyz, axes=1)
-            self.vp_state.update(["rotate_vp"])
-        return self._vp_rotated_xyz
-
-    def get_vp(self, frame: np.ndarray, xyz2nm: Callable) -> np.ndarray:
-        """
-
-        :param frame: The projection image.
-        :param xyz2nm: A function from 3D to projection.
-        :return: The viewport image (RGB)
-        """
-        self.rotate_vp()
-        nm_coord: np.ndarray = xyz2nm(self._vp_rotated_xyz, frame.shape)
-        nm_coord = nm_coord.transpose((1, 2, 0))
-        self._out = cv2.remap(frame,
-                              map1=nm_coord[..., 1:2].astype(np.float32),
-                              map2=nm_coord[..., 0:1].astype(np.float32),
-                              interpolation=cv2.INTER_LINEAR,
-                              borderMode=cv2.BORDER_WRAP)
-        # show2(self._out)
-        return self._out
-
-    def get_vp_borders_xyz(self, thickness: int = 1) -> np.ndarray:
-        """
-
-        :param thickness: in pixels
-        :return: np.ndarray (shape == (1,HxW,3)
-        """
-        self.rotate_vp()
-        if "get_vp_borders_xyz" not in self.vp_state:
-            self._vp_borders_xyz = get_borders(coord_nm=self._vp_rotated_xyz, thickness=thickness)
-            self.vp_state.update(["get_vp_borders_xyz"])
-        return self._vp_borders_xyz
 
     def _make_base_normals(self) -> None:
         """
@@ -158,6 +105,60 @@ class Viewport:
 
         self.vp_coord_xyz = vp_coord_xyz_ / r  # normalize. final shape==(3,H,W)
 
+    _is_viewport: bool
+
+    def is_viewport(self, x_y_z: np.ndarray) -> bool:
+        """
+        Check if the plane equation is true to viewport
+        x1 * m + y1 * n + z1 * z < 0
+        If True, the "point" is on the viewport
+        Obs: is_in só retorna true se todas as expressões forem verdadeiras
+
+        :param x_y_z: A 3D Point list in the space [(x, y, z), ...].T, shape == (3, ...)
+        :return: A boolean         belong = np.all(inner_product <= 0, axis=0).reshape(self.shape)
+
+        """
+        if self._is_viewport is not None:
+            return self._is_viewport
+
+        inner_prod = self.rotated_normals.T @ x_y_z
+        px_in_vp = np.all(inner_prod <= 0, axis=0)
+        self._is_viewport = np.any(px_in_vp)
+        return self._is_viewport
+
+    def get_vp(self, frame: np.ndarray, xyz2nm: Callable) -> np.ndarray:
+        """
+
+        :param frame: The projection image.
+        :param xyz2nm: A function from 3D to projection.
+        :return: The viewport image (RGB)
+        """
+        if self._vp_img:
+            return self._vp_img
+
+        nm_coord: np.ndarray
+        nm_coord = xyz2nm(self.vp_rotated_xyz, frame.shape)
+        nm_coord = nm_coord.transpose((1, 2, 0))
+        self._vp_img = cv2.remap(frame,
+                                 map1=nm_coord[..., 1:2].astype(np.float32),
+                                 map2=nm_coord[..., 0:1].astype(np.float32),
+                                 interpolation=cv2.INTER_LINEAR,
+                                 borderMode=cv2.BORDER_WRAP)
+        # show2(self._out)
+        return self._vp_img
+
+    # def get_vp_borders_xyz(self, thickness: int = 1) -> np.ndarray:
+    #     """
+    #
+    #     :param thickness: in pixels
+    #     :return: np.ndarray (shape == (1,HxW,3)
+    #     """
+    #     if self._vp_borders_xyz:
+    #         return self._vp_borders_xyz
+    #
+    #     self._vp_borders_xyz = get_borders(coord_nm=self.vp_rotated_xyz, thickness=thickness)
+    #     return self._vp_borders_xyz
+
     @property
     def yaw_pitch_roll(self) -> np.ndarray:
         return self._yaw_pitch_roll
@@ -171,22 +172,36 @@ class Viewport:
 
         :param value: the positions like array(yaw, pitch, roll) in rad
         """
-        if not np.all(self.yaw_pitch_roll == value):
-            self._yaw_pitch_roll = value
-            self.vp_state = set()
+        self._yaw_pitch_roll = value
+        self._vp_rotated_xyz = None
+        self._mat_rot = None
+        self._rotated_normals = None
+        self._vp_img = None
+        self._vp_borders_xyz = None
+        self._is_viewport = None
+
+    @property
+    def vp_rotated_xyz(self) -> np.ndarray:
+        if self._vp_rotated_xyz:
+            return self._vp_rotated_xyz
+
+        self._vp_rotated_xyz = np.tensordot(self.mat_rot, self.vp_coord_xyz, axes=1)
+        return self._vp_rotated_xyz
 
     @property
     def mat_rot(self) -> np.ndarray:
-        if "mat_rot" not in self.vp_state:
-            self._mat_rot = rot_matrix(self.yaw_pitch_roll)
-            self.vp_state.update(["mat_rot"])
+        if self._mat_rot:
+            return self._mat_rot
+
+        self._mat_rot = rot_matrix(self.yaw_pitch_roll)
         return self._mat_rot
 
     @property
     def rotated_normals(self) -> np.ndarray:
-        if "rotated_normals" not in self.vp_state:
-            self._rotated_normals = self.mat_rot @ self.base_normals
-            self.vp_state.update(["rotated_normals"])
+        if self._rotated_normals:
+            return self._rotated_normals
+
+        self._rotated_normals = self.mat_rot @ self.base_normals
         return self._rotated_normals
 
 
@@ -194,6 +209,7 @@ class ProjProps(ABC):
     proj_res: str
     tiling: str
     fov: str
+    vp_rotated_xyz: np.ndarray
     frame_img = np.zeros([0])
 
     @abstractmethod
@@ -201,7 +217,7 @@ class ProjProps(ABC):
         pass
 
     @abstractmethod
-    def xyz2nm(self, xyz_coord: np.ndarray, shape: np.ndarray, round_nm: bool) -> np.ndarray:
+    def xyz2nm(self, xyz_coord: np.ndarray, shape: Union[np.ndarray, tuple], round_nm: bool) -> np.ndarray:
         pass
 
     # <editor-fold desc="About the Projection">
@@ -236,6 +252,10 @@ class ProjProps(ABC):
         if not self._projection:
             self._projection = np.zeros(self.proj_shape, dtype='uint8')
         return self._projection
+
+    @projection.setter
+    def projection(self, value):
+        self._projection = value
 
     _proj_coord_nm: np.ndarray = None
 
@@ -408,17 +428,21 @@ class ProjProps(ABC):
             self._viewport = Viewport(self.vp_shape, self.fov_shape)
         return self._viewport
 
-    @property
-    def vptiles(self) -> list:
-        vptiles = [str(tile) for tile in range(self.n_tiles)
-                   if self.viewport.is_viewport(self.tile_borders_xyz[tile])]
-        return vptiles
-
     _vp_image: np.ndarray = None
 
     @property
     def vp_image(self) -> np.ndarray:
-        self._vp_image = self.viewport.get_vp(frame=self.frame_img, xyz2nm=self.xyz2nm)
+        nm_coord = self.xyz2nm(self.vp_rotated_xyz,
+                               self.frame_img.shape,
+                               round_nm=False)
+        nm_coord = nm_coord.transpose((1, 2, 0))
+        out = cv2.remap(self.frame_img,
+                        map1=nm_coord[..., 1:2].astype(np.float32),
+                        map2=nm_coord[..., 0:1].astype(np.float32),
+                        interpolation=cv2.INTER_LINEAR,
+                        borderMode=cv2.BORDER_WRAP)
+
+        self._vp_image = out
         return self._vp_image
 
     # </editor-fold>
@@ -431,12 +455,11 @@ class ProjProps(ABC):
     @yaw_pitch_roll.setter
     def yaw_pitch_roll(self, value: Union[np.ndarray, list]):
         self.viewport.yaw_pitch_roll = np.array(value)
+
     # </editor-fold>
 
 
 class ProjBase(ProjProps, ABC):
-    vp_image: np.ndarray
-
     def __init__(self, *, proj_res: str, tiling: str,
                  fov: str, vp_shape: np.ndarray = None):
         self.proj_res = proj_res
@@ -445,19 +468,19 @@ class ProjBase(ProjProps, ABC):
         self.vp_shape = vp_shape
         self.yaw_pitch_roll = [0, 0, 0]
 
-    def get_vptiles(self, yaw_pitch_roll) -> list[str]:
+    def get_vptiles(self) -> list[str]:
         """
 
-        :param yaw_pitch_roll: The coordinate of center of VP.
         :return:
         """
         if self.tiling == '1x1': return ['0']
-        self.yaw_pitch_roll = yaw_pitch_roll
-        return self.vptiles
+        vptiles = [str(tile) for tile in range(self.n_tiles)
+                   if self.viewport.is_viewport(self.tile_borders_xyz[tile])]
+        return vptiles
 
-    def get_viewport(self, frame_img: np.ndarray, yaw_pitch_roll: np.ndarray) -> np.ndarray:
+    def get_viewport(self, frame_img: np.ndarray) -> np.ndarray:
+        # todo: não implementado???
         self.frame_img = frame_img
-        self.yaw_pitch_roll = yaw_pitch_roll
         return self.vp_image
 
     def show(self):
@@ -468,53 +491,49 @@ class ProjBase(ProjProps, ABC):
     def draw_all_tiles_borders(self, lum=255):
         self.clear_projection()
         for tile in range(self.n_tiles):
-            self._draw_tile_border(idx=int(tile), lum=lum)
+            self.draw_tile_border(idx=int(tile), lum=lum)
         return self.projection
 
-    def draw_vp_tiles(self, yaw_pitch_roll, lum=255):
+    def draw_vp_tiles(self, lum=255):
         self.clear_projection()
-        for tile in self.get_vptiles(yaw_pitch_roll):
-            self._draw_tile_border(idx=int(tile), lum=lum)
+        for tile in self.get_vptiles():
+            self.draw_tile_border(idx=int(tile), lum=lum)
         return self.projection
 
-    def _draw_tile_border(self, idx, lum=255):
+    def draw_tile_border(self, idx, lum=255):
         n, m = self.tile_borders_nm[idx]
         self.projection[n, m] = lum
 
-    def draw_vp_mask(self, yaw_pitch_roll, lum=255) -> np.ndarray:
+    def draw_vp_mask(self, lum=255) -> np.ndarray:
         """
         Project the sphere using ERP. Where is Viewport the
-        :param yaw_pitch_roll:
         :param lum: value to draw line
         :return: a numpy.ndarray with one deep color
         """
         self.clear_projection()
-        self.yaw_pitch_roll = yaw_pitch_roll
         rotated_normals = self.viewport.rotated_normals.T
         inner_product = np.tensordot(rotated_normals, self.proj_coord_xyz, axes=1)
         belong = np.all(inner_product <= 0, axis=0)
         self.projection[belong] = lum
         return self.projection
 
-    def draw_vp_borders(self, yaw_pitch_roll: np.ndarray, lum=255, thickness=1):
+    def draw_vp_borders(self, lum=255, thickness=1):
         """
         Project the sphere using ERP. Where is Viewport the
-        :param yaw_pitch_roll:
         :param lum: value to draw line
         :param thickness: in pixel.
         :return: a numpy.ndarray with one deep color
         """
         self.clear_projection()
-        self.yaw_pitch_roll = yaw_pitch_roll
 
-        vp_borders_xyz = self.viewport.get_vp_borders_xyz(thickness=thickness)
+        vp_borders_xyz = get_borders(coord_nm=self.viewport.vp_rotated_xyz, thickness=thickness)
+
         nm_coord = self.xyz2nm(vp_borders_xyz, shape=self.proj_shape, round_nm=True).astype(int)
         self.projection[nm_coord[0, ...], nm_coord[1, ...]] = lum
         return self.projection
 
     def clear_projection(self):
-        # self.projection = np.zeros(self.proj_res.shape, dtype='uint8')
-        self.projection = np.zeros(self.proj_shape, dtype='uint8')
+        self.projection = None
 
 
 class ERP(ProjBase):
@@ -578,16 +597,11 @@ class CMP(ProjBase):
         :return: x, y, z
         """
         side_size = shape[0] // 2
-        face_m, face_n, face = cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
+        face_m, face_n, face = mn_cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
         u, v = mn_face2uv_cmp(face_m, face_n, side_size)
-        x, y, z = uv_cmp2cart(u, v, face, side_size)
+        x, y, z = uvface2xyz(u, v, face, side_size)
         xyz_coord = np.array([x, y, z])
         return xyz_coord
-
-    def uv_cmp2mn_face(self, u, v, side_size: int):
-        m = int((u + 1) * side_size / 2)
-        n = int((v + 1) * side_size / 2)
-        return m, n
 
     def xyz2nm(self, xyz_coord: np.ndarray, shape: np.ndarray = None, round_nm: bool = False):
         """
@@ -598,8 +612,8 @@ class CMP(ProjBase):
         :param round_nm: round the coords? is not needed.
         :return:
         """
-        side_size = shape[0] / 3
-        u, v, face = cart2uv_cmp(xyz_coord[0, :, :], xyz_coord[1, :, :], xyz_coord[2, :, :])
+        side_size = shape[0] / 2
+        u, v, face = xyz2uvface(xyz_coord[0, :, :], xyz_coord[1, :, :], xyz_coord[2, :, :])
         face_m, face_n = uv_cmp2mn_face(u, v, side_size)
         m, n = mn_face2mn_proj(face_m, face_n, face, side_size)
         return np.array([n, m])
@@ -638,36 +652,26 @@ def get_borders(*, coord_nm: Union[tuple, np.ndarray] = None, shape=None, thickn
     return np.c_[top, right, bottom, left]
 
 
-def test_erp():
-    # erp '144x72', '288x144','432x216','576x288'
-    # cmp '144x96', '288x192','432x288','576x384'
-    yaw_pitch_roll = np.deg2rad((70, 0, 0))
-    height, width = 288, 576
+def compose(proj: ProjBase, frame_img: Image):
+    tiles = proj.get_vptiles()
+    frame_array = np.asarray(frame_img)
+
+    height, width = frame_array.shape
+    viewport_array = proj.get_viewport(frame_array)
+    vp_image = Image.fromarray(viewport_array)
+    width_vp = int(np.round(height * vp_image.width / vp_image.height))
+    vp_image_resized = vp_image.resize((width_vp, height))
 
     cover_red = Image.new("RGB", (width, height), (255, 0, 0))
     cover_green = Image.new("RGB", (width, height), (0, 255, 0))
     cover_gray = Image.new("RGB", (width, height), (200, 200, 200))
     cover_blue = Image.new("RGB", (width, height), (0, 0, 255))
 
-    ########################################
-    # Open Image
-    frame_img: Union[Image, list] = Image.open('images/erp1.jpg')
-    frame_img = frame_img.resize((width, height))
-    frame_array = np.asarray(frame_img)
-
-    erp = ERP('6x4', f'{width}x{height}', '100x90')
-    tiles = erp.get_vptiles(yaw_pitch_roll)
-
-    viewport_array = erp.get_viewport(frame_array, yaw_pitch_roll)
-    vp_image = Image.fromarray(viewport_array)
-    width_vp = int(np.round(height * vp_image.width / vp_image.height))
-    vp_image_resized = vp_image.resize((width_vp, height))
-
     # Get masks
-    mask_all_tiles_borders = Image.fromarray(erp.draw_all_tiles_borders())
-    mask_vp_tiles = Image.fromarray(erp.draw_vp_tiles(yaw_pitch_roll))
-    mask_vp = Image.fromarray(erp.draw_vp_mask(yaw_pitch_roll, lum=200))
-    mask_vp_borders = Image.fromarray(erp.draw_vp_borders(yaw_pitch_roll))
+    mask_all_tiles_borders = Image.fromarray(proj.draw_all_tiles_borders())
+    mask_vp_tiles = Image.fromarray(proj.draw_vp_tiles())
+    mask_vp = Image.fromarray(proj.draw_vp_mask(lum=200))
+    mask_vp_borders = Image.fromarray(proj.draw_vp_borders())
 
     # Composite mask with projection
     frame_img = Image.composite(cover_red, frame_img, mask=mask_all_tiles_borders)
@@ -679,7 +683,24 @@ def test_erp():
     new_im.paste(frame_img, (0, 0))
     new_im.paste(vp_image_resized, (width + 2, 0))
     new_im.show()
+
     print(f'The viewport touch the tiles {tiles}.')
+
+
+def test_erp():
+    # erp '144x72', '288x144','432x216','576x288'
+    # cmp '144x96', '288x192','432x288','576x384'
+    yaw_pitch_roll = np.deg2rad((70, 0, 0))
+    height, width = 288, 576
+
+    ########################################
+    # Open Image
+    frame_img: Union[Image, list] = Image.open('images/erp1.jpg')
+    frame_img = frame_img.resize((width, height))
+
+    erp = ERP(tiling='6x4', proj_res=f'{width}x{height}', fov='100x90')
+    erp.yaw_pitch_roll = yaw_pitch_roll
+    compose(erp, frame_img)
 
 
 def test_cmp():
