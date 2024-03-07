@@ -14,7 +14,7 @@ import lib.video360 as vp
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
 from ._tilequality import SegmentsQualityPaths
 from .assets import Config, AutoDict, print_error
-from .transform import cart2hcs, lin_interpol, idx2xy, splitx
+from .transform import xyz2ae, lin_interpol, idx2xy, splitx
 from .util import load_json, save_json
 
 pi = np.pi
@@ -139,7 +139,7 @@ class ProcessNasrabadi(GetTilesPath):
             old_timestamp, old_xyz = self.previous_line
             xyz = lin_interpol(frame_timestamp, timestamp, old_timestamp, np.array(xyz), np.array(old_xyz))
 
-        yaw, pitch = cart2hcs(xyz).T
+        yaw, pitch = xyz2ae(xyz).T
         roll = [0] * len(yaw) if isinstance(yaw, np.ndarray) else 0
 
         if self.video_name in rotation_map:
