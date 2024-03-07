@@ -83,24 +83,31 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             save_pickle(self.weight_ndarray, weight_ndarray_file)
 
     def make_weight_ndarray(self):
-        height, width = self.video_shape[:2]
+        proj_h, proj_w = self.video_shape[:2]
 
         if self.vid_proj == 'erp':
+            pi_proj = np.pi / proj_h
+            proj_h_2 = 0.5 - proj_h / 2
+
             def func(y, x):
-                return np.cos((y + 0.5 - height / 2) * np.pi / height)
+                w = np.cos((y + proj_h_2) * pi_proj)
+                return w
 
         elif self.vid_proj == 'cmp':
-            r = height / 4
+            r = proj_h / 4
+            r1 = 0.5 - r
+            r2 = r ** 2
 
             def func(y, x):
-                x = x % (height / 2)
-                y = y % (height / 2)
-                d = (x + 0.5 - r) ** 2 + (y + 0.5 - r) ** 2
-                return (1 + d / (r ** 2)) ** (-1.5)
+                x = x % r
+                y = y % r
+                d = (x + r1) ** 2 + (y + r1) ** 2
+                w = (1 + d / r2) ** (-1.5)
+                return w
         else:
             raise ValueError(f'Wrong self.vid_proj. Value == {self.vid_proj}')
 
-        self.weight_ndarray = np.fromfunction(func, (height, width), dtype='float')
+        self.weight_ndarray = np.fromfunction(func, (proj_h, proj_w), dtype='float')
 
     def load_sph_file(self):
         """
