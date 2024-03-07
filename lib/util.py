@@ -23,7 +23,7 @@ def load_json(filename, object_hook=dict):
 
 def save_pickle(data: object, filename: Union[str, Path]):
     with open(filename, 'wb') as f:
-        pickle.dump(data, f, protocol=-1)
+        pickle.dump(data, f, protocol=5)
 
 
 def load_pickle(filename):
