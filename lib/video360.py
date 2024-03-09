@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 
 try:
     from .transform import (rot_matrix, splitx,
-                            mn_cmp2mn_face, mn_face2uv_cmp, uvface2xyz,
-                            xyz2uvface, uv_cmp2mn_face, mn_face2mn_proj)
+                            mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz,
+                            xyz2vuface, uv_cmp2mn_face, mn_face2mn_proj)
 except ImportError:
     from transform import (rot_matrix, splitx,
-                           mn_cmp2mn_face, mn_face2uv_cmp, uvface2xyz,
-                           xyz2uvface, uv_cmp2mn_face, mn_face2mn_proj)
+                           mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz,
+                           xyz2vuface, uv_cmp2mn_face, mn_face2mn_proj)
 
 
 class Viewport:
@@ -599,7 +599,7 @@ class CMP(ProjBase):
         side_size = shape[0] // 2
         face_m, face_n, face = mn_cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
         u, v = mn_face2uv_cmp(face_m, face_n, side_size)
-        x, y, z = uvface2xyz(u, v, face, side_size)
+        x, y, z = vuface2xyz(u, v, face, side_size)
         xyz_coord = np.array([x, y, z])
         return xyz_coord
 
@@ -613,7 +613,7 @@ class CMP(ProjBase):
         :return:
         """
         side_size = shape[0] / 2
-        u, v, face = xyz2uvface(xyz_coord[0, :, :], xyz_coord[1, :, :], xyz_coord[2, :, :])
+        u, v, face = xyz2vuface(xyz_coord[0, :, :], xyz_coord[1, :, :], xyz_coord[2, :, :])
         face_m, face_n = uv_cmp2mn_face(u, v, side_size)
         m, n = mn_face2mn_proj(face_m, face_n, face, side_size)
         return np.array([n, m])
