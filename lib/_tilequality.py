@@ -140,7 +140,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             if self.vid_proj == 'erp':
                 m, n = hcs2erp(az, el, self.video_shape)
             elif self.vid_proj == 'cmp':
-                m, n, face = hcs2cmp(az, el, self.video_shape)
+                m, n, face = hcs2cmp(el, self.video_shape)
             else:
                 raise ValueError(f'wrong value to {self.vid_proj=}')
 
