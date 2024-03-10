@@ -644,67 +644,65 @@ def test(func):
     print(f'Time = {final}')
 
 
-def test_cmp():
+class test_cmp:
     nm_test: np.ndarray
     nmface_test: np.ndarray
     vuface_test: np.ndarray
-    xyz_test: np.ndarray
+    xyz_face_test: np.ndarray
     ea_test: np.ndarray
     ae2cmp_test: np.ndarray
     ea2cmp_test: np.ndarray
     cmp2ea_test: np.ndarray
 
-    def main():
-        load_arrays()
-        test(teste_cmp2mn_face)
-        test(teste_nmface2vuface)
-        test(teste_vuface2xyz)
-        test(teste_xyz2vuface)
-        test(teste_vuface2nm_face)
-        test(teste_nmface2cmp)
-        test(teste_hcs2cmp)
+    def __init__(self):
+        self.load_arrays()
+        test(self.teste_cmp2mn_face)
+        test(self.teste_nmface2vuface)
+        test(self.teste_vuface2xyz)
+        test(self.teste_xyz2vuface)
+        test(self.teste_vuface2nm_face)
+        test(self.teste_nmface2cmp)
+        test(self.teste_hcs2cmp)
 
-    def load_arrays():
-        nonlocal nm_test, nmface_test, vuface_test, xyz_test, ea_test, ea2cmp_test, cmp2ea_test
-
-        if True:
+    def load_arrays(self):
+        def load_nm_file():
             nm_file = Path('data_test/nm.pickle')
             if nm_file.exists():
-                nm_test = pickle.load(nm_file.open('rb'))
+                self.nm_test = pickle.load(nm_file.open('rb'))
             else:
                 shape = (200, 300)
-                nm_test = np.mgrid[range(shape[0]), range(shape[1])]
+                self.nm_test = np.mgrid[range(shape[0]), range(shape[1])]
                 with open(nm_file, 'wb') as f:
-                    pickle.dump(nm_test, f)
+                    pickle.dump(self.nm_test, f)
 
-        if True:
+        def load_nmface_file():
             nmface_file = Path('data_test/nmface.pickle')
             if nmface_file.exists():
-                nmface_test = pickle.load(nmface_file.open('rb'))
+                self.nmface_test = pickle.load(nmface_file.open('rb'))
             else:
-                nmface_test = cmp2nmface(nm_test)
+                self.nmface_test = cmp2nmface(self.nm_test)
                 with open(nmface_file, 'wb') as f:
-                    pickle.dump(nmface_test, f)
+                    pickle.dump(self.nmface_test, f)
 
-        if True:
+        def load_vuface_file():
             vuface_file = Path('data_test/vuface.pickle')
             if vuface_file.exists():
-                vuface_test = pickle.load(vuface_file.open('rb'))
+                self.vuface_test = pickle.load(vuface_file.open('rb'))
             else:
-                vuface_test = nmface2vuface(nmface_test)
+                vuface_test = nmface2vuface(self.nmface_test)
                 with open(vuface_file, 'wb') as f:
-                    pickle.dump(vuface_test, f)
+                    pickle.dump(self.vuface_test, f)
 
-        if True:
+        def load_xyz_file():
             xyz_file = Path('data_test/xyz.pickle')
             if xyz_file.exists():
-                xyz_test = pickle.load(xyz_file.open('rb'))
+                xyz_face_test = pickle.load(xyz_file.open('rb'))
             else:
-                xyz_test = vuface2xyz(vuface_test)
+                xyz_face_test = vuface2xyz(vuface_test)
                 with open(xyz_file, 'wb') as f:
-                    pickle.dump(xyz_test, f)
+                    pickle.dump(xyz_face_test, f)
 
-        if True:
+        def load_ea_file():
             ea_file = Path('data_test/ae.pickle')
             if ea_file.exists():
                 ea_test = pickle.load(ea_file.open('rb'))
@@ -720,7 +718,7 @@ def test_cmp():
                 with open(ea_file, 'wb') as f:
                     pickle.dump(ea_test, f)
 
-        if True:
+        def load_ea2cmp_file():
             ea2cmp_file = Path('data_test/ae2cmp.pickle')
             if ea2cmp_file.exists():
                 ea2cmp_test = pickle.load(ea2cmp_file.open('rb'))
@@ -730,7 +728,7 @@ def test_cmp():
                 with open(ea2cmp_file, 'wb') as f:
                     pickle.dump(ea2cmp_test, f)
 
-        if True:
+        def load_cmp2ea_file():
             cmp2ea_file = Path('data_test/cmp2ea.pickle')
             if cmp2ea_file.exists():
                 cmp2ea_test = pickle.load(cmp2ea_file.open('rb'))
@@ -750,10 +748,10 @@ def test_cmp():
 
     def teste_vuface2xyz():
         xyz = vuface2xyz(vuface_test)
-        assert np.array_equal(xyz, xyz_test), 'Error in uvface2xyz()'
+        assert np.array_equal(xyz, xyz_face_test), 'Error in uvface2xyz()'
 
     def teste_xyz2vuface():
-        vuface = xyz2vuface(xyz_test)
+        vuface = xyz2vuface(xyz_face_test)
         assert np.array_equal(vuface, vuface_test), 'Error in xyz2vuface()'
 
     def teste_vuface2nm_face():
