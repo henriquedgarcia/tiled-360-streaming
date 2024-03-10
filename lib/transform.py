@@ -330,7 +330,7 @@ def vuface2nmface(vuface, proj_shape=None):
     face_size = proj_shape[-1] / 3
     _face_size_2 = face_size / 2
 
-    denormalize = np.vectorize(lambda u: np.round((u + 1) * _face_size_2 - 0.5))
+    denormalize = np.vectorize(lambda u: np.round((u/2 + 0.5) * face_size))
     nm_face[:2] = denormalize(vuface[:2, ...])
     return nm_face.astype(int)
 
@@ -762,44 +762,43 @@ class TestCMP:
 
     # Test HCS
     def teste_ea2cmp_face(self):
-        # nm, face = ea2cmp_face(self.ea_test)
-        # ea, face1 = cmp2ea_face(nm)
-
-        for y in range(self.ea_test.shape[1]):
-            for x in range(self.ea_test.shape[2]):
-                ea_test = self.ea_test[0:2, y:y + 1, x:x + 1]
-                e = np.rad2deg(self.ea_test[0, y, x])
-                a = np.rad2deg(self.ea_test[1, y, x])
-
-                # nm, face = ea2cmp_face(ea_test)
-                xyz = ea2xyz(ea_test)
-                # nm, face = xyz2cmp_face(xyz, proj_shape=None)
-                vuface = xyz2vuface(xyz)
-                nmface = vuface2nmface(vuface, proj_shape=(200, 300))
-                nm, face1 = nmface2cmp_face(nmface, proj_shape=(200, 300))
-
-                # ea, face1 = cmp2ea_face(nm)
-                # xyz, face = cmp2xyz_face(nm)
-                nmface2 = cmp2nmface(nm, proj_shape=(200, 300))
-                vuface2 = nmface2vuface(nmface2, proj_shape=(200, 300))
-                xyz2, face2 = vuface2xyz_face(vuface2)
-                ea2 = xyz2ea(xyz2)
-
-                print(f'\tDescendo:')
-                print(f'Para ea = ({e}, {a})')
-                print(f'\tea2xyz -> ({xyz[0, 0, 0]}, {xyz[1, 0, 0]}, {xyz[2, 0, 0]})')
-                print(f'\txyz2vuface -> ({vuface[0, 0, 0]}, {vuface[1, 0, 0]}, {vuface[2, 0, 0]})')
-                print(f'\tvuface2nmface -> ({nmface[0, 0, 0]}, {nmface[1, 0, 0]}, {nmface[2, 0, 0]})')
-                print(f'\tnmface2cmp_face -> ({nm[0, 0, 0]}, {nm[1, 0, 0]}, {face1[0, 0]})')
-                print(f'\tSubindo:')
-                print(f'\tcmp2nmface -> ({nmface2[0, 0, 0]}, {nmface2[1, 0, 0]}, {nmface2[2, 0, 0]})')
-                print(f'\tnmface2vuface -> ({vuface2[0, 0, 0]}, {vuface2[1, 0, 0]}, {vuface2[2, 0, 0]})')
-                print(f'\tvuface2xyz_face -> ({xyz2[0, 0, 0]}, {xyz2[1, 0, 0]}, {xyz2[2, 0, 0]}, {face2})')
-                print(f'\txyz2ea -> ({ea2[0, 0, 0]}, {ea2[1, 0, 0]})')
-                print()
+        nm, face = ea2cmp_face(self.ea_test)
 
         assert np.array_equal(nm, self.ea2cmp_face_test[0]), 'Error in ea2cmp_face(), in nm'
         assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in ea2cmp_face(), in face'
+
+        # for y in range(self.ea_test.shape[1]):
+        #     for x in range(self.ea_test.shape[2]):
+        #         ea_test = self.ea_test[0:2, y:y + 1, x:x + 1]
+        #         e = np.rad2deg(self.ea_test[0, y, x])
+        #         a = np.rad2deg(self.ea_test[1, y, x])
+        #
+        #         # nm, face = ea2cmp_face(ea_test)
+        #         xyz = ea2xyz(ea_test)
+        #         # nm, face = xyz2cmp_face(xyz, proj_shape=None)
+        #         vuface = xyz2vuface(xyz)
+        #         nmface = vuface2nmface(vuface, proj_shape=(200, 300))
+        #         nm, face1 = nmface2cmp_face(nmface, proj_shape=(200, 300))
+        #
+        #         # ea, face1 = cmp2ea_face(nm)
+        #         # xyz, face = cmp2xyz_face(nm)
+        #         nmface2 = cmp2nmface(nm, proj_shape=(200, 300))
+        #         vuface2 = nmface2vuface(nmface2, proj_shape=(200, 300))
+        #         xyz2, face2 = vuface2xyz_face(vuface2)
+        #         ea2 = xyz2ea(xyz2)
+        #
+        #         print(f'\tDescendo:')
+        #         print(f'Para ea = ({e}, {a})')
+        #         print(f'\tea2xyz -> ({xyz[0, 0, 0]}, {xyz[1, 0, 0]}, {xyz[2, 0, 0]})')
+        #         print(f'\txyz2vuface -> ({vuface[0, 0, 0]}, {vuface[1, 0, 0]}, {vuface[2, 0, 0]})')
+        #         print(f'\tvuface2nmface -> ({nmface[0, 0, 0]}, {nmface[1, 0, 0]}, {nmface[2, 0, 0]})')
+        #         print(f'\tnmface2cmp_face -> ({nm[0, 0, 0]}, {nm[1, 0, 0]}, {face1[0, 0]})')
+        #         print(f'\tSubindo:')
+        #         print(f'\tcmp2nmface -> ({nmface2[0, 0, 0]}, {nmface2[1, 0, 0]}, {nmface2[2, 0, 0]})')
+        #         print(f'\tnmface2vuface -> ({vuface2[0, 0, 0]}, {vuface2[1, 0, 0]}, {vuface2[2, 0, 0]})')
+        #         print(f'\tvuface2xyz_face -> ({xyz2[0, 0, 0]}, {xyz2[1, 0, 0]}, {xyz2[2, 0, 0]}, {face2})')
+        #         print(f'\txyz2ea -> ({ea2[0, 0, 0]}, {ea2[1, 0, 0]})')
+        #         print()
         # from PIL import Image
         # shape = self.ea_test.shape
         # img = np.zeros(shape[1:])
