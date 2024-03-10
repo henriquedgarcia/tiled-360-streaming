@@ -171,13 +171,13 @@ def cmp2nmface(nm: np.ndarray, proj_shape: tuple = None) -> np.ndarray:
                pixel coords in image; n = height, m = width
     :return: nm_face(3, ...)
     """
+    new_shape = (3,) + nm.shape[1:]
+    nmface = np.zeros(new_shape)
+
     if proj_shape is None:
         proj_shape = nm.shape
 
-    new_shape = (3,) + proj_shape[1:]
-    face_size = proj_shape[1] // 2
-
-    nmface = np.zeros(new_shape)
+    face_size = proj_shape[-1] // 3
     nmface[2] = nm[1] // face_size + (nm[0] // face_size) * 3
     nmface[:2] = nm % face_size
 
@@ -196,16 +196,15 @@ def nmface2vuface(nmface: np.ndarray, proj_shape=None) -> np.ndarray:
     :param nmface: (3, H, W)
     :return:
     """
+    vuface = np.zeros(nmface.shape)
+
     if proj_shape is None:
         proj_shape = nmface.shape
 
-    face_size = proj_shape[1] / 2
+    face_size = proj_shape[-1] / 3
     _2_face_size = 2 / face_size
-    _1_face_size = 1 / face_size - 1
 
-    vuface = np.zeros(proj_shape)
-
-    normalize = np.vectorize(lambda n: n * _2_face_size + _1_face_size)
+    normalize = np.vectorize(lambda n: (n / face_size + 0.5) - 1)
     vuface[:2] = normalize(nmface[:2, ...])
     vuface[2] = nmface[2]
     return vuface
@@ -328,21 +327,21 @@ def vuface2nmface(vuface, proj_shape=None):
 
     if proj_shape is None:
         proj_shape = vuface.shape
-    face_size = proj_shape[1] / 2
+    face_size = proj_shape[-1] / 3
     _face_size_2 = face_size / 2
 
-    denormalize = np.vectorize(lambda u: (u + 1) * _face_size_2)
+    denormalize = np.vectorize(lambda u: np.round((u + 1) * _face_size_2 - 0.5))
     nm_face[:2] = denormalize(vuface[:2, ...])
     return nm_face.astype(int)
 
 
 def nmface2cmp_face(nmface, proj_shape=None):
-    if proj_shape is None:
-        proj_shape = nmface.shape
-
-    face_size = proj_shape[1] // 2
     new_shape = (2,) + nmface.shape[1:]
     nm = np.zeros(new_shape, dtype=int)
+
+    if proj_shape is None:
+        proj_shape = nmface.shape
+    face_size = proj_shape[-1] // 3
 
     face0 = nmface[2] == 0
     nm[0][face0] = nmface[0][face0]
@@ -729,24 +728,12 @@ class TestCMP:
                 with open(ea2cmp_file, 'wb') as f:
                     pickle.dump(self.ea2cmp_face_test, f)
 
-        def load_cmp2ea_file():
-            cmp2ea_file = Path('data_test/cmp2ea.pickle')
-            if cmp2ea_file.exists():
-                self.cmp2ea_test = pickle.load(cmp2ea_file.open('rb'))
-            else:
-                self.cmp2ea_test = cmp2ea_face(self.ea2cmp_face_test[0])
-
-                with open(cmp2ea_file, 'wb') as f:
-                    pickle.dump(self.cmp2ea_test, f)
-
         load_nm_file()
         load_nmface_file()
         load_vuface_file()
         load_xyz_file()
         load_ea_file()
         load_ea2cmp_file()
-        load_cmp2ea_file()
-        load_cmp2ea_file()
 
     def teste_cmp2mn_face(self):
         nmface = cmp2nmface(self.nm_test)
@@ -775,12 +762,44 @@ class TestCMP:
 
     # Test HCS
     def teste_ea2cmp_face(self):
-        nm, face = ea2cmp_face(self.ea_test)
-        ea, face1 = cmp2ea_face(nm)
-        
+        # nm, face = ea2cmp_face(self.ea_test)
+        # ea, face1 = cmp2ea_face(nm)
+
+        for y in range(self.ea_test.shape[1]):
+            for x in range(self.ea_test.shape[2]):
+                ea_test = self.ea_test[0:2, y:y + 1, x:x + 1]
+                e = np.rad2deg(self.ea_test[0, y, x])
+                a = np.rad2deg(self.ea_test[1, y, x])
+
+                # nm, face = ea2cmp_face(ea_test)
+                xyz = ea2xyz(ea_test)
+                # nm, face = xyz2cmp_face(xyz, proj_shape=None)
+                vuface = xyz2vuface(xyz)
+                nmface = vuface2nmface(vuface, proj_shape=(200, 300))
+                nm, face1 = nmface2cmp_face(nmface, proj_shape=(200, 300))
+
+                # ea, face1 = cmp2ea_face(nm)
+                # xyz, face = cmp2xyz_face(nm)
+                nmface2 = cmp2nmface(nm, proj_shape=(200, 300))
+                vuface2 = nmface2vuface(nmface2, proj_shape=(200, 300))
+                xyz2, face2 = vuface2xyz_face(vuface2)
+                ea2 = xyz2ea(xyz2)
+
+                print(f'\tDescendo:')
+                print(f'Para ea = ({e}, {a})')
+                print(f'\tea2xyz -> ({xyz[0, 0, 0]}, {xyz[1, 0, 0]}, {xyz[2, 0, 0]})')
+                print(f'\txyz2vuface -> ({vuface[0, 0, 0]}, {vuface[1, 0, 0]}, {vuface[2, 0, 0]})')
+                print(f'\tvuface2nmface -> ({nmface[0, 0, 0]}, {nmface[1, 0, 0]}, {nmface[2, 0, 0]})')
+                print(f'\tnmface2cmp_face -> ({nm[0, 0, 0]}, {nm[1, 0, 0]}, {face1[0, 0]})')
+                print(f'\tSubindo:')
+                print(f'\tcmp2nmface -> ({nmface2[0, 0, 0]}, {nmface2[1, 0, 0]}, {nmface2[2, 0, 0]})')
+                print(f'\tnmface2vuface -> ({vuface2[0, 0, 0]}, {vuface2[1, 0, 0]}, {vuface2[2, 0, 0]})')
+                print(f'\tvuface2xyz_face -> ({xyz2[0, 0, 0]}, {xyz2[1, 0, 0]}, {xyz2[2, 0, 0]}, {face2})')
+                print(f'\txyz2ea -> ({ea2[0, 0, 0]}, {ea2[1, 0, 0]})')
+                print()
+
         assert np.array_equal(nm, self.ea2cmp_face_test[0]), 'Error in ea2cmp_face(), in nm'
         assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in ea2cmp_face(), in face'
-
         # from PIL import Image
         # shape = self.ea_test.shape
         # img = np.zeros(shape[1:])
