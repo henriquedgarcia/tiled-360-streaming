@@ -9,11 +9,11 @@ from matplotlib import pyplot as plt
 
 try:
     from .transform import (rot_matrix, splitx,
-                            mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz,
+                            mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz_face,
                             xyz2vuface, uv_cmp2mn_face, mn_face2mn_proj)
 except ImportError:
     from transform import (rot_matrix, splitx,
-                           mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz,
+                           mn_cmp2mn_face, mn_face2uv_cmp, vuface2xyz_face,
                            xyz2vuface, uv_cmp2mn_face, mn_face2mn_proj)
 
 
@@ -599,7 +599,7 @@ class CMP(ProjBase):
         side_size = shape[0] // 2
         face_m, face_n, face = mn_cmp2mn_face(nm_coord[1], nm_coord[0], side_size)
         u, v = mn_face2uv_cmp(face_m, face_n, side_size)
-        x, y, z = vuface2xyz(u, v, face, side_size)
+        x, y, z = vuface2xyz_face(u, v, face, side_size)
         xyz_coord = np.array([x, y, z])
         return xyz_coord
 
