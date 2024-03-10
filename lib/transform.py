@@ -4,7 +4,7 @@ from pathlib import Path
 from time import time
 from typing import Union
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from numpy import linalg
@@ -13,39 +13,26 @@ from numpy import linalg
 def ______basic_____(): ...
 
 
-def xyz2ae(xyz) -> np.ndarray:
+def xyz2ea(xyz: np.ndarray) -> np.ndarray:
     """
     Convert from cartesian system to horizontal coordinate system in radians
     :param xyz: shape = (3, ...)
     :return: np.ndarray([azimuth, elevation]) - in rad. shape = (2, ...)
     """
     new_shape = (2,) + xyz.shape[1:]
-    ae = np.zeros(new_shape)
+    ea = np.zeros(new_shape)
     # z-> x,
     r = linalg.norm(xyz, axis=0)
-    ae[0] = np.arcsin(-xyz[1] / r)
-    ae[1] = np.arctan2(xyz[0], xyz[2])
-    return ae
-
-
-# todo: Verificar conscistência com arquivo quality.py
-#
-# def cart2hcs(x_y_z: np.ndarray) -> np.ndarray:
-#     """
-#     Convert from cartesian system to horizontal coordinate system in radians
-#     :param x_y_z: 1D ndarray [x, y, z], or 2D array with shape=(N, 3)
-#     :return: (azimuth, elevation) - in rad
-#     """
-#     r = np.sqrt(np.sum(x_y_z ** 2))
-#     azimuth = np.arctan2(x_y_z[..., 0], x_y_z[..., 2])
-#     elevation = np.arcsin(-x_y_z[..., 1] / r)
-#     return np.array([azimuth, elevation]).T
+    ea[0] = np.arcsin(-xyz[1] / r)
+    ea[1] = np.arctan2(xyz[0], xyz[2])
+    return ea
 
 
 def ea2xyz(ae: np.ndarray) -> np.ndarray:
     """
     Convert from horizontal coordinate system  in radians to cartesian system.
-    ISO/IEC JTC1/SC29/WG11/N17197l: Algorithm descriptions of projection format conversion and video quality metrics in 360Lib Version 5
+    ISO/IEC JTC1/SC29/WG11/N17197l: Algorithm descriptions of projection format conversion and video quality metrics in
+    360Lib Version 5
     :param np.ndarray ae: In Rad. Shape == (2, ...)
     :return: (x, y, z)
     """
@@ -123,23 +110,23 @@ def erp2cart(n: Union[np.ndarray, int],
 
 
 def cart2erp(x, y, z, shape):
-    azimuth, elevation = xyz2ae(np.array([x, y, z]))
+    azimuth, elevation = xyz2ea(np.array([x, y, z]))
     m, n = hcs2erp(azimuth, elevation, shape)
     return m, n
 
 
 def erp2hcs(n: Union[np.ndarray, int],
             m: Union[np.ndarray, int],
-            shape: Union[np.ndarray, tuple[int, int]]) \
+            proj_shape: Union[np.ndarray, tuple[int, int]]) \
         -> Union[np.ndarray, tuple[float, float]]:
     """
 
     :param m: horizontal pixel coordinate
     :param n: vertical pixel coordinate
-    :param shape: shape of projection in numpy format: (height, width)
+    :param proj_shape: shape of projection in numpy format: (height, width)
     :return: (azimuth, elevation) - in rad
     """
-    proj_h, proj_w = shape
+    proj_h, proj_w = proj_shape
     u = (m + 0.5) / proj_w
     v = (n + 0.5) / proj_h
     azimuth = (u - 0.5) * (2 * np.pi)
@@ -147,15 +134,15 @@ def erp2hcs(n: Union[np.ndarray, int],
     return azimuth, elevation
 
 
-def hcs2erp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int]:
+def hcs2erp(azimuth: float, elevation: float, proj_shape: tuple) -> tuple[int, int]:
     """
 
-    :param azimuth: in rad
+    :param azimuth: angles in rad
     :param elevation: in rad
-    :param shape: shape of projection in numpy format: (height, width)
+    :param proj_shape: shape of projection in numpy format: (height, width)
     :return: (m, n) pixel coord using nearest neighbor
     """
-    proj_h, proj_w = shape
+    proj_h, proj_w = proj_shape
 
     if azimuth >= np.pi or azimuth < -np.pi:
         azimuth = (azimuth + np.pi) % (2 * np.pi)
@@ -176,17 +163,19 @@ def hcs2erp(azimuth: float, elevation: float, shape: tuple) -> tuple[int, int]:
 def ______cmp_____(): ...
 
 
-def cmp2nmface(nm: np.ndarray, face_size=None) -> np.ndarray:
+def cmp2nmface(nm: np.ndarray, proj_shape: tuple = None) -> np.ndarray:
     """
 
-    :param face_size:
+    :param proj_shape:
     :param nm: shape(2, ...)
                pixel coords in image; n = height, m = width
     :return: nm_face(3, ...)
     """
-    new_shape = (3,) + nm.shape[1:]
-    if face_size is None:
-        face_size = nm.shape[1] // 2
+    if proj_shape is None:
+        proj_shape = nm.shape
+
+    new_shape = (3,) + proj_shape[1:]
+    face_size = proj_shape[1] // 2
 
     nmface = np.zeros(new_shape)
     nmface[2] = nm[1] // face_size + (nm[0] // face_size) * 3
@@ -200,26 +189,29 @@ def cmp2nmface(nm: np.ndarray, face_size=None) -> np.ndarray:
     return nmface.astype(int)
 
 
-def nmface2vuface(nmface: np.ndarray, face_size=None) -> np.ndarray:
+def nmface2vuface(nmface: np.ndarray, proj_shape=None) -> np.ndarray:
     """
 
+    :param proj_shape:
     :param nmface: (3, H, W)
     :return:
     """
-    vuface = np.zeros(nmface.shape)
-    vuface[2] = nmface[2]
+    if proj_shape is None:
+        proj_shape = nmface.shape
 
-    if face_size is None:
-        face_size = nmface.shape[1] / 2
+    face_size = proj_shape[1] / 2
     _2_face_size = 2 / face_size
     _1_face_size = 1 / face_size - 1
 
+    vuface = np.zeros(proj_shape)
+
     normalize = np.vectorize(lambda n: n * _2_face_size + _1_face_size)
     vuface[:2] = normalize(nmface[:2, ...])
+    vuface[2] = nmface[2]
     return vuface
 
 
-def vuface2xyz(vuface: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def vuface2xyz_face(vuface: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     xyz = np.zeros(vuface.shape)
 
     face0 = vuface[2] == 0
@@ -330,24 +322,27 @@ def xyz2vuface(xyz: np.ndarray) -> np.ndarray:
     return vuface
 
 
-def vuface2nmface(vuface, face_size=None):
+def vuface2nmface(vuface, proj_shape=None):
     nm_face = np.zeros(vuface.shape)
     nm_face[2] = vuface[2]
 
-    if face_size is None:
-        face_size = vuface.shape[1] / 2
+    if proj_shape is None:
+        proj_shape = vuface.shape
+    face_size = proj_shape[1] / 2
     _face_size_2 = face_size / 2
 
-    denormalize = np.vectorize(lambda u: int((u + 1) * _face_size_2))
+    denormalize = np.vectorize(lambda u: (u + 1) * _face_size_2)
     nm_face[:2] = denormalize(vuface[:2, ...])
     return nm_face.astype(int)
 
 
-def nmface2cmp(nmface, face_size=None):
-    if face_size is None:
-        face_size = nmface.shape[1] // 2
+def nmface2cmp_face(nmface, proj_shape=None):
+    if proj_shape is None:
+        proj_shape = nmface.shape
+
+    face_size = proj_shape[1] // 2
     new_shape = (2,) + nmface.shape[1:]
-    nm = np.zeros(new_shape)
+    nm = np.zeros(new_shape, dtype=int)
 
     face0 = nmface[2] == 0
     nm[0][face0] = nmface[0][face0]
@@ -373,25 +368,24 @@ def nmface2cmp(nmface, face_size=None):
     face5 = nmface[2] == 5
     nm[0][face5] = nmface_rotated[0][nmface_rotated[2] == 5] + face_size
     nm[1][face5] = nmface_rotated[1][nmface_rotated[2] == 5] + 2 * face_size
+    face = nmface[2]
+    return nm, face
 
-    return nm
 
-
-def xyz2cmp(xyz: np.ndarray, face_size=None) -> tuple[np.ndarray, np.ndarray]:
+def xyz2cmp_face(xyz: np.ndarray, proj_shape=None) -> tuple[np.ndarray, np.ndarray]:
     """
 
-    :param face_size:
+    :param proj_shape:
     :param xyz: shape(3, ...)
     :return: nm, face
     """
     vuface = xyz2vuface(xyz)
-    nm_face = vuface2nmface(vuface, face_size=face_size)
-    nm = nmface2cmp(nm_face, face_size=face_size)
-    face = nm_face[2]
+    nmface = vuface2nmface(vuface, proj_shape=proj_shape)
+    nm, face = nmface2cmp_face(nmface, proj_shape=proj_shape)
     return nm, face
 
 
-def cmp2xyz(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def cmp2xyz_face(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
 
     :type nm: np.ndarray
@@ -399,30 +393,28 @@ def cmp2xyz(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     nmface = cmp2nmface(nm)
     vuface = nmface2vuface(nmface)
-    xyz, face = vuface2xyz(vuface)
+    xyz, face = vuface2xyz_face(vuface)
     return xyz, face
 
 
-def ea2cmp(ea: np.ndarray, proj_shape: tuple = None) -> tuple[np.ndarray]:
+def ea2cmp_face(ea: np.ndarray, proj_shape: tuple = None) -> tuple[np.ndarray, np.ndarray]:
     """
-
+    The face must be a square. proj_shape must have 3:2 ratio
     :param ea: in rad
     :param proj_shape: shape of projection in numpy format: (height, width)
     :return: (nm, face) pixel coord using nearest neighbor
     """
     if proj_shape is None:
         proj_shape = ea.shape
-    proj_h, proj_w = proj_shape[1:]
-    face_size = int(proj_h / 2)  # suppose the face is a square
 
     xyz = ea2xyz(ea)
-    nm, face = xyz2cmp(xyz, face_size=face_size)
+    nm, face = xyz2cmp_face(xyz, proj_shape=proj_shape)
     return nm, face
 
 
-def cmp2ea(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    xyz, face = cmp2xyz(nm)
-    ae = xyz2ae(xyz)
+def cmp2ea_face(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    xyz, face = cmp2xyz_face(nm)
+    ae = xyz2ea(xyz)
     return ae, face
 
 
@@ -644,14 +636,14 @@ def test(func):
     print(f'Time = {final}')
 
 
-class test_cmp:
+class TestCMP:
     nm_test: np.ndarray
     nmface_test: np.ndarray
     vuface_test: np.ndarray
     xyz_face_test: np.ndarray
     ea_test: np.ndarray
     ae2cmp_test: np.ndarray
-    ea2cmp_test: np.ndarray
+    ea2cmp_face_test: np.ndarray
     cmp2ea_test: np.ndarray
 
     def __init__(self):
@@ -659,10 +651,13 @@ class test_cmp:
         test(self.teste_cmp2mn_face)
         test(self.teste_nmface2vuface)
         test(self.teste_vuface2xyz)
+
         test(self.teste_xyz2vuface)
         test(self.teste_vuface2nm_face)
         test(self.teste_nmface2cmp)
-        test(self.teste_hcs2cmp)
+
+        test(self.teste_ea2cmp_face)
+        test(self.teste_cmp2ea_face)
 
     def load_arrays(self):
         def load_nm_file():
@@ -689,23 +684,23 @@ class test_cmp:
             if vuface_file.exists():
                 self.vuface_test = pickle.load(vuface_file.open('rb'))
             else:
-                vuface_test = nmface2vuface(self.nmface_test)
+                self.vuface_test = nmface2vuface(self.nmface_test)
                 with open(vuface_file, 'wb') as f:
                     pickle.dump(self.vuface_test, f)
 
         def load_xyz_file():
             xyz_file = Path('data_test/xyz.pickle')
             if xyz_file.exists():
-                xyz_face_test = pickle.load(xyz_file.open('rb'))
+                self.xyz_face_test = pickle.load(xyz_file.open('rb'))
             else:
-                xyz_face_test = vuface2xyz(vuface_test)
+                self.xyz_face_test = vuface2xyz_face(self.vuface_test)
                 with open(xyz_file, 'wb') as f:
-                    pickle.dump(xyz_face_test, f)
+                    pickle.dump(self.xyz_face_test, f)
 
         def load_ea_file():
             ea_file = Path('data_test/ae.pickle')
             if ea_file.exists():
-                ea_test = pickle.load(ea_file.open('rb'))
+                self.ea_test = pickle.load(ea_file.open('rb'))
             else:
                 shape = (200, 300)
                 a = np.deg2rad(90)
@@ -713,144 +708,89 @@ class test_cmp:
                 y = np.linspace(a, -a, num=shape[0])
                 x = np.linspace(-b, b, num=shape[1], endpoint=False)
                 xx, yy = np.meshgrid(x, y)
-                ea_test = np.array([yy, xx])
+                self.ea_test = np.array([yy, xx])
 
                 with open(ea_file, 'wb') as f:
-                    pickle.dump(ea_test, f)
+                    pickle.dump(self.ea_test, f)
 
         def load_ea2cmp_file():
             ea2cmp_file = Path('data_test/ae2cmp.pickle')
+            # from PIL import Image
+
             if ea2cmp_file.exists():
-                ea2cmp_test = pickle.load(ea2cmp_file.open('rb'))
+                self.ea2cmp_face_test = pickle.load(ea2cmp_file.open('rb'))
             else:
-                ea2cmp_test = ea2cmp(ea_test)
+                self.ea2cmp_face_test = ea2cmp_face(self.ea_test)
+
+                # nm, face = self.ea2cmp_test
+                # array = np.zeros(nm.shape[1:], dtype=int)[nm[0], nm[1]] = 255
+                # Image.fromarray(array).show()
 
                 with open(ea2cmp_file, 'wb') as f:
-                    pickle.dump(ea2cmp_test, f)
+                    pickle.dump(self.ea2cmp_face_test, f)
 
         def load_cmp2ea_file():
             cmp2ea_file = Path('data_test/cmp2ea.pickle')
             if cmp2ea_file.exists():
-                cmp2ea_test = pickle.load(cmp2ea_file.open('rb'))
+                self.cmp2ea_test = pickle.load(cmp2ea_file.open('rb'))
             else:
-                cmp2ea_test = cmp2ea(ea2cmp_test[0])
+                self.cmp2ea_test = cmp2ea_face(self.ea2cmp_face_test[0])
 
                 with open(cmp2ea_file, 'wb') as f:
-                    pickle.dump(cmp2ea_test, f)
+                    pickle.dump(self.cmp2ea_test, f)
 
-    def teste_cmp2mn_face():
-        nmface = cmp2nmface(nm_test)
-        assert np.array_equal(nmface, nmface_test), 'Error in cmp2nmface()'
+        load_nm_file()
+        load_nmface_file()
+        load_vuface_file()
+        load_xyz_file()
+        load_ea_file()
+        load_ea2cmp_file()
+        load_cmp2ea_file()
+        load_cmp2ea_file()
 
-    def teste_nmface2vuface():
-        vuface = nmface2vuface(nmface_test)
-        assert np.array_equal(vuface, vuface_test), 'Error in nmface2vuface()'
+    def teste_cmp2mn_face(self):
+        nmface = cmp2nmface(self.nm_test)
+        assert np.array_equal(nmface, self.nmface_test), 'Error in cmp2nmface()'
 
-    def teste_vuface2xyz():
-        xyz = vuface2xyz(vuface_test)
-        assert np.array_equal(xyz, xyz_face_test), 'Error in uvface2xyz()'
+    def teste_nmface2vuface(self):
+        vuface = nmface2vuface(self.nmface_test)
+        assert np.array_equal(vuface, self.vuface_test), 'Error in nmface2vuface()'
 
-    def teste_xyz2vuface():
-        vuface = xyz2vuface(xyz_face_test)
-        assert np.array_equal(vuface, vuface_test), 'Error in xyz2vuface()'
+    def teste_vuface2xyz(self):
+        xyz, face = vuface2xyz_face(self.vuface_test)
+        assert np.array_equal(xyz, self.xyz_face_test[0]), 'Error in uvface2xyz(), xyz'
+        assert np.array_equal(face, self.xyz_face_test[1]), 'Error in uvface2xyz(), face'
 
-    def teste_vuface2nm_face():
-        nm_face = vuface2nmface(vuface_test)
-        assert np.array_equal(nm_face, nmface_test), 'Error in vuface2nm_face()'
+    def teste_xyz2vuface(self):
+        vuface = xyz2vuface(self.xyz_face_test[0])
+        assert np.array_equal(vuface, self.vuface_test), 'Error in xyz2vuface()'
 
-    def teste_nmface2cmp():
-        nm = nmface2cmp(nmface_test)
-        assert np.array_equal(nm, nm_test), 'Error in nmface2cmp()'
+    def teste_vuface2nm_face(self):
+        nm_face = vuface2nmface(self.vuface_test)
+        assert np.array_equal(nm_face, self.nmface_test), 'Error in vuface2nm_face()'
 
-    def teste_hcs2cmp():
-        from PIL import Image
-        Image.new('L', (181, 360))
-        xyz = ea2xyz(ea_test)
+    def teste_nmface2cmp(self):
+        nm, face = nmface2cmp_face(self.nmface_test)
+        assert np.array_equal(nm, self.nm_test), 'Error in nmface2cmp_face(), in nm'
 
-        for i in np.linspace(np.deg2rad(0), np.deg2rad(180), 100):
-            yaw = i
-            pitch = 0
-            nm, face = xyz2cmp(xyz)
-            img[n, m] = 255
-            plt.scatter(m, n)
-            print(f'{yaw=}, {pitch=}, {face=}')
-            print(f'{m=}, {n=}, {face=}')
+    # Test HCS
+    def teste_ea2cmp_face(self):
+        nm, face = ea2cmp_face(self.ea_test)
+        ea, face1 = cmp2ea_face(nm)
+        
+        assert np.array_equal(nm, self.ea2cmp_face_test[0]), 'Error in ea2cmp_face(), in nm'
+        assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in ea2cmp_face(), in face'
 
-        # plt.imshow(img, cmap='gray')
-        plt.xlim([0, 600])
-        plt.ylim([0, 400])
-        plt.show()
-        plt.pause(0)
+        # from PIL import Image
+        # shape = self.ea_test.shape
+        # img = np.zeros(shape[1:])
+        # img[nm[0], nm[1]] = 255
 
-    main()
-
-    # def teste_uv2mn_face():
-    #     x = []
-    #     y = []
-    #     for coord in np.linspace(-1, 1, 30):
-    #         m, n = vuface2nm_face(np.array([coord, 0]), 1080)
-    #         x.append(m)
-    #         y.append(n)
-    #         plt.scatter(m, n)
-    #     plt.show()
-    #     plt.pause(1)
-
-    # def teste_mn_face2mn_proj():
-    #     for face in range(0, 1):
-    #         for i in range(0, 1080, 60):
-    #             m, n = nmface2cmp(np.array([i, 0, face]), 1080)
-    #             plt.scatter(m, n)
-    #             #
-    #             m, n = nmface2cmp(np.array([i, 1079, face]), 1080)
-    #             plt.scatter(m, n)
-    #             #
-    #             m, n = nmface2cmp(np.array([0, i, face]), 1080)
-    #             plt.scatter(m, n)
-    #             #
-    #             m, n = nmface2cmp(np.array([1079, i, face]), 1080)
-    #             plt.scatter(m, n)
-    #
-    #     plt.show()
-
-    # def teste_cart2uv_cmp():
-    #     ax: plt.Axes
-    #     ax = plt.figure().add_subplot()
-    #     lu, lv, lface = [], [], []
-    #
-    #     for angle in range(0, 360):
-    #         x, y, z = ae2xyz(angle, np.deg2rad(0.0))
-    #         u, v, face = xyz2vuface(np.array([x, y, z]))
-    #         lu.append(u)
-    #         lv.append(v)
-    #         lface.append(face)
-    #         ax.scatter(u, v)
-    #
-    #     plt.show()
-
-    # def teste_hcs2cart():
-    #     ax = plt.figure().add_subplot(projection='3d')
-    #     lx, ly, lz = [], [], []
-    #
-    #     for angle in range(300):
-    #         elevation = np.deg2rad(angle)
-    #         azimuth = np.deg2rad(angle)
-    #
-    #         x, y, z = ae2xyz(azimuth, elevation)
-    #         print(f'{x=}, {y=}, {z=}')
-    #         lx.append(x)
-    #         ly.append(-y)
-    #         lz.append(z)
-    #
-    #     lx, ly, lz = lx, lz, ly
-    #     ax.plot(lx, ly, lz, label='parametric curve')
-    #     ax.legend()
-    #     for angle in range(0, 360):
-    #         ax.view_init(30, angle)
-    #         plt.draw()
-    #         plt.pause(.001)
-    #
-    # main()
+    def teste_cmp2ea_face(self):
+        ea, face = cmp2ea_face(self.ea2cmp_face_test[0])
+        assert np.array_equal(ea, self.ea_test), 'Error in cmp2ea_face(), in nm'
+        assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in cmp2ea_face(), in face'
 
 
 if __name__ in '__main__':
-    test_cmp()
+    TestCMP()
