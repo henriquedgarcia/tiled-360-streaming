@@ -662,6 +662,10 @@ class TestCMP:
     ea_cmp_face_test: tuple[np.ndarray, np.ndarray]
     cmp2ea_test: np.ndarray
 
+    def __init__(self):
+        self.load_arrays()
+        self.test()
+
     def load_arrays(self):
         self.load_nm_file()
         self.load_nmface_file()
@@ -669,6 +673,76 @@ class TestCMP:
         self.load_xyz_file()
         self.load_ea_file()
         self.load_ea_cmp_file()
+
+    def test(self):
+        test(self.teste_cmp2mn_face)
+        test(self.teste_nmface2vuface)
+        test(self.teste_vuface2xyz)
+        test(self.teste_cmp2ea)
+
+    def teste_cmp2mn_face(self):
+        nmface = cmp2nmface(self.nm_test)
+        nm, face = nmface2cmp_face(nmface)
+
+        msg = ''
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in reversion'
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in nmface2cmp_face()'
+
+        nm, face = nmface2cmp_face(self.nmface_test)
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in cmp2nmface()'
+
+        assert msg == '', msg
+
+    def teste_nmface2vuface(self):
+        vuface = nmface2vuface(self.nmface_test)
+        nmface = vuface2nmface(vuface)
+
+        msg = ''
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in nmface2vuface()'
+
+        nmface = vuface2nmface(self.vuface_test)
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in vuface2nmface()'
+
+        assert msg == '', msg
+
+    def teste_vuface2xyz(self):
+        xyz, face = vuface2xyz_face(self.vuface_test)
+        vuface = xyz2vuface(xyz)
+
+        msg = ''
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(xyz, self.xyz_face_test[0]):
+            msg += 'Error in vuface2xyz_face()'
+
+        vuface = xyz2vuface(self.xyz_face_test[0])
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in xyz2vuface()'
+
+        assert msg == '', msg
+
+    def teste_cmp2ea(self):
+        ea, face1 = cmp2ea_face(self.nm_test)
+        nm, face2 = ea2cmp_face(ea)
+
+        msg = ''
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in reversion'
+
+        nm, face = ea2cmp_face(self.ea_test)
+        if not np.array_equal(ea, self.ea_test):
+            msg += 'Error in cmp2ea_face()'
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in ea2cmp_face()'
+
+        assert msg == '', msg
 
     def load_nm_file(self):
         nm_file = Path('data_test/nm.pickle')
@@ -727,82 +801,6 @@ class TestCMP:
 
             with open(ea_cmp_file, 'wb') as f:
                 pickle.dump(self.ea_cmp_face_test, f)
-
-    def __init__(self):
-        self.load_arrays()
-        self.test()
-
-    def test(self):
-        test(self.teste_cmp2mn_face)
-        test(self.teste_nmface2vuface)
-        test(self.teste_vuface2xyz)
-
-        test(self.teste_cmp2ea)
-
-    def teste_cmp2mn_face(self):
-        nmface = cmp2nmface(self.nm_test)
-        nm, face = nmface2cmp_face(nmface)
-
-        msg = ''
-        if not np.array_equal(self.nm_test, nm):
-            msg += 'Error in reversion'
-        if not np.array_equal(nmface, self.nmface_test):
-            msg += 'Error in nmface2cmp_face()'
-
-        nm, face = nmface2cmp_face(self.nmface_test)
-        if not np.array_equal(self.nm_test, nm):
-            msg += 'Error in cmp2nmface()'
-
-        assert msg == '', msg
-
-    def teste_nmface2vuface(self):
-        vuface = nmface2vuface(self.nmface_test)
-        nmface = vuface2nmface(vuface)
-
-        msg = ''
-        if not np.array_equal(nmface, self.nmface_test):
-            msg += 'Error in reversion'
-        if not np.array_equal(vuface, self.vuface_test):
-            msg += 'Error in nmface2vuface()'
-
-        nmface = vuface2nmface(self.vuface_test)
-        if not np.array_equal(nmface, self.nmface_test):
-            msg += 'Error in vuface2nmface()'
-
-        assert msg == '', msg
-
-    def teste_vuface2xyz(self):
-        xyz, face = vuface2xyz_face(self.vuface_test)
-        vuface = xyz2vuface(xyz)
-
-        msg = ''
-        if not np.array_equal(vuface, self.vuface_test):
-            msg += 'Error in reversion'
-        if not np.array_equal(xyz, self.xyz_face_test[0]):
-            msg += 'Error in vuface2xyz_face()'
-
-        vuface = xyz2vuface(self.xyz_face_test[0])
-        if not np.array_equal(vuface, self.vuface_test):
-            msg += 'Error in xyz2vuface()'
-
-        assert msg == '', msg
-
-    # Test HCS
-    def teste_cmp2ea(self):
-        ea, face1 = cmp2ea_face(self.nm_test)
-        nm, face2 = ea2cmp_face(ea)
-
-        msg = ''
-        if not np.array_equal(nm, self.nm_test):
-            msg += 'Error in reversion'
-
-        nm, face = ea2cmp_face(self.ea_test)
-        if not np.array_equal(ea, self.ea_test):
-            msg += 'Error in cmp2ea_face()'
-        if not np.array_equal(nm, self.nm_test):
-            msg += 'Error in ea2cmp_face()'
-
-        assert msg == '', msg
 
 
 def show_array(nm_array: np.ndarray, shape: tuple = None):
