@@ -78,87 +78,93 @@ def vp2cart(m, n, proj_shape, fov_shape):
 def ______erp_____(): ...
 
 
-def nm2xyv(n_m_coord: np.ndarray, shape: np.ndarray) -> np.ndarray:
+def erp2vu(nm: np.ndarray, shape=None) -> np.ndarray:
+    if shape is None:
+        shape = nm.shape[1:]
+    vu = (nm + [[[0.5]], [[0.5]]]) / [[[shape[0]]], [[shape[1]]]]
+    return vu
+
+
+def vu2ea(vu: np.ndarray) -> np.ndarray:
+    ea = (vu * [[[-np.pi]], [[2 * np.pi]]]) + [[[np.pi / 2]], [[-np.pi]]]
+    # ea = (vu - [[[0.5]], [[0.5]]]) * [[[-np.pi]], [[2 * np.pi]]]
+    return ea
+
+
+def erp2hcs(nm: np.ndarray, shape=None) -> np.ndarray:
+    vu = erp2vu(nm, shape=shape)
+    ea = vu2ea(vu)
+    return ea
+
+
+def erp2xyz(nm: np.ndarray, shape=None) -> np.ndarray:
     """
     ERP specific.
 
-    :param n_m_coord: [(n, m], ...]
+    :param nm: [(n, m], ...]
     :param shape: (H, W)
     :return:
     """
-    v_u = (n_m_coord + (0.5, 0.5)) / shape
-    elevation, azimuth = ((v_u - (0.5, 0.5)) * (-np.pi, 2 * np.pi)).T
-
-    z = np.cos(elevation) * np.cos(azimuth)
-    y = -np.sin(elevation)
-    x = np.cos(elevation) * np.sin(azimuth)
-    return np.array([x, y, z]).T
+    ea = erp2hcs(nm, shape=shape)
+    xyz = ea2xyz(ea)
+    return xyz
 
 
-def erp2cart(n: Union[np.ndarray, int],
-             m: Union[np.ndarray, int],
-             shape: Union[np.ndarray, tuple[int, int]]) -> np.ndarray:
+def xyz2erp(xyz, shape=None) -> np.ndarray:
+    ea = xyz2ea(xyz)
+    nm = ea2erp(ea, shape)
+    return nm
+
+
+def ea2erp(ea: np.ndarray, shape=None) -> np.ndarray:
     """
 
-    :param m: horizontal pixel coordinate
-    :param n: vertical pixel coordinate
+    :param ea: in rad
     :param shape: shape of projection in numpy format: (height, width)
-    :return: x, y, z
-    """
-    ea = erp2hcs(n, m, shape)
-    x, y, z = ea2xyz(ea)
-    return np.array(x, y, z)
-
-
-def cart2erp(x, y, z, shape):
-    azimuth, elevation = xyz2ea(np.array([x, y, z]))
-    m, n = hcs2erp(azimuth, elevation, shape)
-    return m, n
-
-
-def erp2hcs(n: Union[np.ndarray, int],
-            m: Union[np.ndarray, int],
-            proj_shape: Union[np.ndarray, tuple[int, int]]) \
-        -> Union[np.ndarray, tuple[float, float]]:
-    """
-
-    :param m: horizontal pixel coordinate
-    :param n: vertical pixel coordinate
-    :param proj_shape: shape of projection in numpy format: (height, width)
-    :return: (azimuth, elevation) - in rad
-    """
-    proj_h, proj_w = proj_shape
-    u = (m + 0.5) / proj_w
-    v = (n + 0.5) / proj_h
-    azimuth = (u - 0.5) * (2 * np.pi)
-    elevation = (0.5 - v) * np.pi
-    return azimuth, elevation
-
-
-def hcs2erp(azimuth: float, elevation: float, proj_shape: tuple) -> tuple[int, int]:
-    """
-
-    :param azimuth: angles in rad
-    :param elevation: in rad
-    :param proj_shape: shape of projection in numpy format: (height, width)
     :return: (m, n) pixel coord using nearest neighbor
     """
-    proj_h, proj_w = proj_shape
+    ea = normalize_ea(ea)
+    vu = ea2vu(ea)
+    nm = vu2erp(vu, shape)
+    return nm
 
-    if azimuth >= np.pi or azimuth < -np.pi:
-        azimuth = (azimuth + np.pi) % (2 * np.pi)
-        azimuth = azimuth - np.pi
 
-    if elevation > np.pi / 2:
-        elevation = 2 * np.pi - elevation
-    elif elevation < -np.pi / 2:
-        elevation = -2 * np.pi - elevation
+def normalize_ea(ea):
+    _90_deg = np.pi / 2
+    _180_deg = np.pi
+    _360_deg = 2 * np.pi
 
-    u = azimuth / (2 * np.pi) + 0.5
-    v = -elevation / np.pi + 0.5
-    m = ceil(u * proj_w - 0.5)
-    n = ceil(v * (proj_h - 1) - 0.5)
-    return m, n
+    # if pitch>90
+    sel = ea[1] > _90_deg
+    ea[0, sel] = _180_deg - ea[0, sel]
+    ea[1, sel] = ea[1, sel] + _180_deg
+
+    # if pitch<90
+    sel = ea[1] < -_90_deg
+    ea[0, sel] = -_180_deg - ea[0, sel]
+    ea[1, sel] = ea[1, sel] + _180_deg
+
+    # if yaw>=180 or yaw<180
+    sel = ea[1] >= _180_deg or ea[1] < -_180_deg
+    ea[1, sel] = (ea[1, sel] + _180_deg) % _360_deg - _180_deg
+
+    return ea
+
+
+def ea2vu(ea):
+    vu = np.zeros(ea)
+    vu[0] = -ea[0] / np.pi + 0.5
+    vu[1] = ea[1] / (2 * np.pi) + 0.5
+    return vu
+
+
+def vu2erp(vu, shape=None):
+    if shape is None:
+        shape = vu.shape[1:]
+
+    nm = vu * [[[shape[0]]], [[shape[1]]]]
+    nm = np.ceil(nm)
+    return nm
 
 
 def ______cmp_____(): ...
@@ -417,57 +423,6 @@ def cmp2ea_face(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return ae, face
 
 
-def show_error(array):
-    a = np.zeros(array.shape[1:])
-    for j in range(a.shape[0]):
-        for i in range(a.shape[1]):
-            print(f"\r{j=}, {i=}      ", end='')
-            for j2 in range(j, a.shape[0]):
-                for i2 in range(i, a.shape[1]):
-                    if j2 == j and i2 == i: continue
-                    if (array[0, j, i] == array[0, j2, i2]
-                            and array[1, j, i] == array[1, j2, i2]
-                            and array[2, j, i] == array[2, j2, i2]):
-                        a[j, i] = 255
-                        print(f"\n\t{j2=}, {i2=} "
-                              f"= vu({array[0, j2, i2]}, {array[1, j2, i2]}), face=({array[2, j, i]}, {array[2, j2, i2]})")
-    return a
-
-
-# def cmp2cart(n: int, m: int, shape: tuple[int, int], f: int = 0) -> tuple[float, float, float]:
-#     x, y, z = None, None, None
-#     proj_h, proj_w = shape
-#     face_h = proj_h / 2  # face is a square. u
-#     face_w = proj_w / 3  # face is a square. v
-#     u = (m + 0.5) * 2 / face_h - 1
-#     v = (n + 0.5) * 2 / face_w - 1
-#     if f == 0:
-#         x = 1.0
-#         y = -v
-#         z = -u
-#     elif f == 1:
-#         x = -1.0
-#         y = -v
-#         z = u
-#     elif f == 2:
-#         x = u
-#         y = 1.0
-#         z = v
-#     elif f == 3:
-#         x = u
-#         y = -1.0
-#         z = -v
-#     elif f == 4:
-#         x = u
-#         y = -v
-#         z = 1.0
-#     elif f == 5:
-#         x = -u
-#         y = -v
-#         z = -1.0
-#     return x, y, z
-
-
 def ______utils_____(): ...
 
 
@@ -652,6 +607,131 @@ def test(func):
     print(f'Time = {final}')
 
 
+class TestERP:
+    nm_test: np.ndarray
+    vu_test: np.ndarray
+    xyz_test: np.ndarray
+    ea_test: np.ndarray
+
+    def __init__(self):
+        self.load_arrays()
+        self.test()
+
+    def load_arrays(self):
+        self.load_nm_file()
+        self.load_vu_file()
+        self.load_ea_file()
+        self.load_xyz_file()
+
+    def load_nm_file(self):
+        nm_file = Path('data_test/ERP_nm.pickle')
+        if nm_file.exists():
+            self.nm_test = pickle.load(nm_file.open('rb'))
+        else:
+            shape = (200, 300)
+            self.nm_test = np.mgrid[range(shape[0]), range(shape[1])]
+            with open(nm_file, 'wb') as f:
+                pickle.dump(self.nm_test, f)
+
+    def load_vu_file(self):
+        vu_file = Path('data_test/ERP_vu.pickle')
+        if vu_file.exists():
+            self.vu_test = pickle.load(vu_file.open('rb'))
+        else:
+            self.vu_test = erp2vu(self.nm_test)
+            with open(vu_file, 'wb') as f:
+                pickle.dump(self.vu_test, f)
+
+    def load_ea_file(self):
+        ea_file = Path('data_test/ERP_ae.pickle')
+        if ea_file.exists():
+            self.ea_test = pickle.load(ea_file.open('rb'))
+        else:
+            self.ea_test, face1 = vu2ea(self.vu_test)
+
+            with open(ea_file, 'wb') as f:
+                pickle.dump(self.ea_test, f)
+
+    def load_xyz_file(self):
+        xyz_file = Path('data_test/ERP_xyz.pickle')
+        if xyz_file.exists():
+            self.xyz_test = pickle.load(xyz_file.open('rb'))
+        else:
+            self.xyz_test = ea2xyz(self.ea_test)
+            with open(xyz_file, 'wb') as f:
+                pickle.dump(self.xyz_test, f)
+
+    def test(self):
+        test(self.teste_cmp2mn_face)
+        test(self.teste_nmface2vuface)
+        test(self.teste_vuface2xyz)
+        test(self.teste_cmp2ea)
+
+    def teste_cmp2mn_face(self):
+        nmface = cmp2nmface(self.nm_test)
+        nm, face = nmface2cmp_face(nmface)
+
+        msg = ''
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in reversion'
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in nmface2cmp_face()'
+
+        nm, face = nmface2cmp_face(self.nmface_test)
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in cmp2nmface()'
+
+        assert msg == '', msg
+
+    def teste_nmface2vuface(self):
+        vuface = nmface2vuface(self.nmface_test)
+        nmface = vuface2nmface(vuface)
+
+        msg = ''
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(vuface, self.vu_test):
+            msg += 'Error in nmface2vuface()'
+
+        nmface = vuface2nmface(self.vu_test)
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in vuface2nmface()'
+
+        assert msg == '', msg
+
+    def teste_vuface2xyz(self):
+        xyz, face = vuface2xyz_face(self.vu_test)
+        vuface = xyz2vuface(xyz)
+
+        msg = ''
+        if not np.array_equal(vuface, self.vu_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(xyz, self.xyz_face_test[0]):
+            msg += 'Error in vuface2xyz_face()'
+
+        vuface = xyz2vuface(self.xyz_face_test[0])
+        if not np.array_equal(vuface, self.vu_test):
+            msg += 'Error in xyz2vuface()'
+
+        assert msg == '', msg
+
+    def teste_cmp2ea(self):
+        ea, face1 = cmp2ea_face(self.nm_test)
+        nm, face2 = ea2cmp_face(ea)
+
+        msg = ''
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in reversion'
+
+        nm, face = ea2cmp_face(self.ea_test)
+        if not np.array_equal(ea, self.ea_test):
+            msg += 'Error in cmp2ea_face()'
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in ea2cmp_face()'
+
+        assert msg == '', msg
+
+
 class TestCMP:
     nm_test: np.ndarray
     nmface_test: np.ndarray
@@ -823,4 +903,5 @@ def show_array(nm_array: np.ndarray, shape: tuple = None):
 
 
 if __name__ in '__main__':
-    TestCMP()
+    # TestCMP()
+    TestERP()
