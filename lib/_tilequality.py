@@ -10,7 +10,7 @@ from skimage.metrics import structural_similarity as ssim, mean_squared_error as
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
 from .assets import Log, AutoDict, print_error
-from .transform import hcs2erp, hcs2cmp, splitx
+from .transform import ea2erp, ea2cmp_face, splitx
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame
 
 
@@ -138,9 +138,9 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
 
             if self.vid_proj == 'erp':
-                m, n = hcs2erp(az, el, self.video_shape)
+                m, n = ea2erp(np.array([[az], [el]]), self.video_shape)
             elif self.vid_proj == 'cmp':
-                m, n, face = hcs2cmp(el, self.video_shape)
+                (m, n), face = ea2cmp_face(np.array([[az], [el]]), self.video_shape)
             else:
                 raise ValueError(f'wrong value to {self.vid_proj=}')
 
@@ -438,7 +438,7 @@ class CollectQuality(SegmentsQualityProps):
 
         try:
             self.read_video_quality_csv()
-        except (FileNotFoundError, pd.errors.EmptyDataError) as e:
+        except (FileNotFoundError, pd.errors.EmptyDataError):
             self.error = True
             return
 
