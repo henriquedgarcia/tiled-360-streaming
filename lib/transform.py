@@ -1,3 +1,4 @@
+from PIL import Image
 import pickle
 from math import ceil
 from pathlib import Path
@@ -189,6 +190,42 @@ def cmp2nmface(nm: np.ndarray, proj_shape: tuple = None) -> np.ndarray:
     return nmface.astype(int)
 
 
+def nmface2cmp_face(nmface, proj_shape=None):
+    new_shape = (2,) + nmface.shape[1:]
+    nm = np.zeros(new_shape, dtype=int)
+
+    if proj_shape is None:
+        proj_shape = nmface.shape
+    face_size = proj_shape[-1] // 3
+
+    face0 = nmface[2] == 0
+    nm[0][face0] = nmface[0][face0]
+    nm[1][face0] = nmface[1][face0]
+
+    face1 = nmface[2] == 1
+    nm[0][face1] = nmface[0][face1]
+    nm[1][face1] = nmface[1][face1] + face_size
+
+    face2 = nmface[2] == 2
+    nm[0][face2] = nmface[0][face2]
+    nm[1][face2] = nmface[1][face2] + 2 * face_size
+
+    face3 = nmface[2] == 3
+    nmface_rotated = np.rot90(nmface, axes=(1, 2))
+    nm[0][face3] = nmface_rotated[0][nmface_rotated[2] == 3] + face_size
+    nm[1][face3] = nmface_rotated[1][nmface_rotated[2] == 3]
+
+    face4 = nmface[2] == 4
+    nm[0][face4] = nmface_rotated[0][nmface_rotated[2] == 4] + face_size
+    nm[1][face4] = nmface_rotated[1][nmface_rotated[2] == 4] + face_size
+
+    face5 = nmface[2] == 5
+    nm[0][face5] = nmface_rotated[0][nmface_rotated[2] == 5] + face_size
+    nm[1][face5] = nmface_rotated[1][nmface_rotated[2] == 5] + 2 * face_size
+    face = nmface[2]
+    return nm, face
+
+
 def nmface2vuface(nmface: np.ndarray, proj_shape=None) -> np.ndarray:
     """
 
@@ -202,12 +239,25 @@ def nmface2vuface(nmface: np.ndarray, proj_shape=None) -> np.ndarray:
         proj_shape = nmface.shape
 
     face_size = proj_shape[-1] / 3
-    _2_face_size = 2 / face_size
 
-    normalize = np.vectorize(lambda n: (n / face_size + 0.5) - 1)
+    normalize = np.vectorize(lambda m: 2 * (m + 0.5) / face_size - 1)
     vuface[:2] = normalize(nmface[:2, ...])
     vuface[2] = nmface[2]
     return vuface
+
+
+def vuface2nmface(vuface, proj_shape=None):
+    nm_face = np.zeros(vuface.shape)
+    nm_face[2] = vuface[2]
+
+    if proj_shape is None:
+        proj_shape = vuface.shape
+    face_size = proj_shape[-1] / 3
+    _face_size_2 = face_size / 2
+
+    denormalize = np.vectorize(lambda u: np.round((u + 1) * _face_size_2 - 0.5))
+    nm_face[:2] = denormalize(vuface[:2, ...])
+    return nm_face.astype(int)
 
 
 def vuface2xyz_face(vuface: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -264,111 +314,61 @@ def xyz2vuface(xyz: np.ndarray) -> np.ndarray:
         selection4 = np.logical_and(selection3, v5)
         return selection4
 
-    sel = selection(-xyz[0] >= -xyz[2],
-                    -xyz[0] > xyz[2],
-                    -xyz[0] >= -xyz[1],
-                    -xyz[0] > xyz[1],
-                    xyz[0] < 0)
-    vuface[2][sel] = 0
-    vuface[1][sel] = xyz[2][sel] / abs_xyz[0][sel]
-    vuface[0][sel] = xyz[1][sel] / abs_xyz[0][sel]
+    face0 = selection(-xyz[0] >= -xyz[2],
+                      -xyz[0] > xyz[2],
+                      -xyz[0] >= -xyz[1],
+                      -xyz[0] > xyz[1],
+                      xyz[0] < 0)
+    vuface[2][face0] = 0
+    vuface[1][face0] = xyz[2][face0] / abs_xyz[0][face0]
+    vuface[0][face0] = xyz[1][face0] / abs_xyz[0][face0]
 
-    sel = selection(xyz[2] >= -xyz[0],
-                    xyz[2] > xyz[0],
-                    xyz[2] >= -xyz[1],
-                    xyz[2] > xyz[1],
-                    xyz[2] > 0)
-    vuface[2][sel] = 1
-    vuface[1][sel] = xyz[0][sel] / abs_xyz[2][sel]
-    vuface[0][sel] = xyz[1][sel] / abs_xyz[2][sel]
+    face1 = selection(xyz[2] >= -xyz[0],
+                      xyz[2] > xyz[0],
+                      xyz[2] >= -xyz[1],
+                      xyz[2] > xyz[1],
+                      xyz[2] > 0)
+    vuface[2][face1] = 1
+    vuface[1][face1] = xyz[0][face1] / abs_xyz[2][face1]
+    vuface[0][face1] = xyz[1][face1] / abs_xyz[2][face1]
 
-    sel = selection(xyz[0] >= xyz[2],
-                    xyz[0] > -xyz[2],
-                    xyz[0] >= -xyz[1],
-                    xyz[0] > xyz[1],
-                    xyz[0] > 0)
-    vuface[2][sel] = 2
-    vuface[1][sel] = -xyz[2][sel] / abs_xyz[0][sel]
-    vuface[0][sel] = xyz[1][sel] / abs_xyz[0][sel]
+    face2 = selection(xyz[0] >= xyz[2],
+                      xyz[0] > -xyz[2],
+                      xyz[0] >= -xyz[1],
+                      xyz[0] > xyz[1],
+                      xyz[0] > 0)
+    vuface[2][face2] = 2
+    vuface[1][face2] = -xyz[2][face2] / abs_xyz[0][face2]
+    vuface[0][face2] = xyz[1][face2] / abs_xyz[0][face2]
 
-    sel = selection(xyz[1] >= xyz[0],
-                    xyz[1] > -xyz[0],
-                    xyz[1] >= -xyz[2],
-                    xyz[1] > xyz[2],
-                    xyz[1] > 0)
-    vuface[2][sel] = 3
-    vuface[1][sel] = -xyz[0][sel] / abs_xyz[1][sel]
-    vuface[0][sel] = xyz[2][sel] / abs_xyz[1][sel]
+    face3 = selection(xyz[1] >= xyz[0],
+                      xyz[1] > -xyz[0],
+                      xyz[1] >= -xyz[2],
+                      xyz[1] > xyz[2],
+                      xyz[1] > 0)
+    vuface[2][face3] = 3
+    vuface[1][face3] = -xyz[0][face3] / abs_xyz[1][face3]
+    vuface[0][face3] = xyz[2][face3] / abs_xyz[1][face3]
 
-    sel = selection(-xyz[2] >= xyz[0],
-                    -xyz[2] > -xyz[0],
-                    -xyz[2] >= -xyz[1],
-                    -xyz[2] > xyz[1],
-                    xyz[2] < 0)
-    vuface[2][sel] = 4
-    vuface[1][sel] = -xyz[0][sel] / abs_xyz[2][sel]
-    vuface[0][sel] = xyz[1][sel] / abs_xyz[2][sel]
+    face4 = selection(-xyz[2] >= xyz[0],
+                      -xyz[2] > -xyz[0],
+                      -xyz[2] >= -xyz[1],
+                      -xyz[2] > xyz[1],
+                      xyz[2] < 0)
+    vuface[2][face4] = 4
+    vuface[1][face4] = -xyz[0][face4] / abs_xyz[2][face4]
+    vuface[0][face4] = xyz[1][face4] / abs_xyz[2][face4]
 
-    sel = selection(-xyz[1] >= xyz[0],
-                    -xyz[1] > -xyz[0],
-                    -xyz[1] >= xyz[2],
-                    -xyz[1] > -xyz[2],
-                    xyz[1] < 0)
-    vuface[2][sel] = 5
-    vuface[1][sel] = -xyz[0][sel] / abs_xyz[1][sel]
-    vuface[0][sel] = -xyz[2][sel] / abs_xyz[1][sel]
+    face5 = selection(-xyz[1] >= xyz[0],
+                      -xyz[1] > -xyz[0],
+                      -xyz[1] >= xyz[2],
+                      -xyz[1] > -xyz[2],
+                      xyz[1] < 0)
+    vuface[2][face5] = 5
+    vuface[1][face5] = -xyz[0][face5] / abs_xyz[1][face5]
+    vuface[0][face5] = -xyz[2][face5] / abs_xyz[1][face5]
 
     return vuface
-
-
-def vuface2nmface(vuface, proj_shape=None):
-    nm_face = np.zeros(vuface.shape)
-    nm_face[2] = vuface[2]
-
-    if proj_shape is None:
-        proj_shape = vuface.shape
-    face_size = proj_shape[-1] / 3
-    _face_size_2 = face_size / 2
-
-    denormalize = np.vectorize(lambda u: np.round((u/2 + 0.5) * face_size))
-    nm_face[:2] = denormalize(vuface[:2, ...])
-    return nm_face.astype(int)
-
-
-def nmface2cmp_face(nmface, proj_shape=None):
-    new_shape = (2,) + nmface.shape[1:]
-    nm = np.zeros(new_shape, dtype=int)
-
-    if proj_shape is None:
-        proj_shape = nmface.shape
-    face_size = proj_shape[-1] // 3
-
-    face0 = nmface[2] == 0
-    nm[0][face0] = nmface[0][face0]
-    nm[1][face0] = nmface[1][face0]
-
-    face1 = nmface[2] == 1
-    nm[0][face1] = nmface[0][face1]
-    nm[1][face1] = nmface[1][face1] + face_size
-
-    face2 = nmface[2] == 2
-    nm[0][face2] = nmface[0][face2]
-    nm[1][face2] = nmface[1][face2] + 2 * face_size
-
-    face3 = nmface[2] == 3
-    nmface_rotated = np.rot90(nmface, axes=(1, 2))
-    nm[0][face3] = nmface_rotated[0][nmface_rotated[2] == 3] + face_size
-    nm[1][face3] = nmface_rotated[1][nmface_rotated[2] == 3]
-
-    face4 = nmface[2] == 4
-    nm[0][face4] = nmface_rotated[0][nmface_rotated[2] == 4] + face_size
-    nm[1][face4] = nmface_rotated[1][nmface_rotated[2] == 4] + face_size
-
-    face5 = nmface[2] == 5
-    nm[0][face5] = nmface_rotated[0][nmface_rotated[2] == 5] + face_size
-    nm[1][face5] = nmface_rotated[1][nmface_rotated[2] == 5] + 2 * face_size
-    face = nmface[2]
-    return nm, face
 
 
 def xyz2cmp_face(xyz: np.ndarray, proj_shape=None) -> tuple[np.ndarray, np.ndarray]:
@@ -415,6 +415,23 @@ def cmp2ea_face(nm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     xyz, face = cmp2xyz_face(nm)
     ae = xyz2ea(xyz)
     return ae, face
+
+
+def show_error(array):
+    a = np.zeros(array.shape[1:])
+    for j in range(a.shape[0]):
+        for i in range(a.shape[1]):
+            print(f"\r{j=}, {i=}      ", end='')
+            for j2 in range(j, a.shape[0]):
+                for i2 in range(i, a.shape[1]):
+                    if j2 == j and i2 == i: continue
+                    if (array[0, j, i] == array[0, j2, i2]
+                            and array[1, j, i] == array[1, j2, i2]
+                            and array[2, j, i] == array[2, j2, i2]):
+                        a[j, i] = 255
+                        print(f"\n\t{j2=}, {i2=} "
+                              f"= vu({array[0, j2, i2]}, {array[1, j2, i2]}), face=({array[2, j, i]}, {array[2, j2, i2]})")
+    return a
 
 
 # def cmp2cart(n: int, m: int, shape: tuple[int, int], f: int = 0) -> tuple[float, float, float]:
@@ -639,175 +656,172 @@ class TestCMP:
     nm_test: np.ndarray
     nmface_test: np.ndarray
     vuface_test: np.ndarray
-    xyz_face_test: np.ndarray
+    xyz_face_test: tuple[np.ndarray, np.ndarray]
     ea_test: np.ndarray
     ae2cmp_test: np.ndarray
-    ea2cmp_face_test: np.ndarray
+    ea_cmp_face_test: tuple[np.ndarray, np.ndarray]
     cmp2ea_test: np.ndarray
+
+    def load_arrays(self):
+        self.load_nm_file()
+        self.load_nmface_file()
+        self.load_vuface_file()
+        self.load_xyz_file()
+        self.load_ea_file()
+        self.load_ea_cmp_file()
+
+    def load_nm_file(self):
+        nm_file = Path('data_test/nm.pickle')
+        if nm_file.exists():
+            self.nm_test = pickle.load(nm_file.open('rb'))
+        else:
+            shape = (200, 300)
+            self.nm_test = np.mgrid[range(shape[0]), range(shape[1])]
+            with open(nm_file, 'wb') as f:
+                pickle.dump(self.nm_test, f)
+
+    def load_nmface_file(self):
+        nmface_file = Path('data_test/nmface.pickle')
+        if nmface_file.exists():
+            self.nmface_test = pickle.load(nmface_file.open('rb'))
+        else:
+            self.nmface_test = cmp2nmface(self.nm_test)
+            with open(nmface_file, 'wb') as f:
+                pickle.dump(self.nmface_test, f)
+
+    def load_vuface_file(self):
+        vuface_file = Path('data_test/vuface.pickle')
+        if vuface_file.exists():
+            self.vuface_test = pickle.load(vuface_file.open('rb'))
+        else:
+            self.vuface_test = nmface2vuface(self.nmface_test)
+            with open(vuface_file, 'wb') as f:
+                pickle.dump(self.vuface_test, f)
+
+    def load_xyz_file(self):
+        xyz_file = Path('data_test/xyz.pickle')
+        if xyz_file.exists():
+            self.xyz_face_test = pickle.load(xyz_file.open('rb'))
+        else:
+            self.xyz_face_test = vuface2xyz_face(self.vuface_test)
+            with open(xyz_file, 'wb') as f:
+                pickle.dump(self.xyz_face_test, f)
+
+    def load_ea_file(self):
+        ea_file = Path('data_test/ae.pickle')
+        if ea_file.exists():
+            self.ea_test = pickle.load(ea_file.open('rb'))
+        else:
+            self.ea_test, face1 = cmp2ea_face(self.nm_test)
+
+            with open(ea_file, 'wb') as f:
+                pickle.dump(self.ea_test, f)
+
+    def load_ea_cmp_file(self):
+        ea_cmp_file = Path('data_test/ea_cmp.pickle')
+
+        if ea_cmp_file.exists():
+            self.ea_cmp_face_test = pickle.load(ea_cmp_file.open('rb'))
+        else:
+            self.ea_cmp_face_test = ea2cmp_face(self.ea_test)
+
+            with open(ea_cmp_file, 'wb') as f:
+                pickle.dump(self.ea_cmp_face_test, f)
 
     def __init__(self):
         self.load_arrays()
+        self.test()
+
+    def test(self):
         test(self.teste_cmp2mn_face)
         test(self.teste_nmface2vuface)
         test(self.teste_vuface2xyz)
 
-        test(self.teste_xyz2vuface)
-        test(self.teste_vuface2nm_face)
-        test(self.teste_nmface2cmp)
-
-        test(self.teste_ea2cmp_face)
-        test(self.teste_cmp2ea_face)
-
-    def load_arrays(self):
-        def load_nm_file():
-            nm_file = Path('data_test/nm.pickle')
-            if nm_file.exists():
-                self.nm_test = pickle.load(nm_file.open('rb'))
-            else:
-                shape = (200, 300)
-                self.nm_test = np.mgrid[range(shape[0]), range(shape[1])]
-                with open(nm_file, 'wb') as f:
-                    pickle.dump(self.nm_test, f)
-
-        def load_nmface_file():
-            nmface_file = Path('data_test/nmface.pickle')
-            if nmface_file.exists():
-                self.nmface_test = pickle.load(nmface_file.open('rb'))
-            else:
-                self.nmface_test = cmp2nmface(self.nm_test)
-                with open(nmface_file, 'wb') as f:
-                    pickle.dump(self.nmface_test, f)
-
-        def load_vuface_file():
-            vuface_file = Path('data_test/vuface.pickle')
-            if vuface_file.exists():
-                self.vuface_test = pickle.load(vuface_file.open('rb'))
-            else:
-                self.vuface_test = nmface2vuface(self.nmface_test)
-                with open(vuface_file, 'wb') as f:
-                    pickle.dump(self.vuface_test, f)
-
-        def load_xyz_file():
-            xyz_file = Path('data_test/xyz.pickle')
-            if xyz_file.exists():
-                self.xyz_face_test = pickle.load(xyz_file.open('rb'))
-            else:
-                self.xyz_face_test = vuface2xyz_face(self.vuface_test)
-                with open(xyz_file, 'wb') as f:
-                    pickle.dump(self.xyz_face_test, f)
-
-        def load_ea_file():
-            ea_file = Path('data_test/ae.pickle')
-            if ea_file.exists():
-                self.ea_test = pickle.load(ea_file.open('rb'))
-            else:
-                shape = (200, 300)
-                a = np.deg2rad(90)
-                b = np.deg2rad(180)
-                y = np.linspace(a, -a, num=shape[0])
-                x = np.linspace(-b, b, num=shape[1], endpoint=False)
-                xx, yy = np.meshgrid(x, y)
-                self.ea_test = np.array([yy, xx])
-
-                with open(ea_file, 'wb') as f:
-                    pickle.dump(self.ea_test, f)
-
-        def load_ea2cmp_file():
-            ea2cmp_file = Path('data_test/ae2cmp.pickle')
-            # from PIL import Image
-
-            if ea2cmp_file.exists():
-                self.ea2cmp_face_test = pickle.load(ea2cmp_file.open('rb'))
-            else:
-                self.ea2cmp_face_test = ea2cmp_face(self.ea_test)
-
-                # nm, face = self.ea2cmp_test
-                # array = np.zeros(nm.shape[1:], dtype=int)[nm[0], nm[1]] = 255
-                # Image.fromarray(array).show()
-
-                with open(ea2cmp_file, 'wb') as f:
-                    pickle.dump(self.ea2cmp_face_test, f)
-
-        load_nm_file()
-        load_nmface_file()
-        load_vuface_file()
-        load_xyz_file()
-        load_ea_file()
-        load_ea2cmp_file()
+        test(self.teste_cmp2ea)
 
     def teste_cmp2mn_face(self):
         nmface = cmp2nmface(self.nm_test)
-        assert np.array_equal(nmface, self.nmface_test), 'Error in cmp2nmface()'
+        nm, face = nmface2cmp_face(nmface)
+
+        msg = ''
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in reversion'
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in nmface2cmp_face()'
+
+        nm, face = nmface2cmp_face(self.nmface_test)
+        if not np.array_equal(self.nm_test, nm):
+            msg += 'Error in cmp2nmface()'
+
+        assert msg == '', msg
 
     def teste_nmface2vuface(self):
         vuface = nmface2vuface(self.nmface_test)
-        assert np.array_equal(vuface, self.vuface_test), 'Error in nmface2vuface()'
+        nmface = vuface2nmface(vuface)
+
+        msg = ''
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in nmface2vuface()'
+
+        nmface = vuface2nmface(self.vuface_test)
+        if not np.array_equal(nmface, self.nmface_test):
+            msg += 'Error in vuface2nmface()'
+
+        assert msg == '', msg
 
     def teste_vuface2xyz(self):
         xyz, face = vuface2xyz_face(self.vuface_test)
-        assert np.array_equal(xyz, self.xyz_face_test[0]), 'Error in uvface2xyz(), xyz'
-        assert np.array_equal(face, self.xyz_face_test[1]), 'Error in uvface2xyz(), face'
+        vuface = xyz2vuface(xyz)
 
-    def teste_xyz2vuface(self):
+        msg = ''
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in reversion'
+        if not np.array_equal(xyz, self.xyz_face_test[0]):
+            msg += 'Error in vuface2xyz_face()'
+
         vuface = xyz2vuface(self.xyz_face_test[0])
-        assert np.array_equal(vuface, self.vuface_test), 'Error in xyz2vuface()'
+        if not np.array_equal(vuface, self.vuface_test):
+            msg += 'Error in xyz2vuface()'
 
-    def teste_vuface2nm_face(self):
-        nm_face = vuface2nmface(self.vuface_test)
-        assert np.array_equal(nm_face, self.nmface_test), 'Error in vuface2nm_face()'
-
-    def teste_nmface2cmp(self):
-        nm, face = nmface2cmp_face(self.nmface_test)
-        assert np.array_equal(nm, self.nm_test), 'Error in nmface2cmp_face(), in nm'
+        assert msg == '', msg
 
     # Test HCS
-    def teste_ea2cmp_face(self):
+    def teste_cmp2ea(self):
+        ea, face1 = cmp2ea_face(self.nm_test)
+        nm, face2 = ea2cmp_face(ea)
+
+        msg = ''
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in reversion'
+
         nm, face = ea2cmp_face(self.ea_test)
+        if not np.array_equal(ea, self.ea_test):
+            msg += 'Error in cmp2ea_face()'
+        if not np.array_equal(nm, self.nm_test):
+            msg += 'Error in ea2cmp_face()'
 
-        assert np.array_equal(nm, self.ea2cmp_face_test[0]), 'Error in ea2cmp_face(), in nm'
-        assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in ea2cmp_face(), in face'
+        assert msg == '', msg
 
-        # for y in range(self.ea_test.shape[1]):
-        #     for x in range(self.ea_test.shape[2]):
-        #         ea_test = self.ea_test[0:2, y:y + 1, x:x + 1]
-        #         e = np.rad2deg(self.ea_test[0, y, x])
-        #         a = np.rad2deg(self.ea_test[1, y, x])
-        #
-        #         # nm, face = ea2cmp_face(ea_test)
-        #         xyz = ea2xyz(ea_test)
-        #         # nm, face = xyz2cmp_face(xyz, proj_shape=None)
-        #         vuface = xyz2vuface(xyz)
-        #         nmface = vuface2nmface(vuface, proj_shape=(200, 300))
-        #         nm, face1 = nmface2cmp_face(nmface, proj_shape=(200, 300))
-        #
-        #         # ea, face1 = cmp2ea_face(nm)
-        #         # xyz, face = cmp2xyz_face(nm)
-        #         nmface2 = cmp2nmface(nm, proj_shape=(200, 300))
-        #         vuface2 = nmface2vuface(nmface2, proj_shape=(200, 300))
-        #         xyz2, face2 = vuface2xyz_face(vuface2)
-        #         ea2 = xyz2ea(xyz2)
-        #
-        #         print(f'\tDescendo:')
-        #         print(f'Para ea = ({e}, {a})')
-        #         print(f'\tea2xyz -> ({xyz[0, 0, 0]}, {xyz[1, 0, 0]}, {xyz[2, 0, 0]})')
-        #         print(f'\txyz2vuface -> ({vuface[0, 0, 0]}, {vuface[1, 0, 0]}, {vuface[2, 0, 0]})')
-        #         print(f'\tvuface2nmface -> ({nmface[0, 0, 0]}, {nmface[1, 0, 0]}, {nmface[2, 0, 0]})')
-        #         print(f'\tnmface2cmp_face -> ({nm[0, 0, 0]}, {nm[1, 0, 0]}, {face1[0, 0]})')
-        #         print(f'\tSubindo:')
-        #         print(f'\tcmp2nmface -> ({nmface2[0, 0, 0]}, {nmface2[1, 0, 0]}, {nmface2[2, 0, 0]})')
-        #         print(f'\tnmface2vuface -> ({vuface2[0, 0, 0]}, {vuface2[1, 0, 0]}, {vuface2[2, 0, 0]})')
-        #         print(f'\tvuface2xyz_face -> ({xyz2[0, 0, 0]}, {xyz2[1, 0, 0]}, {xyz2[2, 0, 0]}, {face2})')
-        #         print(f'\txyz2ea -> ({ea2[0, 0, 0]}, {ea2[1, 0, 0]})')
-        #         print()
-        # from PIL import Image
-        # shape = self.ea_test.shape
-        # img = np.zeros(shape[1:])
-        # img[nm[0], nm[1]] = 255
 
-    def teste_cmp2ea_face(self):
-        ea, face = cmp2ea_face(self.ea2cmp_face_test[0])
-        assert np.array_equal(ea, self.ea_test), 'Error in cmp2ea_face(), in nm'
-        assert np.array_equal(face, self.ea2cmp_face_test[1]), 'Error in cmp2ea_face(), in face'
+def show_array(nm_array: np.ndarray, shape: tuple = None):
+    """
+          M
+       +-->
+       |
+    n  v
+
+    :param nm_array: shape (2, ...)
+    :param shape: tuple (N, M)
+    :return: None
+    """
+    if shape is None:
+        shape = nm_array.shape[1:]
+        if len(shape) < 2:
+            shape = (np.max(nm_array[0]) + 1, np.max(nm_array[1]) + 1)
+    array2 = np.zeros(shape, dtype=int)[nm_array[0], nm_array[1]] = 255
+    Image.fromarray(array2).show()
 
 
 if __name__ in '__main__':
