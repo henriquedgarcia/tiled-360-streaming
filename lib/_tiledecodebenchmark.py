@@ -647,7 +647,7 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         self.tile = '0'
 
         # self.calc_siti()
-        # self.calc_stats()
+        self.calc_stats()
         # self.plot_siti()
         # self.scatter_plot_siti()
 
