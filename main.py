@@ -7,8 +7,8 @@ import lib
 # config = f'config/config_nas_cmp.json'
 
 # config = f'config/config_nas_erp_cmp_qp.json'
-config = f'config/config_nas_erp_cmp.json'
-# config = f'config/config_full.json'
+# config = f'config/config_nas_erp_cmp.json'
+config = f'config/config_full.json'
 
 worker_list: dict[str, dict[str, Type]] = {
     '0': lib.TileDecodeBenchmarkOptions,
