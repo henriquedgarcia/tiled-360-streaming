@@ -667,14 +667,20 @@ class MakeSiti(TileDecodeBenchmarkPaths):
             siti_results_df = pd.DataFrame(siti.siti)
             siti_results_df.to_csv(self.siti_results)
 
-
-
     def calc_stats(self):
         siti_stats = defaultdict(list)
         if self.siti_stats.exists():
             print(f'{self.siti_stats} - the file exist')
             def calc():
                 siti_stats = pd.read_csv(self.siti_stats)
+                siti_stats1 = siti_stats[['group', 'name', 'proj', 'si_med', 'ti_med', 'bitrate']]
+                # siti_stats2 = siti_stats1.sort_values('name').sort_values('proj').sort_values('group')
+                midx = pd.MultiIndex.from_frame(siti_stats1[['group', 'name', 'proj']])
+                data = siti_stats1[['si_med', 'ti_med', 'bitrate']]
+                siti_stats3 = pd.DataFrame(data.values, index=midx)
+
+
+
             # return
 
         for self.video in self.videos_list:
