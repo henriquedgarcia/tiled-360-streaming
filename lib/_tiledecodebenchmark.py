@@ -667,21 +667,26 @@ class MakeSiti(TileDecodeBenchmarkPaths):
             siti_results_df = pd.DataFrame(siti.siti)
             siti_results_df.to_csv(self.siti_results)
 
+
+
     def calc_stats(self):
         siti_stats = defaultdict(list)
         if self.siti_stats.exists():
             print(f'{self.siti_stats} - the file exist')
-            return
+            def calc():
+                siti_stats = pd.read_csv(self.siti_stats)
+            # return
 
         for self.video in self.videos_list:
-            siti_results = load_json(self.siti_results)
-            si = siti_results[self.video]['si']
-            ti = siti_results[self.video]['ti']
+            siti_results = pd.read_csv(self.siti_results, index_col=0)
+            si = siti_results['si']
+            ti = siti_results['ti']
             bitrate = self.compressed_file.stat().st_size * 8 / 60
 
             siti_stats['group'].append(self.group)
             siti_stats['proj'].append(self.vid_proj)
             siti_stats['video'].append(self.video)
+            siti_stats['name'].append(self.name)
             siti_stats['tiling'].append(self.tiling)
             siti_stats['quality'].append(self.quality)
             siti_stats['tile'].append(self.tile)
