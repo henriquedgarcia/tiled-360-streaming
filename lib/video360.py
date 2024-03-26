@@ -136,7 +136,6 @@ class Viewport:
         if self._vp_img:
             return self._vp_img
 
-        nm_coord: np.ndarray
         nm_coord = xyz2nm(self.vp_rotated_xyz, frame.shape)
         nm_coord = nm_coord.transpose((1, 2, 0))
         self._vp_img = cv2.remap(frame,
