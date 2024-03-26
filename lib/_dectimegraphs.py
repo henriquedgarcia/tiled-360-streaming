@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
+from typing import Any
 
 import matplotlib as mpl
 import matplotlib.axes as axes
@@ -45,6 +46,24 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
     @property
     def workfolder_data(self) -> Path:
         folder = self.workfolder / 'data'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    @property
+    def workfolder_fitter(self) -> Path:
+        folder = self.workfolder / 'fitter'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    @property
+    def workfolder_pdf_cdf(self) -> Path:
+        folder = self.workfolder / 'pdf_cdf'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    @property
+    def workfolder_boxplot(self) -> Path:
+        folder = self.workfolder / 'boxplot'
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
@@ -153,22 +172,33 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
         for group in rc_param:
             mpl.rc(group, **rc_param[group])
 
+    def process_value(self, value: Any) -> float:
+        # Process value according the metric
+        if self.metric == 'time':  # value: list
+            new_value = float(np.round(np.average(value), decimals=3))
+        elif self.metric == 'time_std':  # value: list
+            new_value = float(np.round(np.std(value), decimals=6))
+        elif self.metric == 'rate':  # value: float
+            new_value = float(value)
+        else:  # if self.metric in ['MSE', 'WS-MSE', 'S-MSE']:
+            metric_value = value[self.metric]  # value == dict[list]
+            new_value = float(np.round(np.average(metric_value), decimals=3))
+        return new_value
+
 
 class ByPatternProps(DectimeGraphsPaths):
-    workfolder_data: Path
-    workfolder: Path
     metric_label = {'time': {'scilimits': (-3, -3),
                              'xlabel': f'Average Decoding Time (ms)'},
                     'time_std': {'scilimits': (-3, -3),
                                  'xlabel': f'Std Dev Decoding Time (ms)'},
                     'rate': {'scilimits': (6, 6),
                              'xlabel': f'Average Bit Rate (ms)'},
-                    'PSNR': {'scilimits': (0, 0),
-                             'xlabel': f'Average PSNR'},
-                    'WS-PSNR': {'scilimits': (0, 0),
-                                'xlabel': f'Average WS-PSNR'},
-                    'S-PSNR': {'scilimits': (0, 0),
-                               'xlabel': f'Average S-PSNR'}
+                    'MSE': {'scilimits': (0, 0),
+                            'xlabel': f'Average PSNR'},
+                    'WS-MSE': {'scilimits': (0, 0),
+                               'xlabel': f'Average WS-PSNR'},
+                    'S-MSE': {'scilimits': (0, 0),
+                              'xlabel': f'Average S-PSNR'}
                     }
     metric_list = ['rate', 'time', 'time_std', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
     # metric_list = ['time', 'time_std', 'rate', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
@@ -178,8 +208,6 @@ class ByPatternProps(DectimeGraphsPaths):
     error_type: str
     _fig_pdf: dict
     _fig_cdf: dict
-    _fig_pdf_clean: dict
-    _fig_cdf_clean: dict
     _fig_boxplot: dict
     _fig_boxplot_clean: dict
     fitter: Fitter
@@ -224,41 +252,12 @@ class ByPatternProps(DectimeGraphsPaths):
 
         :return:  Path(fitter_pickle_file)
         """
-        fitter_file = self.workfolder_data / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.bins}bins.pickle'
+        fitter_file = self.workfolder_fitter / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.bins}bins.pickle'
         return fitter_file
-
-    @property
-    def clean_fitter_pickle_file(self) -> Path:
-        """
-        Need: metric, proj, tiling, and bins
-
-        :return:  Path(fitter_pickle_file)
-        """
-        fitter_file = self.workfolder_data / f'clean_fitter_{self.metric}_{self.proj}_{self.tiling}_{self.bins}bins.pickle'
-        return fitter_file
-
-    @property
-    def workfolder(self) -> Path:
-        """
-        Need None
-        set _workfolder=None if locked
-        :return:
-        """
-        if self._workfolder is None:
-            folder = self.project_path / self.graphs_folder / self.__class__.__name__ / 'aggregate'
-            folder.mkdir(parents=True, exist_ok=True)
-            return folder
-        else:
-            return self._workfolder
-
-    @property
-    def clean_data_bucket_file(self) -> Path:
-        path = self.workfolder_data / f'clean_data_bucket_{self.metric}_{self.proj}_{self.tiling}.json'
-        return path
 
     @property
     def data_bucket_file(self) -> Path:
-        path = self.workfolder_data / f'data_bucket_{self.metric}_{self.proj}_{self.tiling}.json'
+        path = self.workfolder_data / f'data_bucket_{self.metric}.json'
         return path
 
     @property
@@ -267,22 +266,9 @@ class ByPatternProps(DectimeGraphsPaths):
         Need: proj, and metric
         :return:
         """
-        folder = self.workfolder / 'boxplot'
-        folder.mkdir(parents=True, exist_ok=True)
+        folder = self.workfolder_boxplot
         mid = self.metric_list.index(self.metric)
         img_file = folder / f'boxplot_pattern_{mid}_{self.metric}_{self.proj}.png'
-        return img_file
-
-    @property
-    def boxplot_file_clean(self) -> Path:
-        """
-        Need: proj, and metric
-        :return:
-        """
-        folder = self.workfolder / 'boxplot'
-        folder.mkdir(parents=True, exist_ok=True)
-        mid = self.metric_list.index(self.metric)
-        img_file = folder / f'boxplot_pattern_{mid}_{self.metric}_{self.proj}_clean.png'
         return img_file
 
     @property
@@ -291,19 +277,7 @@ class ByPatternProps(DectimeGraphsPaths):
         Need: proj, and metric
         :return:
         """
-        folder = self.workfolder / 'pdf_cdf'
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'pdf_{self.proj}_{self.metric}_{self.quality_str}.png'
-
-    @property
-    def pdf_file_clean(self) -> Path:
-        """
-        Need: proj, and metric
-        :return:
-        """
-        folder = self.workfolder / 'pdf_cdf'
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'pdf_{self.proj}_{self.metric}_{self.quality_str}_clean.png'
+        return self.workfolder_pdf_cdf / f'pdf_{self.metric}.png'
 
     @property
     def cdf_file(self) -> Path:
@@ -311,28 +285,16 @@ class ByPatternProps(DectimeGraphsPaths):
         Need: proj, and metric
         :return:
         """
-        folder = self.workfolder / 'pdf_cdf'
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'cdf_{self.proj}_{self.metric}.png'
-
-    @property
-    def cdf_file_clean(self) -> Path:
-        """
-        Need: proj, and metric
-        :return:
-        """
-        folder = self.workfolder / 'pdf_cdf'
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'cdf_{self.proj}_{self.metric}_clean.png'
+        return self.workfolder_pdf_cdf / f'cdf_{self.metric}.png'
 
     @property
     def fig_pdf(self) -> figure.Figure:
-        key = (self.metric, self.proj)
+        key = (self.metric,)
         try:
             fig = self._fig_pdf[key]
-        except KeyError:
+        except (KeyError, AttributeError):
             self._fig_pdf = {}
-            fig = plt.figure(figsize=(12.0, 2),
+            fig = plt.figure(figsize=(12.0, 4),
                              dpi=600,
                              linewidth=0.5,
                              tight_layout=True)
@@ -340,71 +302,31 @@ class ByPatternProps(DectimeGraphsPaths):
         return fig
 
     @property
-    def fig_pdf_clean(self) -> figure.Figure:
-        key = (self.metric, self.proj)
-        try:
-            fig = self._fig_pdf_clean[key]
-        except KeyError:
-            self._fig_pdf_clean = {}
-            fig = self._fig_pdf_clean[key] = plt.figure(figsize=(12.0, 2),
-                                                        dpi=600,
-                                                        linewidth=0.5,
-                                                        tight_layout=True)
-        return fig
-
-    @property
     def fig_cdf(self) -> figure.Figure:
-        key = (self.metric, self.proj)
+        key = (self.metric,)
         try:
             fig = self._fig_cdf[key]
-        except KeyError:
+        except (KeyError, AttributeError):
             self._fig_cdf = {}
-            fig = self._fig_cdf[key] = plt.figure(figsize=(12.0, 2),
+            fig = self._fig_cdf[key] = plt.figure(figsize=(12.0, 4),
                                                   dpi=600,
                                                   linewidth=0.5,
                                                   tight_layout=True)
         return fig
 
     @property
-    def fig_cdf_clean(self) -> figure.Figure:
-        key = (self.metric, self.proj)
-        try:
-            fig = self._fig_cdf_clean[key]
-        except KeyError:
-            self._fig_cdf_clean = {}
-            fig = self._fig_cdf_clean[key] = plt.figure(figsize=(12.0, 2),
-                                                        dpi=600,
-                                                        linewidth=0.5,
-                                                        tight_layout=True)
-        return fig
-
-    @property
     def fig_boxplot(self) -> figure.Figure:
         # make an image for each metric and projection
-        key = (self.metric, self.proj)
+        key = (self.metric,)
         try:
             _fig_boxplot = self._fig_boxplot[key]
-        except KeyError:
+        except (KeyError, AttributeError):
             self._fig_boxplot = {}
-            _fig_boxplot = self._fig_boxplot[key] = plt.figure(figsize=(6.0, 2),
+            _fig_boxplot = self._fig_boxplot[key] = plt.figure(figsize=(6.0, 4),
                                                                dpi=600,
                                                                linewidth=0.5,
                                                                tight_layout=True)
         return _fig_boxplot
-
-    @property
-    def fig_boxplot_clean(self) -> figure.Figure:
-        # make an image for each metric and projection
-        key = (self.metric, self.proj)
-        try:
-            fig = self._fig_boxplot_clean[key]
-        except KeyError:
-            self._fig_boxplot_clean = {}
-            fig = self._fig_boxplot_clean[key] = plt.figure(figsize=(6.0, 2),
-                                                            dpi=600,
-                                                            linewidth=0.5,
-                                                            tight_layout=True)
-        return fig
 
     @property
     def json_metrics(self):
@@ -417,24 +339,6 @@ class ByPatternProps(DectimeGraphsPaths):
                 'S-MSE': self.quality_result_json
                 }[self.metric]
 
-    def process(self, value):
-        # Process value according the metric
-        if self.metric == 'time':
-            new_value = float(np.round(np.average(value), decimals=3))
-        elif self.metric == 'time_std':
-            new_value = float(np.round(np.std(value), decimals=6))
-        elif self.metric == 'rate':
-            new_value = float(value)
-        else:
-            # if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
-            metric_value = value[self.metric]
-            new_value = metric_value
-            if float(new_value) == float('inf'):
-                new_value = 1000
-            else:
-                new_value = new_value
-        return new_value
-
 
 class ByPattern(ByPatternProps):
     def main(self):
@@ -442,17 +346,26 @@ class ByPattern(ByPatternProps):
         self.error_type = 'sse'
 
         print(f'====== ByPattern - error_type={self.error_type}, n_dist={self.n_dist} ======')
+        # Script para calcular a maior variação de tempo de decodificação entre as 5 decodificações.
+        # time_var_rate = set()
+        # for self.metric in ['time']:
+        #     for self.proj in self.proj_list:
+        #         for self.tiling in self.tiling_list:
+        #             for self.name in self.name_list:
+        #                 print(f'{self.metric}-{self.proj}-{self.tiling}-{self.name}')
+        #                 vid_data = load_json(self.json_metrics)
+        #                 for self.quality in self.quality_list:
+        #                     for self.tile in self.tile_list:
+        #                         for self.chunk in self.chunk_list:
+        #                             chunk_data1 = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+        #
+        #                             time_var_rate.update([100*(1 - np.min(chunk_data1) / np.max(chunk_data1))])
 
         for self.metric in self.metric_list:
-            for self.proj in self.proj_list:
-                for self.tiling in self.tiling_list:
-                    self.get_data_bucket()
-                    self.get_data_bucket_clean()
-                    self.make_fit()
-                    self.make_fit_clean()
-        #         self.make_hist()  # compare tiling
-        #         self.make_hist_clean()
-        #         self.make_boxplot()
+            self.get_data_bucket()
+            self.make_fit()
+            self.make_hist()  # compare tiling
+            # self.make_boxplot()
         # self.calc_stats()
         # self.calc_corr()
 
@@ -476,90 +389,35 @@ class ByPattern(ByPatternProps):
         except FileNotFoundError:
             self.data_bucket = AutoDict()
 
-        def main():
-            bucket = []
-
-            for self.name in self.name_list:
-                print(f'\r\t{self.metric} {self.proj} {self.tiling} {self.name}. len = ', end='')
-
-                vid_data = load_json(self.json_metrics)
+        for self.video in self.videos_list:
+            video_data_metric = load_json(self.json_metrics)
+            for self.tiling in self.tiling_list:
+                print(f'\r\t{self.metric} {self.video} {self.tiling}. len = ', end='')
 
                 for self.quality in self.quality_list:
                     for self.tile in self.tile_list:
                         for self.chunk in self.chunk_list:
-                            chunk_data1 = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-                            chunk_data2 = process(chunk_data1)
-                            bucket.append(chunk_data2)
-                print(len(bucket), end='')
+                            chunk_data1 = video_data_metric[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+                            chunk_data2 = self.process_value(chunk_data1)
+                            try:
+                                self.data_bucket[self.metric][self.proj][self.tiling].append(chunk_data2)
+                            except AttributeError:
+                                self.data_bucket[self.metric][self.proj][self.tiling] = [chunk_data2]
 
-            if tiles_num[self.tiling] != len(bucket):
-                self.log(f'bucket size error', self.data_bucket_file)
-                raise ValueError(f'bucket size error')
+                bucket = self.data_bucket[self.metric][self.proj][self.tiling]
+                print(len(bucket))
 
-            self.data_bucket[self.metric][self.proj][self.tiling] = bucket
-            print(f'\n\t\tSaving ... ', end='')
-            save_json(self.data_bucket, self.data_bucket_file)
-            print(f'Finished.')
+        # test
+        for proj in self.proj_list:
+            for tiling in self.tiling_list:
+                bucket = self.data_bucket[self.metric][proj][tiling]
+                if tiles_num[tiling] != len(bucket):
+                    self.log(f'bucket size error', self.data_bucket_file)
+                    raise ValueError(f'bucket size error')
 
-        def process(value):
-            # Process value according the metric
-            if self.metric == 'time':
-                new_value = float(np.round(np.average(value), decimals=3))  # value == list
-            elif self.metric == 'time_std':
-                new_value = float(np.round(np.std(value), decimals=6))  # value == list
-            elif self.metric == 'rate':
-                new_value = float(value)  # value == float
-            else:
-                # if self.metric in ['MSE', 'WS-MSE', 'S-MSE']:
-                metric_value = value[self.metric]  # value == dict[list]
-                new_value = float(np.round(np.average(metric_value), decimals=3))
-            return new_value
-
-        main()
-
-    def get_data_bucket_clean(self):
-        try:
-            self.clean_data_bucket = load_json(self.clean_data_bucket_file)
-            return
-        except FileNotFoundError:
-            self.clean_data_bucket = AutoDict()
-
-        # Fliers analysis data[self.proj][self.tiling][self.metric]
-        print(f'\n\t\tRemoving outliers... ')
-
-        data_bucket = self.data_bucket[self.metric][self.proj][self.tiling]
-
-        min, q1, med, q3, max = np.percentile(data_bucket, [0, 25, 50, 75, 100]).T
-        iqr = 1.5 * (q3 - q1)
-        clean_left = q1 - iqr
-        clean_right = q3 + iqr
-
-        clean_data_bucket = [d for d in data_bucket
-                             if (clean_left <= d <= clean_right)]
-
-        resume = defaultdict(list)
-        resume['projection'].append(self.proj)
-        resume['tiling'].append(self.tiling)
-        resume['metric'].append(self.metric)
-        resume['min'].append(min)
-        resume['q1'].append(q1)
-        resume['median'].append(med)
-        resume['q3'].append(q3)
-        resume['max'].append(max)
-        resume['iqr'].append(iqr)
-
-        resume['clean_left'].append(clean_left)
-        resume['clean_right'].append(clean_right)
-        resume['original_len'].append(len(data_bucket))
-        resume['clean_len'].append(len(clean_data_bucket))
-        resume['clear_rate'].append(len(clean_data_bucket) / len(data_bucket))
-
-        resumenamecsv = self.data_bucket_file.parent / f'clean_data_resume_{self.metric}_{self.proj}_{self.tiling}.csv'
-        pd.DataFrame(resume).to_csv(resumenamecsv)
-
-        self.clean_data_bucket[self.metric][self.proj][self.tiling] = clean_data_bucket
-        save_json(self.clean_data_bucket, self.clean_data_bucket_file)
-        print(f'\n\t\tFinished clean.')
+        print(f'\tSaving ... ', end='')
+        save_json(self.data_bucket, self.data_bucket_file)
+        print(f'Finished.')
 
     def make_fit(self):
         # "deve salvar o arquivo"
@@ -571,150 +429,110 @@ class ByPattern(ByPatternProps):
         # 9x6 - 540756 chunks - 54/181 tiles por tiling
         # 12x8 - 961344 chunks - 96/181 tiles por tiling
         # total - 1812534 chunks - 181/181 tiles por tiling
-        print(f'\r\tFitting - {self.metric} - {self.proj} - {self.tiling}...', end='')
+        for self.proj in self.proj_list:
+            for self.tiling in self.tiling_list:
+                try:
+                    self.fitter = load_pickle(self.fitter_pickle_file)
+                    continue
+                except FileNotFoundError:
+                    pass
 
-        try:
-            self.fitter = load_pickle(self.fitter_pickle_file)
-        except FileNotFoundError:
-            samples = self.data_bucket[self.metric][self.proj][self.tiling]
-            self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
-            self.fitter.fit()
-            print(f'\n\t\tSaving Fitter... ')
-            save_pickle(self.fitter, self.fitter_pickle_file)
-
-    def make_fit_clean(self):
-        try:
-            self.clean_fitter = load_pickle(self.clean_fitter_pickle_file)
-        except FileNotFoundError:
-            clean_samples = self.clean_data_bucket[self.metric][self.proj][self.tiling]
-            self.clean_fitter = Fitter(clean_samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
-            self.clean_fitter.fit()
-            print(f'\n\t\tSaving Clean Fitter... ')
-            save_pickle(self.clean_fitter, self.clean_fitter_pickle_file)
-        print(f'\t\tFinished.')
+                print(f'\tFitting - {self.metric} - {self.proj} - {self.tiling}...')
+                samples = self.data_bucket[self.metric][self.proj][self.tiling]
+                self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+                self.fitter.fit()
+                print(f'\tSaving Fitter... ')
+                save_pickle(self.fitter, self.fitter_pickle_file)
 
     def make_hist(self):
         if self.pdf_file.exists(): return
+        for index2, self.proj in enumerate(self.proj_list):
+            for index, self.tiling in enumerate(self.tiling_list, 1):
 
-        print(f'  Make Histogram - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
+                print(f'  Make Histogram - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
 
-        for index, self.tiling in enumerate(self.tiling_list, 1):
-            self.fitter = load_pickle(self.fitter_pickle_file)
+                self.fitter = load_pickle(self.fitter_pickle_file)
+                width = self.fitter.x[1] - self.fitter.x[0]
+                cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
+                error_key = 'sumsquare_error' if self.error_type == 'sse' else 'bic'
+                error_sorted = self.fitter.df_errors[error_key].sort_values()[0:self.n_dist]
+                dists = error_sorted.index
+                fitted_pdf = self.fitter.fitted_pdf
+                scilimits = self.metric_label[self.metric]['scilimits']
+                xlabel = self.metric_label[self.metric]['xlabel']
 
-            width = self.fitter.x[1] - self.fitter.x[0]
-            cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
-            error_key = 'sumsquare_error' if self.error_type == 'sse' else 'bic'
-            error_sorted = self.fitter.df_errors[error_key].sort_values()[0:self.n_dist]
-            dists = error_sorted.index
-            fitted_pdf = self.fitter.fitted_pdf
-            scilimits = self.metric_label[self.metric]['scilimits']
-            xlabel = self.metric_label[self.metric]['xlabel']
+                # <editor-fold desc="Make PDF">
+                # Make bars of histogram
+                ax: axes.Axes = self.fig_pdf.add_subplot(2, 5, index2 * 5 + index)
+                ax.bar(self.fitter.x, self.fitter.y, label='empirical', color='#dbdbdb', width=width)
 
-            # <editor-fold desc="Make PDF">
-            # Make bars of histogram
-            ax: axes.Axes = self.fig_pdf.add_subplot(1, 5, index)
-            ax.bar(self.fitter.x, self.fitter.y, label='empirical', color='#dbdbdb', width=width)
+                # Make plot for n_dist distributions
+                for dist_name in dists:
+                    label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
+                    ax.plot(self.fitter.x, fitted_pdf[dist_name], color=self.dists_colors[dist_name],
+                            label=label)
 
-            # Make plot for n_dist distributions
-            for dist_name in dists:
-                label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
-                ax.plot(self.fitter.x, fitted_pdf[dist_name], color=self.dists_colors[dist_name],
-                        label=label)
+                ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
+                ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
+                ax.set_title(f'{self.proj.upper()} - {self.tiling}')
+                ax.set_xlabel(xlabel)
+                ax.set_ylabel('Density' if index in [1] else None)
+                ax.legend(loc='upper right')
+                # </editor-fold>
 
-            ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-            ax.set_title(f'{self.proj.upper()} - {self.tiling}')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel('Density' if index in [1] else None)
-            ax.legend(loc='upper right')
+                # <editor-fold desc="Make CDF">
+                # Make bars of CDF
+                ax: axes.Axes = self.fig_cdf.add_subplot(2, 5, index2 * 5 + index)
+                ax.bar(self.fitter.x, cdf_bins_height, label='empirical', color='#dbdbdb', width=width)
 
-            # </editor-fold>
+                # make plot for n_dist distributions cdf
+                for dist_name in dists:
+                    dist: scipy.stats.rv_continuous = eval("scipy.stats." + dist_name)
+                    param = self.fitter.fitted_param[dist_name]
+                    fitted_cdf = dist.cdf(self.fitter.x, *param)
+                    label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
+                    ax.plot(self.fitter.x, fitted_cdf, color=self.dists_colors[dist_name], label=label)
 
-            # <editor-fold desc="Make CDF">
-            # Make bars of CDF
-            ax: axes.Axes = self.fig_cdf.add_subplot(1, 5, index)
-            ax.bar(self.fitter.x, cdf_bins_height, label='empirical', color='#dbdbdb', width=width)
-
-            # make plot for n_dist distributions cdf
-            for dist_name in dists:
-                dist: scipy.stats.rv_continuous = eval("scipy.stats." + dist_name)
-                param = self.fitter.fitted_param[dist_name]
-                fitted_cdf = dist.cdf(self.fitter.x, *param)
-                label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
-                ax.plot(self.fitter.x, fitted_cdf, color=self.dists_colors[dist_name], label=label)
-
-            ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-            ax.set_title(f'{self.proj.upper()}-{self.tiling}')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel('Cumulative' if index in [1] else None)
-            ax.legend(loc='lower right')
-            # </editor-fold>
+                ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
+                ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
+                ax.set_title(f'{self.proj.upper()}-{self.tiling}')
+                ax.set_xlabel(xlabel)
+                ax.set_ylabel('Cumulative' if index in [1] else None)
+                ax.legend(loc='lower right')
+                # </editor-fold>
 
         print(f'  Saving the CDF and PDF ')
         self.fig_pdf.savefig(self.pdf_file)
         self.fig_cdf.savefig(self.cdf_file)
 
-    def make_hist_clean(self):
-        if self.pdf_file_clean.exists(): return
+    def make_boxplot(self):
+        if self.boxplot_file.exists(): return
+        for index2, self.proj in enumerate(self.proj_list):
+            for index, self.tiling in enumerate(self.tiling_list, 1):
+                print(f'  make_boxplot - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
 
-        print(f'  Make Histogram Clean - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
+                self.data_bucket = load_json(self.data_bucket_file)
+                samples = self.data_bucket[self.metric][self.proj][self.tiling]
+                scilimits = self.metric_label[self.metric]['scilimits']
 
-        for index, self.tiling in enumerate(self.tiling_list, 1):
-            self.fitter = load_pickle(self.clean_fitter_pickle_file)
+                ax: axes.Axes = self.fig_boxplot.add_subplot(2, 5, index2 * 5 + index)
+                boxplot_sep = ax.boxplot((samples,), widths=0.8,
+                                         whis=(0, 100),
+                                         showfliers=False,
+                                         boxprops=dict(facecolor='tab:blue'),
+                                         flierprops=dict(color='r'),
+                                         medianprops=dict(color='k'),
+                                         patch_artist=True)
+                for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
 
-            width = self.fitter.x[1] - self.fitter.x[0]
-            cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
-            error_key = 'sumsquare_error' if self.error_type == 'sse' else 'bic'
-            error_sorted = self.fitter.df_errors[error_key].sort_values()[0:self.n_dist]
-            dists = error_sorted.index
-            fitted_pdf = self.fitter.fitted_pdf
-            scilimits = self.metric_label[self.metric]['scilimits']
-            xlabel = self.metric_label[self.metric]['xlabel']
+                ax.set_xticks([0])
+                ax.set_xticklabels([self.tiling])
+                ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
 
-            # <editor-fold desc="Make PDF">
-            # Make bars of histogram
-            ax: axes.Axes = self.fig_pdf_clean.add_subplot(1, 5, index)
-            ax.bar(self.fitter.x, self.fitter.y, label='empirical', color='#dbdbdb', width=width)
-
-            # Make plot for n_dist distributions
-            for dist_name in dists:
-                label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
-                ax.plot(self.fitter.x, fitted_pdf[dist_name], color=self.dists_colors[dist_name],
-                        label=label)
-
-            ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-            ax.set_title(f'{self.proj.upper()} - {self.tiling}')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel('Density' if index in [1] else None)
-            ax.legend(loc='upper right')
-            # </editor-fold>
-
-            # <editor-fold desc="Make CDF">
-            # Make bars of CDF
-            ax: axes.Axes = self.fig_cdf_clean.add_subplot(1, 5, index)
-            ax.bar(self.fitter.x, cdf_bins_height, label='empirical', color='#dbdbdb', width=width)
-
-            # make plot for n_dist distributions cdf
-            for dist_name in dists:
-                dist: scipy.stats.rv_continuous = eval("scipy.stats." + dist_name)
-                param = self.fitter.fitted_param[dist_name]
-                fitted_cdf = dist.cdf(self.fitter.x, *param)
-                label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
-                ax.plot(self.fitter.x, fitted_cdf, color=self.dists_colors[dist_name], label=label)
-
-            ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
-            ax.set_title(f'{self.proj.upper()}-{self.tiling}')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel('Cumulative' if index in [1] else None)
-            ax.legend(loc='lower right')
-            # </editor-fold>
-
-        print(f'  Saving the CDF and PDF ')
-        self.fig_pdf_clean.savefig(self.pdf_file_clean)
-        self.fig_cdf_clean.savefig(self.cdf_file_clean)
+        print(f'  Saving the figure')
+        suptitle = self.metric_label[self.metric]['xlabel']
+        self.fig_boxplot.suptitle(f'{suptitle}')
+        self.fig_boxplot.savefig(self.boxplot_file)
 
     def calc_stats(self):
         if self.stats_file.exists():
@@ -812,64 +630,6 @@ class ByPattern(ByPatternProps):
 
         print(f'  Saving Stats')
         pd.DataFrame(self.stats).to_csv(self.stats_file, index=False)
-
-    def make_boxplot(self):
-        if self.boxplot_file.exists(): return
-
-        print(f'\t  make_boxplot - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
-
-        for index, self.tiling in enumerate(self.tiling_list, 1):
-            self.data_bucket = load_json(self.data_bucket_file)
-            samples = self.data_bucket[self.metric][self.proj][self.tiling]
-            scilimits = self.metric_label[self.metric]['scilimits']
-
-            ax: axes.Axes = self.fig_boxplot.add_subplot(1, 5, index)
-            boxplot_sep = ax.boxplot((samples,), widths=0.8,
-                                     whis=(0, 100),
-                                     showfliers=False,
-                                     boxprops=dict(facecolor='tab:blue'),
-                                     flierprops=dict(color='r'),
-                                     medianprops=dict(color='k'),
-                                     patch_artist=True)
-            for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
-
-            ax.set_xticks([0])
-            ax.set_xticklabels([self.tiling])
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
-
-        print(f'  Saving the figure')
-        suptitle = self.metric_label[self.metric]['xlabel']
-        self.fig_boxplot.suptitle(f'{suptitle}')
-        self.fig_boxplot.savefig(self.boxplot_file)
-
-    def make_boxplot_clean(self):
-        if self.boxplot_file_clean.exists(): return
-
-        print(f'\t  make_boxplot_clean - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
-
-        for index, self.tiling in enumerate(self.tiling_list, 1):
-            self.clean_data_bucket = load_json(self.clean_data_bucket_file)
-            samples = self.clean_data_bucket[self.metric][self.proj][self.tiling]
-            scilimits = self.metric_label[self.metric]['scilimits']
-
-            ax: axes.Axes = self.fig_boxplot_clean.add_subplot(1, 5, index)
-            boxplot_sep = ax.boxplot((samples,), widths=0.8,
-                                     whis=(0, 100),
-                                     showfliers=False,
-                                     boxprops=dict(facecolor='tab:blue'),
-                                     flierprops=dict(color='r'),
-                                     medianprops=dict(color='k'),
-                                     patch_artist=True)
-            for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
-
-            ax.set_xticks([0])
-            ax.set_xticklabels([self.tiling])
-            ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
-
-        print(f'  Saving the figure')
-        suptitle = self.metric_label[self.metric]['xlabel']
-        self.fig_boxplot_clean.suptitle(f'{suptitle}')
-        self.fig_boxplot_clean.savefig(self.boxplot_file_clean)
 
     def make_violinplot(self, overwrite=False):
         print(f'\n====== Make Violin - Bins = {self.bins} ======')
@@ -975,23 +735,155 @@ class ByPattern(ByPatternProps):
         print(f'  Saving Correlation')
         pd.DataFrame(corretations_bucket).to_csv(self.correlations_file, index=False)
 
+    # def make_boxplot_clean(self):
+    #     if self.boxplot_file_clean.exists(): return
+    #
+    #     print(f'\t  make_boxplot_clean - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
+    #
+    #     for index, self.tiling in enumerate(self.tiling_list, 1):
+    #         self.clean_data_bucket = load_json(self.clean_data_bucket_file)
+    #         samples = self.clean_data_bucket[self.metric][self.proj][self.tiling]
+    #         scilimits = self.metric_label[self.metric]['scilimits']
+    #
+    #         ax: axes.Axes = self.fig_boxplot_clean.add_subplot(1, 5, index)
+    #         boxplot_sep = ax.boxplot((samples,), widths=0.8,
+    #                                  whis=(0, 100),
+    #                                  showfliers=False,
+    #                                  boxprops=dict(facecolor='tab:blue'),
+    #                                  flierprops=dict(color='r'),
+    #                                  medianprops=dict(color='k'),
+    #                                  patch_artist=True)
+    #         for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
+    #
+    #         ax.set_xticks([0])
+    #         ax.set_xticklabels([self.tiling])
+    #         ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
+    #
+    #     print(f'  Saving the figure')
+    #     suptitle = self.metric_label[self.metric]['xlabel']
+    #     self.fig_boxplot_clean.suptitle(f'{suptitle}')
+    #     self.fig_boxplot_clean.savefig(self.boxplot_file_clean)
+    #
+    # def make_hist_clean(self):
+    #     if self.pdf_file_clean.exists(): return
+    #
+    #     print(f'  Make Histogram Clean - {self.metric} {self.proj} {self.tiling} - {self.bins} bins')
+    #
+    #     for index, self.tiling in enumerate(self.tiling_list, 1):
+    #         self.fitter = load_pickle(self.clean_fitter_pickle_file)
+    #
+    #         width = self.fitter.x[1] - self.fitter.x[0]
+    #         cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
+    #         error_key = 'sumsquare_error' if self.error_type == 'sse' else 'bic'
+    #         error_sorted = self.fitter.df_errors[error_key].sort_values()[0:self.n_dist]
+    #         dists = error_sorted.index
+    #         fitted_pdf = self.fitter.fitted_pdf
+    #         scilimits = self.metric_label[self.metric]['scilimits']
+    #         xlabel = self.metric_label[self.metric]['xlabel']
+    #
+    #         # <editor-fold desc="Make PDF">
+    #         # Make bars of histogram
+    #         ax: axes.Axes = self.fig_pdf_clean.add_subplot(1, 5, index)
+    #         ax.bar(self.fitter.x, self.fitter.y, label='empirical', color='#dbdbdb', width=width)
+    #
+    #         # Make plot for n_dist distributions
+    #         for dist_name in dists:
+    #             label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
+    #             ax.plot(self.fitter.x, fitted_pdf[dist_name], color=self.dists_colors[dist_name],
+    #                     label=label)
+    #
+    #         ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
+    #         ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
+    #         ax.set_title(f'{self.proj.upper()} - {self.tiling}')
+    #         ax.set_xlabel(xlabel)
+    #         ax.set_ylabel('Density' if index in [1] else None)
+    #         ax.legend(loc='upper right')
+    #         # </editor-fold>
+    #
+    #         # <editor-fold desc="Make CDF">
+    #         # Make bars of CDF
+    #         ax: axes.Axes = self.fig_cdf_clean.add_subplot(1, 5, index)
+    #         ax.bar(self.fitter.x, cdf_bins_height, label='empirical', color='#dbdbdb', width=width)
+    #
+    #         # make plot for n_dist distributions cdf
+    #         for dist_name in dists:
+    #             dist: scipy.stats.rv_continuous = eval("scipy.stats." + dist_name)
+    #             param = self.fitter.fitted_param[dist_name]
+    #             fitted_cdf = dist.cdf(self.fitter.x, *param)
+    #             label = f'{dist_name} - {self.error_type.upper()} {error_sorted[dist_name]: 0.3e}'
+    #             ax.plot(self.fitter.x, fitted_cdf, color=self.dists_colors[dist_name], label=label)
+    #
+    #         ax.ticklabel_format(axis='x', style='scientific', scilimits=scilimits)
+    #         ax.ticklabel_format(axis='y', style='scientific', scilimits=(0, 0))
+    #         ax.set_title(f'{self.proj.upper()}-{self.tiling}')
+    #         ax.set_xlabel(xlabel)
+    #         ax.set_ylabel('Cumulative' if index in [1] else None)
+    #         ax.legend(loc='lower right')
+    #         # </editor-fold>
+    #
+    #     print(f'  Saving the CDF and PDF ')
+    #     self.fig_pdf_clean.savefig(self.pdf_file_clean)
+    #     self.fig_cdf_clean.savefig(self.cdf_file_clean)
+    #
+    # # def get_data_bucket_clean_outliers(self):
+    # #     try:
+    # #         self.clean_data_bucket = load_json(self.clean_data_bucket_file)
+    # #         return
+    # #     except FileNotFoundError:
+    # #         self.clean_data_bucket = AutoDict()
+    # #
+    # #     # Fliers analysis data[self.proj][self.tiling][self.metric]
+    # #     print(f'\n\t\tRemoving outliers... ')
+    # #     for self.proj in self.proj_list:
+    # #         for self.tiling in self.tiling_list:
+    # #             data_bucket = self.data_bucket[self.metric][self.proj][self.tiling]
+    # #
+    # #             min, q1, med, q3, max = np.percentile(data_bucket, [0, 25, 50, 75, 100]).T
+    # #             iqr = 1.5 * (q3 - q1)
+    # #             clean_left = q1 - iqr
+    # #             clean_right = q3 + iqr
+    # #
+    # #             clean_data_bucket = [d for d in data_bucket
+    # #                                  if (clean_left <= d <= clean_right)]
+    # #
+    # #             self.clean_data_bucket[self.metric][self.proj][self.tiling] = clean_data_bucket
+    # #
+    # #             resume = defaultdict(list)
+    # #             resume['projection'].append(self.proj)
+    # #             resume['tiling'].append(self.tiling)
+    # #             resume['metric'].append(self.metric)
+    # #             resume['min'].append(min)
+    # #             resume['q1'].append(q1)
+    # #             resume['median'].append(med)
+    # #             resume['q3'].append(q3)
+    # #             resume['max'].append(max)
+    # #             resume['iqr'].append(iqr)
+    # #
+    # #             resume['clean_left'].append(clean_left)
+    # #             resume['clean_right'].append(clean_right)
+    # #             resume['original_len'].append(len(data_bucket))
+    # #             resume['clean_len'].append(len(clean_data_bucket))
+    # #             resume['clear_rate'].append(len(clean_data_bucket) / len(data_bucket))
+    # #
+    # #             resumenamecsv = self.data_bucket_file.parent / f'clean_data_resume_{self.metric}_{self.proj}_{self.tiling}.csv'
+    # #             pd.DataFrame(resume).to_csv(resumenamecsv)
+    # #
+    # #     save_json(self.clean_data_bucket, self.clean_data_bucket_file)
+    # #     print(f'\n\t\tFinished clean.')
+    #
+    # # def make_fit_clean(self):
+    # #     try:
+    # #         self.clean_fitter = load_pickle(self.clean_fitter_pickle_file)
+    # #     except FileNotFoundError:
+    # #         clean_samples = self.clean_data_bucket[self.metric][self.proj][self.tiling]
+    # #         self.clean_fitter = Fitter(clean_samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+    # #         self.clean_fitter.fit()
+    # #         print(f'\n\t\tSaving Clean Fitter... ')
+    # #         save_pickle(self.clean_fitter, self.clean_fitter_pickle_file)
+    # #     print(f'\t\tFinished.')
+
 
 class ByPatternByQualityProps(ByPattern):
-    @property
-    def data_bucket_file(self) -> Path:
-        path = self.workfolder_data / f'data_bucket_{self.metric}_{self.proj}_{self.tiling}_{self.quality_str}.json'
-        return path
-
-    @property
-    def fitter_pickle_file(self) -> Path:
-        """
-        Need: metric, proj, tiling, and bins
-
-        :return:  Path(fitter_pickle_file)
-        """
-        fitter_file = self.workfolder_data / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.quality_str}_{self.bins}bins.pickle'
-        return fitter_file
-
     @property
     def cdf_file(self) -> Path:
         """
@@ -1051,31 +943,19 @@ class ByPatternByQuality(ByPatternByQualityProps):
     def main(self):
         self.rc_config()
         self.error_type = 'sse'
-        self.data_bucket = {}
 
-        print(f'\n====== Make hist - error_type={self.error_type}, n_dist={self.n_dist} ======')
+        print(f'\n====== ByPatternByQuality - error_type={self.error_type}, n_dist={self.n_dist} ======')
 
         for self.metric in self.metric_list:
-            for self.proj in self.proj_list:
-                for self.tiling in self.tiling_list:
-                    for self.quality in self.quality_list:
-                        self.get_data_bucket()
-                        self.make_fit()
-                        # self.make_hist1()  # compare tiling
-                        # self.calc_stats()
-                        # self.make_boxplot()
+            self.get_data_bucket()
+            self.make_fit()
+            # self.make_hist1()  # compare tiling
+            # self.calc_stats()
+            # self.make_boxplot()
 
         # self.calc_corr()
 
     def get_data_bucket(self):
-        # [metric][vid_proj][tiling][quality] = [video, tile, chunk]
-        # 1x1 - 1.680 chunks - 1/181 tiles por tiling por 6 qualitys
-        # 3x2 - 10.080 chunks - 6/181 tiles por tiling por 6 qualitys
-        # 6x4 - 40.320 chunks - 24/181 tiles por tiling por 6 qualitys
-        # 9x6 - 90.720 chunks - 54/181 tiles por tiling por 6 qualitys
-        # 12x8 - 161.280 chunks - 96/181 tiles por tiling por 6 qualitys
-        # total - 304.080 chunks - 181/181 tiles por tiling por 6 qualitys
-
         tiles_num = {"1x1": 1680,
                      "3x2": 10080,
                      "6x4": 40320,
@@ -1086,77 +966,36 @@ class ByPatternByQuality(ByPatternByQualityProps):
             self.data_bucket = load_json(self.data_bucket_file)
             return
         except FileNotFoundError:
-            pass
-
-        def main():
             self.data_bucket = AutoDict()
-            bucket = []
 
-            for self.name in self.name_list:
-                print(f'\r  {self.metric} {self.proj} {self.tiling} {self.rate_control}{self.quality} {self.name}. len = ', end='')
+        for self.video in self.videos_list:
+            video_data_metric = load_json(self.json_metrics)
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    print(f'\r\t{self.metric} {self.video} {self.tiling} {self.quality}')
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            chunk_data1 = video_data_metric[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+                            chunk_data2 = self.process_value(chunk_data1)
+                            try:
+                                self.data_bucket[self.metric][self.proj][self.tiling][self.quality].append(chunk_data2)
+                            except AttributeError:
+                                self.data_bucket[self.metric][self.proj][self.tiling][self.quality] = [chunk_data2]
 
-                vid_data = load_json(self.json_metrics)
-                bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
+                    bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
 
-                for self.tile in self.tile_list:
-                    for self.chunk in self.chunk_list:
-                        chunk_data = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-                        chunk_data = self.process(chunk_data)
+        # test
+        for proj in self.proj_list:
+            for tiling in self.tiling_list:
+                for quality in self.quality_list:
+                    bucket = self.data_bucket[self.metric][proj][tiling][quality]
+                    if tiles_num[tiling] != len(bucket):
+                        self.log(f'bucket size error', self.data_bucket_file)
+                        print(f'{Bcolors.RED}\n    bucket size error')
 
-                        try:
-                            bucket.append(chunk_data)
-                        except AttributeError:
-                            bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality] = [chunk_data]
-
-                print(len(bucket))
-
-            if tiles_num[self.tiling] != len(bucket):
-                self.log(f'bucket size error', self.data_bucket_file)
-                print(f'{Bcolors.RED}\n    bucket size error')
-
-            # remove_outliers(self.data_bucket)
-
-            print(f'  Saving ... ', end='')
-            save_json(self.data_bucket, self.data_bucket_file)
-            print(f'  Finished.')
-
-        def remove_outliers(data, resumenamecsv=None):
-            # Fliers analysis data[self.proj][self.tiling][self.metric]
-            print(f' Removing outliers... ', end='')
-            resume = defaultdict(list)
-            for proj in data:
-                for tiling in data[proj]:
-                    for metric in data[proj][tiling]:
-                        data_bucket = data[proj][tiling][metric]
-
-                        min, q1, med, q3, max = np.percentile(data_bucket, [0, 25, 50, 75, 100]).T
-                        iqr = 1.5 * (q3 - q1)
-                        clean_left = q1 - iqr
-                        clean_right = q3 + iqr
-
-                        data_bucket_clean = [d for d in data_bucket
-                                             if (clean_left <= d <= clean_right)]
-                        data[proj][tiling][metric] = data_bucket
-
-                        resume['projection'] += [proj]
-                        resume['tiling'] += [tiling]
-                        resume['metric'] += [metric]
-                        resume['min'] += [min]
-                        resume['q1'] += [q1]
-                        resume['median'] += [med]
-                        resume['q3'] += [q3]
-                        resume['max'] += [max]
-                        resume['iqr'] += [iqr]
-                        resume['clean_left'] += [clean_left]
-                        resume['clean_right'] += [clean_right]
-                        resume['original_len'] += [len(data_bucket)]
-                        resume['clean_len'] += [len(data_bucket_clean)]
-                        resume['clear_rate'] += [len(data_bucket_clean) / len(data_bucket)]
-            print(f'  Finished.')
-            if resumenamecsv is not None:
-                pd.DataFrame(resume).to_csv(resumenamecsv)
-
-        main()
+        print(f'  Saving ... ', end='')
+        save_json(self.data_bucket, self.data_bucket_file)
+        print(f'  Finished.')
 
     def make_fit(self):
         # "deve salvar o arquivo"
@@ -1168,36 +1007,48 @@ class ByPatternByQuality(ByPatternByQualityProps):
         # 9x6 - 540756 chunks - 54/181 tiles por tiling
         # 12x8 - 961344 chunks - 96/181 tiles por tiling
         # total - 1812534 chunks - 181/181 tiles por tiling
+        for self.proj in self.proj_list:
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    try:
+                        self.fitter = load_pickle(self.fitter_pickle_file)
+                        continue
+                    except FileNotFoundError:
+                        pass
 
-        try:
-            self.fitter = load_pickle(self.fitter_pickle_file)
-            return
-        except FileNotFoundError:
-            pass
+                    print(f'\tFitting - {self.metric} - {self.proj} - {self.tiling} - {self.quality_str}... ')
 
-        print(f'  Fitting - {self.metric} - {self.proj} - {self.tiling} - {self.quality_str}... ', end='')
-
-        samples = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
-
-        # Make a fit
-        self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
-        self.fitter.fit()
-
-        # Save
-        print(f'  Saving Fitter... ', end='')
-        save_pickle(self.fitter, self.fitter_pickle_file)
-        print(f'  Finished.')
+                    samples = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
+                    self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+                    self.fitter.fit()
+                    print(f'\tSaving Fitter... ')
+                    save_pickle(self.fitter, self.fitter_pickle_file)
 
     def make_hist1(self):
-        if self.pdf_file.exists(): return
+        for self.tiling in self.tiling_list:
+            if self.pdf_file.exists(): return
+            for self.proj in self.proj_list:
+                for self.quality in self.quality_list:
+                    self.hist_base(len(self.quality_list))
 
+    def make_hist2(self):
+        for self.quality in self.quality_list:
+            if self.pdf_file.exists(): return
+            idx = 0
+            for self.proj in self.proj_list:
+                for self.tiling in self.tiling_list:
+                    idx += 1
+                    cols = len(self.tiling_list)
+                    self.hist_base(idx, cols)
+
+    def hist_base(self, idx, cols):
         print(f'    Make Histogram - {self.metric} {self.proj} {self.tiling}  {self.quality_str} - {self.bins} bins')
 
         self.fitter = load_pickle(self.fitter_pickle_file)
 
-        index1 = self.tiling_list.index(self.tiling)
-        index2 = self.quality_list.index(self.quality)
-        index = 6 * index1 + index2 + 1
+        # index1 = self.tiling_list.index(self.tiling)
+        # index2 = self.quality_list.index(self.quality)
+        # index = 6 * index1 + index2 + 1
 
         width = self.fitter.x[1] - self.fitter.x[0]
         cdf_bins_height = np.cumsum([y * width for y in self.fitter.y])
