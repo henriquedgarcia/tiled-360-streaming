@@ -161,7 +161,7 @@ class Factors:
 
     @property
     def video(self) -> str:
-        if self._video is None and None not in (self._name, self.proj):
+        if self._video is None and None not in (self._name, self._proj):
             return self._name.replace('_nas', f'_{self.proj}_nas')
         return self._video
 
