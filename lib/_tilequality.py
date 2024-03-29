@@ -374,8 +374,8 @@ class CollectQuality(SegmentsQualityProps):
         [video_name]    : The video name
         [tile_pattern]  : The tile tiling. e.g. "6x4"
         [quality]       : Quality. An int like in crf or qp.
-        [tile_id]           : the tile number. ex. max = 6*4
-        [chunk_id]           : the chunk number. Start with 1.
+        [tile_id]       : the tile number. ex. max = 6*4
+        [chunk_id]      : the chunk number. Start with 1.
 
         'MSE': float
         'SSIM': float
