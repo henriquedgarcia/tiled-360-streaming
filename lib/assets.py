@@ -51,7 +51,7 @@ class Bcolors:
     ENDC = '\033[0m'
 
 
-def print_error(msg: str, end: str='\n'):
+def print_error(msg: str, end: str = '\n'):
     print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}', end=end)
 
 
