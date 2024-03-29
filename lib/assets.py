@@ -340,6 +340,15 @@ class Utils(GlobalPaths):
             s += f'[chunk{self.chunk}]'
         return f'{self.__class__.__name__} {s}'
 
+    def clear_state(self):
+        self.metric = None
+        self._video = None
+        self._name = None
+        self.tiling = None
+        self.quality = None
+        self.tile = None
+        self.chunk = None
+
     @property
     def state(self):
         s = []
