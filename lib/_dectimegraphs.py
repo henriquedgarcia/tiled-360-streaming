@@ -1,3 +1,4 @@
+import sys
 from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
@@ -22,6 +23,7 @@ from .util import load_json, save_json, save_pickle, load_pickle
 
 class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
     _workfolder = None
+    error_type: str
     n_dist = 6
     bins = 30
     stats = defaultdict(list)
@@ -91,8 +93,13 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
         Need None
         :return:
         """
-        correlations_file = self.workfolder / f'correlations.csv'
+        correlations_file = self.workfolder / f'correlations.json'
         return correlations_file
+
+    def __init__(self, config: str):
+        self.rc_config()
+        self.error_type = 'sse'
+        super().__init__(config)
 
     @staticmethod
     def find_dist(dist_name, params):
@@ -344,9 +351,6 @@ class ByPatternProps(DectimeGraphsPaths):
 
 class ByPattern(ByPatternProps):
     def main(self):
-        self.rc_config()
-        self.error_type = 'sse'
-
         print(f'====== ByPattern - error_type={self.error_type}, n_dist={self.n_dist} ======')
         # Script para calcular a maior variação de tempo de decodificação entre as 5 decodificações.
         # time_var_rate = set()
@@ -362,12 +366,12 @@ class ByPattern(ByPatternProps):
         #                             chunk_data1 = vid_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
         #
         #                             time_var_rate.update([100*(1 - np.min(chunk_data1) / np.max(chunk_data1))])
-
-        for self.metric in self.metric_list:
-            self.get_data_bucket()
-            self.make_fit()
-            # self.make_hist()  # compare tiling
-            # self.make_boxplot()
+        # max_time_var = max(list(time_var_rate))
+        # for self.metric in self.metric_list:
+        #     self.get_data_bucket()
+        #     self.make_fit()
+        #     self.make_hist()  # compare tiling
+        #     self.make_boxplot()
         # self.calc_stats()
         self.calc_corr()
 
@@ -518,7 +522,7 @@ class ByPattern(ByPatternProps):
 
                 ax: axes.Axes = self.fig_boxplot.add_subplot(2, 5, index2 * 5 + index)
                 boxplot_sep = ax.boxplot((samples,), widths=0.8,
-                                         whis=(0, 100),
+                                         # whis=(0, 100),
                                          showfliers=False,
                                          boxprops=dict(facecolor='tab:blue'),
                                          flierprops=dict(color='r'),
@@ -529,6 +533,7 @@ class ByPattern(ByPatternProps):
                 ax.set_xticks([0])
                 ax.set_xticklabels([self.tiling])
                 ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
+                ax.title = self.tiling
 
         print(f'  Saving the figure')
         suptitle = self.metric_label[self.metric]['xlabel']
@@ -649,43 +654,27 @@ class ByPattern(ByPatternProps):
                 fig.savefig(img_file)
 
     def calc_corr(self):
-        corretations_table = defaultdict(list)
         if self.correlations_file.exists():
-            corretations_df = pd.read_csv(self.correlations_file)
+            return
 
         self.clear_state()
-
+        self.metric_list.remove('time_std')
         print(f'  Processing Correlation')
+        corretations_tree = AutoDict()
         for metric1, metric2 in combinations(self.metric_list, r=2):
+            if not (metric1 == 'rate' and metric2 == 'MSE'): continue
             for self.proj in self.proj_list:
-                for self.tiling in self.tiling_list:
-                    print(f'\t{metric1} x {metric2} {self.proj} {self.tiling}.')
-                    if self.correlations_file.exists():
-                        corr = corretations_df[corretations_df['metric'] == f'{metric1}_{metric2}'
-                                               ][corretations_df['proj'] == self.proj
-                                                 ][corretations_df['tiling'] == self.tiling]['corr']
-                        corr = corr.iloc[0]
-                        if not pd.isna(corr):
-                            print('\t\tSKIP')
-                            corretations_table[f'metric'].append(f'{metric1}_{metric2}')
-                            corretations_table[f'proj'].append(self.proj)
-                            corretations_table[f'tiling'].append(self.tiling)
-                            corretations_table[f'corr'].append(corr)
-                            continue
+                for n, self.name in enumerate(self.name_list, 1):
+                    print(f'\t{metric1} x {metric2} - {self.proj} {self.name}.')
+                    self.metric = metric1
+                    video_data_metric_m1 = load_json(self.json_metrics)
+                    self.metric = metric2
+                    video_data_metric_m2 = load_json(self.json_metrics)
 
-                    corrcoef_list = []
-
-                    for n, self.name in enumerate(self.name_list, 1):
-                        print(f'\t\t{metric1} x {metric2} {self.proj} {n}/{len(self.name_list)}-{self.name} {self.tiling}.')
-
-                        self.metric = metric1
-                        video_data_metric_m1 = load_json(self.json_metrics)
-                        self.metric = metric2
-                        video_data_metric_m2 = load_json(self.json_metrics)
-
+                    for self.tiling in self.tiling_list:
                         for self.quality in self.quality_list:
                             for self.tile in self.tile_list:
-                                print(f'\r\t\t\t{self.quality} {self.tile}.', end='')
+                                print(f'\r\t\t{self.tiling} {self.quality_str} {self.tile_str}.', end='')
                                 tile_data1 = []
                                 tile_data2 = []
                                 for self.chunk in self.chunk_list:
@@ -698,27 +687,31 @@ class ByPattern(ByPatternProps):
                                     chunk_data1 = video_data_metric_m2[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
                                     chunk_data2 = self.process_value(chunk_data1)
                                     tile_data2.append(chunk_data2)
-
-                                corrcoef = np.corrcoef((tile_data1, tile_data2))[1][0]
-                                corrcoef_list.append(corrcoef)
-
-                        print('')
-
-                    avg = np.average(corrcoef_list)
-                    if np.isnan(avg):
-                        corrcoef_list = [i for i in corrcoef_list if str(i) != 'nan']
-                        avg = np.average(corrcoef_list)
-
-                    corretations_table[f'metric'].append(f'{metric1}_{metric2}')
-                    corretations_table[f'proj'].append(self.proj)
-                    corretations_table[f'tiling'].append(self.tiling)
-                    corretations_table[f'corr'].append(avg)
-
+                                corrcoef = np.corrcoef((tile_data1, tile_data2))[0][1]
+                                if np.isnan(corrcoef):
+                                    cov = np.cov((tile_data1, tile_data2))[0][1]
+                                    var1 = np.cov((tile_data1, tile_data1))[0][1]
+                                    var2 = np.cov((tile_data2, tile_data2))[0][1]
+                                    prod = var1 * var2
+                                    if prod == 0: prod = sys.float_info.min
+                                    corrcoef = cov / np.sqrt(prod)
+                                corretations_tree[self.proj][self.name][self.tiling][self.quality][self.tile][f'{metric1},{metric2}'] = corrcoef
         print(f'  Saving Correlation')
-        pd.DataFrame(corretations_table).to_csv(self.correlations_file, index=False)
+        save_pickle(corretations_tree, self.correlations_file)
 
 
 class ByPatternByQualityProps(ByPattern):
+
+    @property
+    def fitter_pickle_file(self) -> Path:
+        """
+        Need: metric, proj, tiling, and bins
+
+        :return:  Path(fitter_pickle_file)
+        """
+        fitter_file = self.workfolder_fitter / f'fitter_{self.metric}_{self.proj}_{self.tiling}_{self.quality}_{self.bins}bins.pickle'
+        return fitter_file
+
     @property
     def cdf_file2(self) -> Path:
         """
@@ -754,14 +747,10 @@ class ByPatternByQualityProps(ByPattern):
 
 class ByPatternByQuality(ByPatternByQualityProps):
     def main(self):
-        self.rc_config()
-        self.error_type = 'sse'
-
         print(f'\n====== ByPatternByQuality - error_type={self.error_type}, n_dist={self.n_dist} ======')
-
         for self.metric in self.metric_list:
-            self.get_data_bucket()
-            self.make_fit()
+            # self.get_data_bucket()
+            # self.make_fit()
             # self.make_hist1()  # compare tiling
             self.make_hist2()  # compare tiling
             # self.calc_stats()
@@ -796,8 +785,6 @@ class ByPatternByQuality(ByPatternByQualityProps):
                             except AttributeError:
                                 self.data_bucket[self.metric][self.proj][self.tiling][self.quality] = [chunk_data2]
 
-                    bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
-
         # test
         for proj in self.proj_list:
             for tiling in self.tiling_list:
@@ -810,6 +797,8 @@ class ByPatternByQuality(ByPatternByQualityProps):
         print(f'  Saving ... ', end='')
         save_json(self.data_bucket, self.data_bucket_file)
         print(f'  Finished.')
+
+        self.video = self.tiling = self.quality = self.tile = self.chunk = None
 
     def make_fit(self):
         # "deve salvar o arquivo"
@@ -837,6 +826,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
                     self.fitter.fit()
                     print(f'\tSaving Fitter... ')
                     save_pickle(self.fitter, self.fitter_pickle_file)
+        self.proj = self.tiling = self.quality = None
 
     _fig_pdf: plt.Figure
     _fig_cdf: plt.Figure
@@ -863,9 +853,11 @@ class ByPatternByQuality(ByPatternByQualityProps):
             self._fig_pdf.savefig(self.pdf_file1)
             self._fig_cdf.savefig(self.cdf_file1)
 
+        self.proj = self.tiling = self.quality = None
+
     def make_hist2(self):
         for self.quality in self.quality_list:
-            if self.pdf_file.exists(): return
+            # if self.pdf_file.exists(): return
             idx = 0
             self._fig_pdf = plt.figure(figsize=(12.0, 5),
                                        dpi=600,
@@ -1032,44 +1024,36 @@ class ByPatternByQuality(ByPatternByQualityProps):
         pd.DataFrame(corretations_bucket).to_csv(self.correlations_file, index=False)
 
     def make_boxplot(self):
+        # todo: projetar esse gráfico
         if self.boxplot_file.exists(): return
+        for index2, self.proj in enumerate(self.proj_list):
+            for index, self.tiling in enumerate(self.tiling_list, 1):
+                for index0, self.quality in enumerate(self.quality_list, 1):
+                    print(f'  make_boxplot - {self.metric} {self.proj} {self.tiling} {self.quality} - {self.bins} bins')
+                    self.data_bucket = load_json(self.data_bucket_file)
+                    samples = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
 
-        print(f'{self.state_str()} - {self.bins} bins')
+                    scilimits = self.metric_label[self.metric]['scilimits']
 
-        try:
-            samples = self.data_bucket[self.metric][self.proj][self.tiling]
-        except KeyError:
-            try:
-                self.data_bucket = load_json(self.data_bucket_file, object_hook=dict)
-            except FileNotFoundError:
-                self.get_data_bucket()
-            samples = self.data_bucket[self.metric][self.proj][self.tiling]
+                    ax: axes.Axes = self.fig_boxplot.add_subplot(2, 5, index2 * 5 + index)
+                    boxplot_sep = ax.boxplot((samples,), widths=0.8,
+                                             whis=(0, 100),
+                                             showfliers=False,
+                                             boxprops=dict(facecolor='tab:blue'),
+                                             flierprops=dict(color='r'),
+                                             medianprops=dict(color='k'),
+                                             patch_artist=True)
+                    for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
 
-        if self.metric in ['PSNR', 'WS-PSNR', 'S-PSNR']:
-            samples = [data for data in samples if data < 1000]
+                    ax.set_xticks([0])
+                    ax.set_xticklabels([self.tiling])
+                    ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
 
-        index = self.tiling_list.index(self.tiling) + 1
-        scilimits = self.metric_label[self.metric]['scilimits']
-
-        ax: axes.Axes = self.fig_boxplot.add_subplot(1, 5, index)
-        boxplot_sep = ax.boxplot((samples,), widths=0.8,
-                                 whis=(0, 100),
-                                 showfliers=False,
-                                 boxprops=dict(facecolor='tab:blue'),
-                                 flierprops=dict(color='r'),
-                                 medianprops=dict(color='k'),
-                                 patch_artist=True)
-        for cap in boxplot_sep['caps']: cap.set_xdata(cap.get_xdata() + (0.3, -0.3))
-
-        ax.set_xticks([0])
-        ax.set_xticklabels([self.tiling])
-        ax.ticklabel_format(axis='y', style='scientific', scilimits=scilimits)
-
-        if self.tiling == self.tiling_list[-1]:
-            print(f'  Saving the figure')
-            suptitle = self.metric_label[self.metric]['xlabel']
-            self.fig_boxplot.suptitle(f'{suptitle}')
-            self.fig_boxplot.savefig(self.boxplot_file)
+                    if self.tiling == self.tiling_list[-1]:
+                        print(f'  Saving the figure')
+                        suptitle = self.metric_label[self.metric]['xlabel']
+                        self.fig_boxplot.suptitle(f'{suptitle}')
+                        self.fig_boxplot.savefig(self.boxplot_file)
 
     def make_violinplot(self, overwrite=False):
         print(f'\n====== Make Violin - Bins = {self.bins} ======')
