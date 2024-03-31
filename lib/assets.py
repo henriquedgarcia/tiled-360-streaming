@@ -162,12 +162,14 @@ class Factors:
     @property
     def video(self) -> str:
         if self._video is None and None not in (self._name, self._proj):
-            return self._name.replace('_nas', f'_{self.proj}_nas')
+            return self._name.replace('_nas', f'_{self._proj}_nas')
         return self._video
 
     @video.setter
     def video(self, value):
         self._video = value
+        self._name = None
+        self._proj = None
 
     @property
     def name(self) -> str:
@@ -178,6 +180,7 @@ class Factors:
     @name.setter
     def name(self, value):
         self._name = value
+        self._video = None
 
     @property
     def proj(self) -> str:
@@ -187,11 +190,14 @@ class Factors:
 
     @proj.setter
     def proj(self, value):
+        self._video = None
         self._proj = value
 
     @property
     def vid_proj(self) -> Optional[str]:
-        if not self.video:
+        if self._video is None:
+            if self._proj is not None:
+                return self._proj
             return None
         return self.videos_list[self.video]['projection']
 
@@ -343,6 +349,7 @@ class Utils(GlobalPaths):
     def clear_state(self):
         self.metric = None
         self._video = None
+        self._proj = None
         self._name = None
         self.tiling = None
         self.quality = None
