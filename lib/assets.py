@@ -5,14 +5,13 @@ from contextlib import contextmanager
 from math import prod
 from multiprocessing import Pool
 from pathlib import Path
+from time import time
 from typing import Optional, Union
 
-import numpy as np
 import pandas as pd
-from scipy import ndimage
 
 from .transform import splitx
-from .util import run_command, iter_frame
+from .util import run_command
 
 
 class AutoDict(dict):
@@ -82,38 +81,95 @@ class Config:
 
 
 class Factors:
-    bins: Optional[Union[int, str]] = None
     _video: Optional[str] = None
     _name: Optional[str] = None
     _proj: Optional[str] = None
+    _quality: Optional[str] = None
+    _tiling: Optional[str] = None
+    _tile: Optional[str] = None
+    _chunk: Optional[str] = None
+    _metric: Optional[str] = None
+    bins: Optional[Union[int, str]] = None
     quality_ref: str = '0'
-    quality: Optional[str] = None
-    tiling: Optional[str] = None
-    metric: Optional[str] = None
-    tile: Optional[str] = None
-    chunk: Optional[str] = None
     _name_list: Optional[list[str]] = None
     _proj_list: Optional[list[str]] = None
     config: Config
     user: int
     turn: int
 
-    # <editor-fold desc="Main lists">
+    # <editor-fold desc="Config">
+    def config_props(self):
+        ...
+
     @property
-    def videos_list(self) -> dict[str, dict[str, Union[int, float, str]]]:
+    def project(self):
+        return self.config['project']
+
+    @property
+    def dataset_name(self):
+        return self.config['dataset_name']
+
+    @property
+    def error_metric(self):
+        return self.config['error_metric']
+
+    @property
+    def decoding_num(self) -> int:
+        return int(self.config['decoding_num'])
+
+    @property
+    def fov(self) -> int:
+        return int(self.config['fov'])
+
+    @property
+    def codec(self) -> str:
+        return self.config['codec']
+
+    @property
+    def fps(self) -> str:
+        return self.config['fps']
+
+    @property
+    def gop(self) -> str:
+        return self.config['gop']
+
+    @property
+    def rate_control(self) -> str:
+        return self.config['rate_control']
+
+    @property
+    def distributions(self) -> str:
+        return self.config['distributions']
+
+    @property
+    def original_quality(self) -> str:
+        return self.config['original_quality']
+
+    # </editor-fold>
+
+    # <editor-fold desc="Main lists">
+    def main_list_props(self):
+        ...
+
+    @property
+    def metric_list(self) -> list[str]:
+        return ['time', 'time_std', 'rate', 'MSE', 'WS-MSE', 'S-MSE']
+
+    @property
+    def video_list(self) -> dict[str, dict[str, Union[int, float, str]]]:
         return self.config.videos_list
 
     @property
     def name_list(self) -> list[str]:
         if self._name_list is None:
-            _name_list = set([video.replace('_cmp', '').replace('_erp', '') for video in self.videos_list])
+            _name_list = set([video.replace('_cmp', '').replace('_erp', '') for video in self.video_list])
             self._name_list = sorted(list(_name_list))
         return self._name_list
 
     @property
     def proj_list(self) -> list[str]:
         if self._proj_list is None:
-            _proj_set = set([self.videos_list[video]['projection'] for video in self.videos_list])
+            _proj_set = set([self.video_list[video]['projection'] for video in self.video_list])
             self._proj_list = sorted(list(_proj_set))
         return self._proj_list
 
@@ -123,26 +179,31 @@ class Factors:
 
     @property
     def quality_list(self) -> list[str]:
-        quality_list = self.config['quality_list']
-        return quality_list
+        return self.config['quality_list']
 
     @property
     def tile_list(self) -> list[str]:
         splitx(self.tiling)
         n_tiles = prod(splitx(self.tiling))
-        return list(map(str, range(n_tiles)))
+        for tile in range(n_tiles):
+            yield str(tile)
 
     @property
     def chunk_list(self) -> list[str]:
-        return list(map(str, range(1, int(self.duration) + 1)))
+        for chunk in range(1, int(self.duration) + 1):
+            yield str(chunk)
 
     @property
     def frame_list(self) -> list[str]:
-        return list(range(int(self.duration * int(self.fps))))
+        for frame in range(self.n_frames):
+            yield str(frame)
 
     # </editor-fold>
 
-    # <editor-fold desc="Video Property">
+    # <editor-fold desc="state strings">
+    def state_strings_props(self):
+        ...
+
     @property
     def quality_str(self) -> str:
         return f'{self.rate_control}{self.quality}'
@@ -155,9 +216,74 @@ class Factors:
     def tile_str(self) -> str:
         return f'tile{self.tile}'
 
+    # </editor-fold>
+
+    # <editor-fold desc="Video Property">
+    def video_props(self):
+        ...
+
+    @property
+    def original(self) -> str:
+        return self.video_list[self.video]['original']
+
+    @property
+    def scale(self) -> str:
+        return self.video_list[self.video]['scale']
+
+    @property
+    def projection(self) -> str:
+        return self.video_list[self.video]['projection']
+
+    @property
+    def offset(self) -> int:
+        return int(self.video_list[self.video]['offset'])
+
+    @property
+    def duration(self) -> str:
+        return self.video_list[self.video]['duration']
+
     @property
     def group(self) -> str:
-        return self.videos_list[self.video]['group']
+        return self.video_list[self.video]['group']
+
+    @property
+    def resolution(self) -> str:
+        return self.scale
+
+    @property
+    def n_frames(self) -> int:
+        return int(self.duration) * int(self.fps)
+
+    @property
+    def chunk_dur(self) -> int:
+        return int(self.gop) // int(self.fps)
+
+    @property
+    def video_shape(self) -> tuple:
+        w, h = splitx(self.resolution)
+        return h, w, 3
+
+    @property
+    def video_h(self) -> tuple:
+        return self.video_shape[0]
+
+    @property
+    def video_w(self) -> tuple:
+        return self.video_shape[1]
+
+    # </editor-fold>
+
+    # <editor-fold desc="State">
+    def states_props(self):
+        ...
+
+    @property
+    def metric(self):
+        return self._metric
+
+    @metric.setter
+    def metric(self, value):
+        self._metric = value
 
     @property
     def video(self) -> str:
@@ -184,8 +310,8 @@ class Factors:
 
     @property
     def proj(self) -> str:
-        if self._proj is None:
-            return self.vid_proj
+        if self._proj is None and self._video is not None:
+            return self.projection
         return self._proj
 
     @proj.setter
@@ -194,107 +320,136 @@ class Factors:
         self._proj = value
 
     @property
-    def vid_proj(self) -> Optional[str]:
-        if self._video is None:
-            if self._proj is not None:
-                return self._proj
-            return None
-        return self.videos_list[self.video]['projection']
+    def quality(self) -> str:
+        return self._quality
+
+    @quality.setter
+    def quality(self, value):
+        self._quality = value
 
     @property
-    def scale(self) -> str:
-        return self.videos_list[self.video]['scale']
+    def tiling(self) -> str:
+        return self._tiling
+
+    @tiling.setter
+    def tiling(self, value):
+        self._tiling = value
 
     @property
-    def resolution(self) -> str:
-        return self.videos_list[self.video]['scale']
+    def tile(self) -> str:
+        return self._tile
+
+    @tile.setter
+    def tile(self, value):
+        self._tile = value
 
     @property
-    def face_resolution(self) -> str:
-        h, w, _ = self.face_shape
-        return f'{w}x{h}'
+    def chunk(self) -> str:
+        return self._chunk
 
-    @property
-    def face_shape(self) -> (int, int, int):
-        h, w, _ = self.video_shape
-        return round(h / 2), round(w / 3), 3
-
-    @property
-    def video_shape(self) -> tuple:
-        w, h = splitx(self.resolution)
-        return h, w, 3
-
-    @property
-    def fps(self) -> str:
-        return self.config['fps']
-
-    @property
-    def rate_control(self) -> str:
-        return self.config['rate_control']
-
-    @property
-    def gop(self) -> str:
-        return self.config['gop']
-
-    @property
-    def duration(self) -> str:
-        return self.videos_list[self.video]['duration']
-
-    @property
-    def offset(self) -> int:
-        return int(self.videos_list[self.video]['offset'])
-
-    @property
-    def chunk_dur(self) -> int:
-        return int(self.gop) // int(self.fps)
-
-    @property
-    def original(self) -> str:
-        return self.videos_list[self.video]['original']
+    @chunk.setter
+    def chunk(self, value):
+        self._chunk = value
 
     # </editor-fold>
 
-    # Tile Decoding Benchmark
-    @property
-    def decoding_num(self) -> int:
-        return int(self.config['decoding_num'])
+    # <editor-fold desc="Others">
+    def others(self):
+        ...
 
-    # Metrics
     @property
-    def metric_list(self) -> list[str]:
-        return ['time', 'rate', 'time_std', 'MSE', 'WS-MSE', 'S-MSE']
+    def cmp_face_resolution(self) -> str:
+        h, w, _ = self.cmp_face_shape
+        return f'{w}x{h}'
 
-    # GetTiles
     @property
-    def fov(self) -> str:
-        return self.config['fov']
+    def cmp_face_shape(self) -> (int, int, int):
+        h, w, c = self.video_shape
+        return round(h / 2), round(w / 3), c
+    # </editor-fold>
+
+
+class ContextObj(Factors):
+    @contextmanager
+    def context_metric(self):
+        for self.metric in self.metric_list:
+            yield
+
+    @contextmanager
+    def context_video(self):
+        for self.video in self.video_list:
+            yield
+
+    @contextmanager
+    def context_name(self):
+        for self.name in self.name_list:
+            yield
+
+    @contextmanager
+    def context_proj(self):
+        for self.proj in self.proj_list:
+            yield
+
+    @contextmanager
+    def context_tiling(self):
+        for self.tiling in self.tiling_list:
+            yield
+
+    @contextmanager
+    def context_quality(self):
+        for self.quality in self.quality_list:
+            yield
+
+    @contextmanager
+    def context_tile(self):
+        for self.tile in self.tile_list:
+            yield
+
+    @contextmanager
+    def context_chunk(self):
+        for self.chunk in self.chunk_list:
+            yield
 
 
 class GlobalPaths(Factors):
-    worker_name: str = None
     overwrite = False
     dectime_folder = Path('dectime')
+    segment_folder = Path('segment')
     graphs_folder = Path('graphs')
+    original_folder = Path('original')
+    lossless_folder = Path('lossless')
+    compressed_folder = Path('compressed')
+    viewport_folder = Path('viewport')
+    quality_folder = Path('quality')
+    siti_folder = Path('siti')
+    check_folder = Path('check')
     operation_folder = Path('')
 
     @property
     def project_path(self) -> Path:
         return Path('../results') / self.config['project']
 
-    def tile_position(self):
+    @property
+    def dectime_result_json(self) -> Path:
         """
-        Need video, tiling and tile
-        :return: x1, x2, y1, y2
+        By Video
+        :return:
         """
-        proj_h, proj_w = self.video_shape[:2]
-        tiling_w, tiling_h = splitx(self.tiling)
-        tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
-        tile_m, tile_n = int(self.tile) % tiling_w, int(self.tile) // tiling_w
-        x1 = tile_m * tile_w
-        y1 = tile_n * tile_h
-        x2 = tile_m * tile_w + tile_w  # not inclusive [...)
-        y2 = tile_n * tile_h + tile_h  # not inclusive [...)
-        return x1, y1, x2, y2
+        folder = self.project_path / self.dectime_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f'time_{self.video}.json'
+
+    @property
+    def bitrate_result_json(self) -> Path:
+        folder = self.project_path / self.segment_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f'rate_{self.video}.json'
+
+    @property
+    def quality_result_json(self) -> Path:
+        folder = self.project_path / self.quality_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / f'quality_{self.video}.json'
 
 
 class Log(Factors):
@@ -327,8 +482,19 @@ class Log(Factors):
         df_log_text.to_csv(filename, encoding='utf-8')
 
 
-class Utils(GlobalPaths):
+class Utils(Log, ContextObj):
     command_pool: list
+
+    def __init__(self, config: str):
+        self.config = Config(config)
+        self.print_resume()
+        start = time()
+        with self.logger():
+            self.main()
+        print(f"\n\tTotal time={time() - start}.")
+
+    def main(self):
+        ...
 
     def state_str(self):
         s = ''
@@ -351,16 +517,16 @@ class Utils(GlobalPaths):
         self._video = None
         self._proj = None
         self._name = None
-        self.tiling = None
-        self.quality = None
-        self.tile = None
-        self.chunk = None
+        self._tiling = None
+        self._quality = None
+        self._tile = None
+        self._chunk = None
 
     @property
     def state(self):
         s = []
-        if self.vid_proj is not None:
-            s.append(self.vid_proj)
+        if self.proj is not None:
+            s.append(self.proj)
         if self.name is not None:
             s.append(self.name)
         if self.tiling is not None:
@@ -375,16 +541,31 @@ class Utils(GlobalPaths):
 
     def print_resume(self):
         print('=' * 70)
-        print(f'Processing {len(self.config.videos_list)} videos:\n'
+        print(f'Processing {len(self.video_list)} videos:\n'
               f'  operation: {self.__class__.__name__}\n'
-              f'  project: {self.project_path}\n'
-              f'  codec: {self.config["codec"]}\n'
-              f'  fps: {self.config["fps"]}\n'
-              f'  gop: {self.config["gop"]}\n'
-              f'  qualities: {self.config["quality_list"]}\n'
-              f'  patterns: {self.config["tiling_list"]}'
+              f'  project: {self.project}\n'
+              f'  codec: {self.codec}\n'
+              f'  fps: {self.fps}\n'
+              f'  gop: {self.gop}\n'
+              f'  qualities: {self.quality_list}\n'
+              f'  patterns: {self.tiling_list}'
               )
         print('=' * 70)
+
+    def tile_position(self):
+        """
+        Need video, tiling and tile
+        :return: x1, x2, y1, y2
+        """
+        proj_h, proj_w = self.video_shape[:2]
+        tiling_w, tiling_h = splitx(self.tiling)
+        tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
+        tile_m, tile_n = int(self.tile) % tiling_w, int(self.tile) // tiling_w
+        x1 = tile_m * tile_w
+        y1 = tile_n * tile_h
+        x2 = tile_m * tile_w + tile_w  # not inclusive [...)
+        y2 = tile_n * tile_h + tile_h  # not inclusive [...)
+        return x1, y1, x2, y2
 
     @contextmanager
     def multi(self):
@@ -397,56 +578,3 @@ class Utils(GlobalPaths):
             #     run_command(command)
         finally:
             pass
-
-
-class SiTi:
-    filename: Path
-    previous_frame: Optional[np.ndarray]
-    siti: dict
-
-    def __init__(self, filename: Path):
-        self.siti = defaultdict(list)
-        self.previous_frame = None
-
-        for n, frame in enumerate(iter_frame(filename)):
-            si = self._calc_si(frame)
-            self.siti['si'].append(si)
-
-            ti = self._calc_ti(frame)
-            self.siti['ti'].append(ti)
-
-            print(f'\rSiTi - {filename.parts[-4:]}: frame={n}, si={si:.2f}, ti={ti:.3f}', end='')
-
-        print('')
-
-    def __getitem__(self, item) -> list:
-        return self.siti[item]
-
-    @staticmethod
-    def _calc_si(frame: np.ndarray) -> (float, np.ndarray):
-        """
-        Calculate Spatial Information for a video frame. Calculate both vectors and so the magnitude.
-        :param frame: A luma video frame in numpy ndarray format.
-        :return: spatial information and sobel frame.
-        """
-        sob_y = ndimage.sobel(frame, axis=0)
-        sob_x = ndimage.sobel(frame, axis=1, mode="wrap")
-        sobel = np.hypot(sob_y, sob_x)
-        si = sobel.std()
-        return si
-
-    def _calc_ti(self, frame: np.ndarray) -> (float, np.ndarray):
-        """
-        Calculate Temporal Information for a video frame. If is a first frame,
-        the information is zero.
-        :param frame: A luma video frame in numpy ndarray format.
-        :return: Temporal information and difference frame. If first frame the
-        difference is zero array on same shape of frame.
-        """
-        try:
-            difference = frame - self.previous_frame
-        except TypeError:
-            return 0.
-        finally:
-            self.previous_frame = frame
-        return difference.std()
