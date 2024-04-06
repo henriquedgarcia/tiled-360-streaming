@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import sys
 from collections import defaultdict
 from itertools import combinations
@@ -15,19 +16,17 @@ import scipy.stats
 from cycler import cycler
 from fitter import Fitter
 
-from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
-from ._tilequality import SegmentsQualityPaths
-from .assets import AutoDict, Bcolors
+from .assets import AutoDict, Bcolors, GlobalPaths, Utils
 from .util import load_json, save_json, save_pickle, load_pickle
 
 
-class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
-    _workfolder = None
+class DectimeGraphsPaths(GlobalPaths):
     error_type: str
     n_dist = 6
     bins = 30
     stats = defaultdict(list)
-    corretations_bucket = defaultdict(list)
+    correlations_bucket = defaultdict(list)
+    workfolder_name: str
     dists_colors = {'burr12': 'tab:blue',
                     'fatiguelife': 'tab:orange',
                     'gamma': 'tab:green',
@@ -41,7 +40,7 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
 
     @property
     def workfolder(self) -> Path:
-        folder = self.project_path / self.graphs_folder / self.__class__.__name__
+        folder = self.project_path / self.graphs_folder / self.workfolder_name
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
@@ -75,7 +74,7 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
         Need None
         :return:
         """
-        path = self.project_path / self.graphs_folder / f'seen_tiles.json'
+        path = self.workfolder / f'seen_tiles_fov{self.fov}.json'
         return path
 
     @property
@@ -96,9 +95,29 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
         correlations_file = self.workfolder / f'correlations.json'
         return correlations_file
 
+
+class DectimeGraphsObj(DectimeGraphsPaths, Utils):
+    video_data_metric = {}
+    metric_label = {'time': {'scilimits': (-3, -3),
+                             'xlabel': f'Average Decoding Time (ms)'},
+                    'time_std': {'scilimits': (-3, -3),
+                                 'xlabel': f'Std Dev Decoding Time (ms)'},
+                    'rate': {'scilimits': (6, 6),
+                             'xlabel': f'Average Bit Rate (ms)'},
+                    'MSE': {'scilimits': (0, 0),
+                            'xlabel': f'Average PSNR'},
+                    'SSIM': {'scilimits': (0, 0),
+                             'xlabel': f'Average SSIM'},
+                    'WS-MSE': {'scilimits': (0, 0),
+                               'xlabel': f'Average WS-PSNR'},
+                    'S-MSE': {'scilimits': (0, 0),
+                              'xlabel': f'Average S-PSNR'}
+                    }
+
     def __init__(self, config: str):
         self.rc_config()
         self.error_type = 'sse'
+
         super().__init__(config)
 
     @staticmethod
@@ -179,7 +198,9 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
         for group in rc_param:
             mpl.rc(group, **rc_param[group])
 
-    def process_value(self, value: Any) -> float:
+    def process_value(self, value: Any, metric=None) -> float:
+        if metric is not None:
+            self.metric = metric
         # Process value according the metric
         if self.metric == 'time':  # value: list
             new_value = float(np.round(np.average(value), decimals=3))
@@ -192,35 +213,27 @@ class DectimeGraphsPaths(SegmentsQualityPaths, TileDecodeBenchmarkPaths):
             new_value = float(np.round(np.average(metric_value), decimals=3))
         return new_value
 
+    def context_metric_proj_tiling(self):
+        for self.metric in self.metric_list:
+            for self.proj in self.proj_list:
+                for self.tiling in self.tiling_list:
+                    yield
 
-class ByPatternProps(DectimeGraphsPaths):
-    metric_label = {'time': {'scilimits': (-3, -3),
-                             'xlabel': f'Average Decoding Time (ms)'},
-                    'time_std': {'scilimits': (-3, -3),
-                                 'xlabel': f'Std Dev Decoding Time (ms)'},
-                    'rate': {'scilimits': (6, 6),
-                             'xlabel': f'Average Bit Rate (ms)'},
-                    'MSE': {'scilimits': (0, 0),
-                            'xlabel': f'Average PSNR'},
-                    'SSIM': {'scilimits': (0, 0),
-                             'xlabel': f'Average SSIM'},
-                    'WS-MSE': {'scilimits': (0, 0),
-                               'xlabel': f'Average WS-PSNR'},
-                    'S-MSE': {'scilimits': (0, 0),
-                              'xlabel': f'Average S-PSNR'}
-                    }
-    metric_list = ['rate', 'time', 'time_std', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
-    # metric_list = ['time', 'time_std', 'rate', 'MSE', 'SSIM', 'WS-MSE', 'S-MSE']
+    def context_metric_proj_tiling_quality(self):
+        for _ in self.context_metric_proj_tiling():
+            for self.quality in self.quality_list:
+                yield
+
+
+class ByPatternProps(DectimeGraphsObj):
     results: dict
     data_bucket: dict
-    clean_data_bucket: dict
     error_type: str
     _fig_pdf: dict
     _fig_cdf: dict
     _fig_boxplot: dict
-    _fig_boxplot_clean: dict
     fitter: Fitter
-    clean_fitter: Fitter
+    workfolder_name = 'ByPattern'
 
     @property
     def chunk_results(self):
@@ -238,21 +251,6 @@ class ByPatternProps(DectimeGraphsPaths):
             pass
         return quality_list
 
-    @property
-    def metric(self):
-        return self._metric
-
-    @metric.setter
-    def metric(self, value):
-        self._metric = value
-
-    @property
-    def tiling(self):
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value):
-        self._tiling = value
 
     @property
     def fitter_pickle_file(self) -> Path:
@@ -266,7 +264,7 @@ class ByPatternProps(DectimeGraphsPaths):
 
     @property
     def data_bucket_file(self) -> Path:
-        path = self.workfolder_data / f'data_bucket_{self.metric}.json'
+        path = self.workfolder_data / f'data_bucket.json'
         return path
 
     @property
@@ -349,6 +347,84 @@ class ByPatternProps(DectimeGraphsPaths):
                 }[self.metric]
 
 
+class ByPatternMakeBucket(ByPatternProps):
+    """
+    [metric][proj][tiling] = [video, quality, tile, chunk]
+    1x1 - 10.080 chunks - 1 tiles por tiling
+    3x2 - 60.480 chunks - 6 tiles por tiling
+    6x4 - 241.920 chunks - 24 tiles por tiling
+    9x6 - 544.320 chunks - 54 tiles por tiling
+    12x8 - 967.680 chunks - 96 tiles por tiling
+    total - 1.824.480 chunks - 181 tiles
+    """
+    tiles_num = {"1x1": 10080,
+                 "3x2": 60480,
+                 "6x4": 241920,
+                 "9x6": 544320,
+                 "12x8": 967680}
+
+    def main(self):
+        print(f'====== ByPattern - error_type={self.error_type}, n_dist={self.n_dist} ======')
+        if self.data_bucket_file.exists(): return
+        self.data_bucket = AutoDict()
+        for _ in self.main_context():
+            chunk_data1 = self.video_data_metric[self.metric][self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            chunk_data2 = self.process_value(chunk_data1)
+
+            try:
+                self.data_bucket[self.metric][self.proj][self.tiling].append(chunk_data2)
+            except AttributeError:
+                self.data_bucket[self.metric][self.proj][self.tiling] = [chunk_data2]
+
+        self.test()
+        self.save()
+
+    def load_all_metric(self):
+        self.video_data_metric['rate'] = load_json(self.bitrate_result_json)
+        self.video_data_metric['time'] = load_json(self.dectime_result_json)
+        self.video_data_metric['time_std'] = self.video_data_metric['time']
+        self.video_data_metric['SSIM'] = load_json(self.quality_result_json)
+        self.video_data_metric['MSE'] = self.video_data_metric['SSIM']
+        self.video_data_metric['WS-MSE'] = self.video_data_metric['SSIM']
+        self.video_data_metric['S-MSE'] = self.video_data_metric['SSIM']
+
+    def main_context(self):
+        for self.video in self.video_list:
+            self.load_all_metric()
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    print(f'\r\t{self.video} {self.tiling} {self.quality_str}      ', end='')
+                    for self.tile in self.tile_list:
+                        for self.chunk in self.chunk_list:
+                            for self.metric in self.metric_list:
+                                yield
+
+    def test(self):
+        for _ in self.context_metric_proj_tiling():
+            bucket = self.data_bucket[self.metric][self.proj][self.tiling]
+            if self.tiles_num[self.tiling] != len(bucket):
+                self.log(f'bucket size error', self.data_bucket_file)
+                raise ValueError(f'bucket size error')
+
+    def save(self):
+        print(f'\tSaving ... ', end='')
+        save_json(self.data_bucket, self.data_bucket_file)
+        print(f'Finished.')
+
+
+class ByPatternFit(ByPatternProps):
+    def main(self):
+        print(f'====== ByPattern - error_type={self.error_type}, n_dist={self.n_dist} ======')
+        self.data_bucket = load_json(self.data_bucket_file)
+        for _ in self.context_metric_proj_tiling():
+            if self.fitter_pickle_file.exists(): continue
+            print(f'\tFitting - {self.metric} - {self.proj} - {self.tiling}...')
+            samples = self.data_bucket[self.metric][self.proj][self.tiling]
+            self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+            self.fitter.fit()
+            print(f'\tSaving Fitter... ')
+            save_pickle(self.fitter, self.fitter_pickle_file)
+
 class ByPattern(ByPatternProps):
     def main(self):
         print(f'====== ByPattern - error_type={self.error_type}, n_dist={self.n_dist} ======')
@@ -373,7 +449,8 @@ class ByPattern(ByPatternProps):
         #     self.make_hist()  # compare tiling
         #     self.make_boxplot()
         # self.calc_stats()
-        self.calc_corr()
+        # self.calc_corr()
+        self.calc_corr2()
 
     def get_data_bucket(self):
         # [metric][vid_proj][tiling] = [video, quality, tile, chunk]
@@ -395,7 +472,7 @@ class ByPattern(ByPatternProps):
         except FileNotFoundError:
             self.data_bucket = AutoDict()
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             video_data_metric = load_json(self.json_metrics)
             for self.tiling in self.tiling_list:
                 print(f'\r\t{self.metric} {self.video} {self.tiling}. len = ', end='')
@@ -421,9 +498,7 @@ class ByPattern(ByPatternProps):
                     self.log(f'bucket size error', self.data_bucket_file)
                     raise ValueError(f'bucket size error')
 
-        print(f'\tSaving ... ', end='')
-        save_json(self.data_bucket, self.data_bucket_file)
-        print(f'Finished.')
+
 
     def make_fit(self):
         # "deve salvar o arquivo"
@@ -657,12 +732,12 @@ class ByPattern(ByPatternProps):
         if self.correlations_file.exists():
             return
 
-        self.clear_state()
+        # self.clear_state()
         self.metric_list.remove('time_std')
         print(f'  Processing Correlation')
         corretations_tree = AutoDict()
         for metric1, metric2 in combinations(self.metric_list, r=2):
-            if not (metric1 == 'rate' and metric2 == 'MSE'): continue
+            # if not (metric1 == 'rate' and metric2 == 'MSE'): continue
             for self.proj in self.proj_list:
                 for n, self.name in enumerate(self.name_list, 1):
                     print(f'\t{metric1} x {metric2} - {self.proj} {self.name}.')
@@ -694,10 +769,65 @@ class ByPattern(ByPatternProps):
                                     var2 = np.cov((tile_data2, tile_data2))[0][1]
                                     prod = var1 * var2
                                     if prod == 0: prod = sys.float_info.min
-                                    corrcoef = cov / np.sqrt(prod)
+                                    corrcoef = cov / prod
                                 corretations_tree[self.proj][self.name][self.tiling][self.quality][self.tile][f'{metric1},{metric2}'] = corrcoef
         print(f'  Saving Correlation')
         save_pickle(corretations_tree, self.correlations_file)
+
+    def calc_corr2(self):
+        if self.correlations_file.exists():
+            pass
+            # return
+        self.clear_state()
+        self.metric_list.remove('time_std')
+        len_metric = len(self.metric_list)
+        self.tiling_list.remove('1x1')
+        print(f'  Processing Correlation')
+        corretations_tree = AutoDict()
+        for self.proj in self.proj_list:
+            for n, self.name in enumerate(self.name_list, 1):
+
+                for id1 in range(len_metric-1):
+                    metric1 = self.metric_list[id1]
+                    self.metric = metric1
+                    video_data_metric_m1 = load_json(self.json_metrics)
+                    for id2 in range(id1+1, len_metric):
+                        metric2 = self.metric_list[id2]
+                        print(f'\t{metric1} x {metric2} - {self.proj} {self.name}.')
+                        self.metric = metric2
+                        video_data_metric_m2 = load_json(self.json_metrics)
+
+                        for self.tiling in self.tiling_list:
+                            for self.quality in self.quality_list:
+                                avg1 = []
+                                avg2 = []
+                                for self.tile in self.tile_list:
+                                    print(f'\r\t\t{self.tiling} {self.quality_str} {self.tile_str}.', end='')
+                                    tile_data1 = []
+                                    tile_data2 = []
+                                    for self.chunk in self.chunk_list:
+                                        chunk_data1 = video_data_metric_m1[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+                                        chunk_data2 = self.process_value(chunk_data1, metric1)
+                                        tile_data1.append(chunk_data2)
+
+                                        chunk_data1 = video_data_metric_m2[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+                                        chunk_data2 = self.process_value(chunk_data1, metric2)
+                                        tile_data2.append(chunk_data2)
+
+                                    avg1.append(np.average(tile_data1))
+                                    avg2.append(np.average(tile_data2))
+                                corrcoef = np.corrcoef((avg1, avg2))[0][1]
+                                if np.isnan(corrcoef):
+                                    cov = np.cov((avg1, avg2))[0][1]
+                                    var1 = np.cov((avg1, avg1))[0][1]
+                                    var2 = np.cov((avg2, avg2))[0][1]
+                                    prod = var1 * var2
+                                    if prod == 0: prod = sys.float_info.min
+                                    corrcoef = cov / prod
+                                corretations_tree[self.proj][self.name][self.tiling][self.quality][f'{metric1},{metric2}'] = corrcoef
+                        print('')
+        print(f'  Saving Correlation')
+        save_pickle(corretations_tree, self.correlations_file.with_suffix('.pickle'))
 
 
 class ByPatternByQualityProps(ByPattern):
@@ -771,7 +901,7 @@ class ByPatternByQuality(ByPatternByQualityProps):
         except FileNotFoundError:
             self.data_bucket = AutoDict()
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             video_data_metric = load_json(self.json_metrics)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
@@ -1113,9 +1243,9 @@ class ByPatternByQuality(ByPatternByQualityProps):
                 fig.savefig(img_file)
 
 
-DectimeGraphsOptions = {'0': ByPattern,
+DectimeGraphsOptions = {'0': ByPatternMakeBucket,
                         '1': ByPatternByQuality,
-                        '2': ByPattern,
+                        '2': ByPatternFit,
                         '3': ByPattern,
                         '4': ByPattern,
                         '5': ByPattern,
