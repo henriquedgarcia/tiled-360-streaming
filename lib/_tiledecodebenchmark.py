@@ -2,14 +2,14 @@ import os
 from collections import defaultdict
 from logging import warning
 from pathlib import Path
-from time import time
 from typing import Any, Union
 
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from .assets import GlobalPaths, Config, Log, AutoDict, Utils, SiTi, print_error
+from .assets import GlobalPaths, Config, Log, AutoDict, Utils, print_error
+from .siti import SiTi
 from .transform import splitx
 from .util import save_json, load_json, run_command, decode_file, get_times
 
@@ -22,13 +22,7 @@ t = ['9x6', '12x8']
 
 class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     # Folders
-    original_folder = Path('original')
-    lossless_folder = Path('lossless')
-    compressed_folder = Path('compressed')
-    segment_folder = Path('segment')
-    _viewport_folder = Path('viewport')
-    _siti_folder = Path('siti')
-    _check_folder = Path('check')
+
 
     @property
     def basename(self):
@@ -116,24 +110,8 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
         return self._dectime_folder / f'chunk{chunk:03d}.log'
 
     @property
-    def dectime_result_json(self) -> Path:
-        """
-        By Video
-        :return:
-        """
-        folder = self.project_path / self.dectime_folder
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'time_{self.video}.json'
-
-    @property
-    def bitrate_result_json(self) -> Path:
-        folder = self.project_path / self.segment_folder
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'rate_{self.video}.json'
-
-    @property
     def siti_folder(self):
-        folder = self.project_path / self._siti_folder
+        folder = self.project_path / self.siti_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
@@ -147,7 +125,7 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
 
     @property
     def siti_results(self) -> Path:
-        folder = self.project_path / self._siti_folder
+        folder = self.project_path / self.siti_folder
         folder.mkdir(parents=True, exist_ok=True)
         name = f'siti_results'
         if self.video:
@@ -163,16 +141,6 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
 
         return folder / f'siti_results_{self.video}_crf{self.quality}.csv'
 
-    def __init__(self, config: str):
-        self.config = Config(config)
-        self.print_resume()
-        start = time()
-        with self.logger():
-            self.main()
-        print(f"\n\tTotal time={time() - start}.")
-
-    def main(self):
-        ...
 
     @property
     def quality_list(self) -> list[str]:
@@ -188,7 +156,7 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
 
 class Prepare(TileDecodeBenchmarkPaths):
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             self.worker()
 
     def worker(self, overwrite=False):
@@ -225,7 +193,7 @@ class Prepare(TileDecodeBenchmarkPaths):
 
 class Compress(TileDecodeBenchmarkPaths):
     def main(self):
-        for self.video in self.videos_list:  # if self.video != 'chariot_race_erp_nas': continue
+        for self.video in self.video_list:  # if self.video != 'chariot_race_erp_nas': continue
             for self.tiling in self.tiling_list:
                 with self.multi() as _:
                     for self.quality in self.quality_list:
@@ -323,7 +291,7 @@ class Compress(TileDecodeBenchmarkPaths):
 
 class Segment(TileDecodeBenchmarkPaths):
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             for self.tiling in self.tiling_list:
                 with self.multi() as _:
                     for self.quality in self.quality_list:
@@ -423,7 +391,7 @@ class Decode(TileDecodeBenchmarkPaths):
     turn: int
 
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     for self.turn in range(self.decoding_num):
@@ -486,8 +454,8 @@ class GetBitrate(TileDecodeBenchmarkPaths):
     check_result = True
 
     def main(self):
-        for self.video in self.videos_list:
-            if list(self.videos_list).index(self.video) < 0: continue
+        for self.video in self.video_list:
+            if list(self.video_list).index(self.video) < 0: continue
             self.result_rate = AutoDict()
             self.change_flag = True
             self.error = False
@@ -505,7 +473,7 @@ class GetBitrate(TileDecodeBenchmarkPaths):
 
     def skip1(self, ):
         if self.bitrate_result_json.exists():
-            print(f'\n[{self.vid_proj}][{self.video}] - The bitrate_result_json exist.')
+            print(f'\n[{self.proj}][{self.video}] - The bitrate_result_json exist.')
             if self.check_result:
                 self.change_flag = False
                 self.result_rate = load_json(self.bitrate_result_json,
@@ -526,13 +494,13 @@ class GetBitrate(TileDecodeBenchmarkPaths):
             return
 
         if self.check_result:
-            old_value = self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            old_value = self.result_rate[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
             if old_value == bitrate:
                 return
             elif not self.change_flag:
                 self.change_flag = True
 
-        self.result_rate[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
+        self.result_rate[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
         print(f'{self.bitrate}', end='')
 
     def get_bitrate(self):
@@ -569,8 +537,8 @@ class GetDectime(TileDecodeBenchmarkPaths):
     error: bool
 
     def main(self):
-        for self.video in self.videos_list:
-            if list(self.videos_list).index(self.video) < 38: continue
+        for self.video in self.video_list:
+            if list(self.video_list).index(self.video) < 38: continue
             self.result_times = AutoDict()
             self.change_flag = True
             self.error = False
@@ -598,18 +566,18 @@ class GetDectime(TileDecodeBenchmarkPaths):
             return
 
         if self.check_result:
-            old_value = self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            old_value = self.result_times[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
             if old_value == times:
                 return
             elif not self.change_flag:
                 self.change_flag = True
 
-        self.result_times[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
+        self.result_times[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
         print(f'{times}', end='')
 
     def skip1(self):
         if self.dectime_result_json.exists():
-            print(f'\n[{self.vid_proj}][{self.video}] - The dectime_result_json exist.')
+            print(f'\n[{self.proj}][{self.video}] - The dectime_result_json exist.')
             if self.check_result:
                 self.change_flag = False
                 self.result_times = load_json(self.dectime_result_json,
@@ -652,7 +620,7 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         # self.scatter_plot_siti()
 
     def calc_siti(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             if self.siti_results.exists():
                 print(f'siti_results FOUND {self.siti_results}. Skipping.')
                 continue
@@ -683,14 +651,14 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
             # return
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             siti_results = pd.read_csv(self.siti_results, index_col=0)
             si = siti_results['si']
             ti = siti_results['ti']
             bitrate = self.compressed_file.stat().st_size * 8 / 60
 
             siti_stats['group'].append(self.group)
-            siti_stats['proj'].append(self.vid_proj)
+            siti_stats['proj'].append(self.proj)
             siti_stats['video'].append(self.video)
             siti_stats['name'].append(self.name)
             siti_stats['tiling'].append(self.tiling)
@@ -715,7 +683,7 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
         def plot1():
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), dpi=300)
-            for self.video in self.videos_list:
+            for self.video in self.video_list:
                 siti_results = load_json(self.siti_results)
                 name = self.name.replace('_nas', '')
                 si = siti_results[self.video]['si']
@@ -797,7 +765,7 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         fig_erp.suptitle('ERP - SI x TI')
         fig_erp.tight_layout()
         fig_erp.show()
-        fig_erp.savefig(self.project_path / self._siti_folder / 'scatter_ERP.png')
+        fig_erp.savefig(self.project_path / self.siti_folder / 'scatter_ERP.png')
 
         ############################################
         siti_cmp = siti_stats['proj'] == 'cmp'
@@ -818,12 +786,12 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         fig_cmp.suptitle('CMP - SI x TI')
         fig_cmp.tight_layout()
         fig_cmp.show()
-        fig_cmp.savefig(self.project_path / self._siti_folder / 'scatter_CMP.png')
+        fig_cmp.savefig(self.project_path / self.siti_folder / 'scatter_CMP.png')
 
 
 class RenameAndCheck(TileDecodeBenchmarkPaths):
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     for self.turn in range(self.decoding_num):
