@@ -181,14 +181,14 @@ class GetTilesProps(GetTilesPath):
     def counter_tiles_json(self):
         folder = self.get_tiles_folder / 'counter'
         folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f'counter_{self.config["dataset_name"]}_{self.vid_proj}_{self.name}_fov{self.fov}.json'
+        path = folder / f'counter_{self.config["dataset_name"]}_{self.proj}_{self.name}_fov{self.fov}.json'
         return path
 
     @property
     def heatmap_tiling(self):
         folder = self.get_tiles_folder / 'heatmap'
         folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f'heatmap_tiling_{self.dataset_name}_{self.vid_proj}_{self.name}_{self.tiling}_fov{self.fov}.png'
+        path = folder / f'heatmap_tiling_{self.dataset_name}_{self.proj}_{self.name}_{self.tiling}_fov{self.fov}.png'
         return path
 
 
@@ -245,12 +245,12 @@ class GetTiles(GetTilesProps):
         print(f'{self.proj} {self.name} {self.tiling} - User {self.user}')
 
         if self.tiling == '1x1':
-            self.results[self.vid_proj][self.name][self.tiling][self.user] = self.tiles_1x1
+            self.results[self.proj][self.name][self.tiling][self.user] = self.tiles_1x1
             return
 
-        if self.vid_proj == 'erp':
+        if self.proj == 'erp':
             self.projection = self.erp_list[self.tiling]
-        elif self.vid_proj == 'cmp':
+        elif self.proj == 'cmp':
             self.projection = self.cmp_list[self.tiling]
 
         result_frames = []
@@ -268,8 +268,8 @@ class GetTiles(GetTilesProps):
                 result_chunks[f'{chunk}'] = list(tiles_in_chunk)
                 tiles_in_chunk.clear()
 
-        self.results[self.vid_proj][self.name][self.tiling][self.user]['frame'] = result_frames
-        self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks'] = result_chunks
+        self.results[self.proj][self.name][self.tiling][self.user]['frame'] = result_frames
+        self.results[self.proj][self.name][self.tiling][self.user]['chunks'] = result_chunks
 
     # def diferences(self):
     #     if not self.get_tiles_json.exists():
@@ -311,7 +311,7 @@ class GetTiles(GetTilesProps):
             tiles_counter_chunks = Counter()  # Collect tiling count
 
             for self.user in self.users_list:
-                result_chunks: dict[str, list[str]] = self.results[self.vid_proj][self.name][self.tiling][self.user]['chunks']
+                result_chunks: dict[str, list[str]] = self.results[self.proj][self.name][self.tiling][self.user]['chunks']
 
                 for chunk in result_chunks:
                     tiles_counter_chunks = tiles_counter_chunks + Counter(result_chunks[chunk])
@@ -338,7 +338,7 @@ class GetTiles(GetTilesProps):
 
         for self.tiling in self.tiling_list:
             if self.tiling == '1x1': continue
-            heatmap_tiling = self.get_tiles_folder / f'heatmap_tiling_{self.dataset_name}_{self.vid_proj}_{self.name}_{self.tiling}_fov{self.fov}.png'
+            heatmap_tiling = self.get_tiles_folder / f'heatmap_tiling_{self.dataset_name}_{self.proj}_{self.name}_{self.tiling}_fov{self.fov}.png'
             if heatmap_tiling.exists(): continue
 
             tiling_result = results[self.tiling]
@@ -424,21 +424,10 @@ class GetTiles(GetTilesProps):
 
 class UserProjectionMetricsProps(GetTilesProps, SegmentsQualityPaths):
     seen_tiles_metric: AutoDict
-    _video: str
-    _tiling: str
-
     time_data: dict
     rate_data: dict
     qlt_data: dict
     get_tiles_data: dict
-
-    @property
-    def tiling(self):
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value):
-        self._tiling = value
 
     @property
     def seen_metrics_folder(self) -> Path:
@@ -448,17 +437,17 @@ class UserProjectionMetricsProps(GetTilesProps, SegmentsQualityPaths):
 
     @property
     def seen_metrics_json(self) -> Path:
-        return self.seen_metrics_folder / f'seen_metrics_{self.config["dataset_name"]}_{self.vid_proj}_{self.name}.json'
+        return self.seen_metrics_folder / f'seen_metrics_{self.config["dataset_name"]}_{self.proj}_{self.name}.json'
 
     def get_get_tiles(self):
         try:
-            tiles_list = self.get_tiles_data[self.vid_proj][self.name][self.tiling][self.user]['chunks'][self.chunk]
+            tiles_list = self.get_tiles_data[self.proj][self.name][self.tiling][self.user]['chunks'][self.chunk]
         except (KeyError, AttributeError):
             self.get_tiles_data = load_json(self.get_tiles_json, object_hook=dict)
             self.time_data = load_json(self.dectime_result_json, object_hook=dict)
             self.rate_data = load_json(self.bitrate_result_json, object_hook=dict)
             self.qlt_data = load_json(self.quality_result_json, object_hook=dict)
-            tiles_list = self.get_tiles_data[self.vid_proj][self.name][self.tiling][self.user]['chunks'][self.chunk]
+            tiles_list = self.get_tiles_data[self.proj][self.name][self.tiling][self.user]['chunks'][self.chunk]
         return tiles_list
 
 
@@ -471,7 +460,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
         self.graphs2()
 
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             if self.seen_metrics_json.exists(): continue
 
             for self.tiling in self.tiling_list:
@@ -487,18 +476,18 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
         print('')
 
     def worker(self):
-        print(f'\r  Get Tiles - {self.vid_proj} {self.name} {self.tiling} - user{self.user} ... ', end='')
+        print(f'\r  Get Tiles - {self.proj} {self.name} {self.tiling} - user{self.user} ... ', end='')
 
         for self.tile in self.get_get_tiles():
-            dectime_val = self.time_data[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-            bitrate_val = self.rate_data[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-            quality_val = self.qlt_data[self.vid_proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            dectime_val = self.time_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            bitrate_val = self.rate_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
+            quality_val = self.qlt_data[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
 
             try:
-                metrics_result = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
+                metrics_result = self.seen_tiles_metric[self.proj][self.name][self.tiling][self.quality][self.user][self.chunk]
             except (NameError, AttributeError, KeyError):
                 self.seen_tiles_metric = AutoDict()
-                metrics_result = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
+                metrics_result = self.seen_tiles_metric[self.proj][self.name][self.tiling][self.quality][self.user][self.chunk]
 
             metrics_result['time'][self.tile] = float(np.average(dectime_val))
             metrics_result['rate'][self.tile] = float(bitrate_val)
@@ -515,7 +504,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
             return folder / f'{self.tiling}_user{self.user}.png'
 
         def loop_video_tiling_user():
-            for self.video in self.videos_list:
+            for self.video in self.video_list:
                 # for self.tiling in ['6x4']:
                 for self.tiling in self.tiling_list:
                     for self.user in self.users_list:
@@ -536,10 +525,10 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                 for self.chunk in self.chunk_list:
                     # <editor-fold desc="get seen_tiles_metric">
                     try:
-                        seen_tiles_metric = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
+                        seen_tiles_metric = self.seen_tiles_metric[self.proj][self.name][self.tiling][self.quality][self.user][self.chunk]
                     except (KeyError, AttributeError):
                         self.seen_tiles_metric = load_json(self.seen_metrics_json)
-                        seen_tiles_metric = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
+                        seen_tiles_metric = self.seen_tiles_metric[self.proj][self.name][self.tiling][self.quality][self.user][self.chunk]
                     # </editor-fold>
 
                     tiles_list = seen_tiles_metric['time'].keys()
@@ -599,7 +588,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
             return folder / f'{self.name}_{self.tiling}.png'
 
         def loop_video_tiling():
-            for self.video in self.videos_list:
+            for self.video in self.video_list:
                 self.seen_tiles_metric = load_json(self.seen_metrics_json)
                 for self.tiling in self.tiling_list:
                     yield
@@ -622,7 +611,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                     result_lv1 = defaultdict(list)  # By chunk
 
                     for self.chunk in self.chunk_list:
-                        seen_tiles_data = self.seen_tiles_metric[self.vid_proj][self.name][self.tiling][self.quality][self.user][self.chunk]
+                        seen_tiles_data = self.seen_tiles_metric[self.proj][self.name][self.tiling][self.quality][self.user][self.chunk]
                         tiles_list = seen_tiles_data['time'].keys()
 
                         result_lv1[f'n_tiles'].append(len(tiles_list))
@@ -735,7 +724,7 @@ class ViewportPSNRProps(GetTilesProps):
         """
         while True:
             try:
-                return self.seen_tiles[self.vid_proj][self.name][self.tiling][self.user]['chunks']
+                return self.seen_tiles[self.proj][self.name][self.tiling][self.user]['chunks']
             except KeyError:
                 del self._seen_tiles
 
@@ -746,18 +735,6 @@ class ViewportPSNRProps(GetTilesProps):
                 return self._seen_tiles
             except AttributeError:
                 self._seen_tiles = load_json(self.get_tiles_json)
-
-    @property
-    def n_frames(self):
-        return int(self.duration) * int(self.fps)
-
-    @property
-    def tiling(self):
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value):
-        self._tiling = value
 
     @property
     def erp(self) -> vp.ERP:
@@ -802,7 +779,7 @@ class ViewportPSNRProps(GetTilesProps):
 
     @property
     def viewport_psnr_file(self) -> Path:
-        folder = self.viewport_psnr_path / f'{self.vid_proj}_{self.name}'
+        folder = self.viewport_psnr_path / f'{self.proj}_{self.name}'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / f"user{self.user}_{self.tiling}.json"
 
@@ -846,7 +823,7 @@ class ViewportPSNR(ViewportPSNRProps):
         self.main()
 
     def main(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             for self.tiling in self.tiling_list:
                 for self.user in self.users_list:
                     self.worker()
@@ -865,7 +842,7 @@ class ViewportPSNR(ViewportPSNRProps):
         proj_frame = np.zeros(tuple(self.erp.proj_shape) + (3,), dtype='uint8')
         proj_frame_ref = np.zeros(tuple(self.erp.proj_shape) + (3,), dtype='uint8')
 
-        self.seen_tiles_by_chunks = self.seen_tiles[self.vid_proj][self.name][self.tiling][self.user]['chunks']
+        self.seen_tiles_by_chunks = self.seen_tiles[self.proj][self.name][self.tiling][self.user]['chunks']
 
         for self.chunk in self.chunk_list:
             print(f'Processing {self.name}_{self.tiling}_user{self.user}_chunk{self.chunk}')
@@ -894,9 +871,9 @@ class ViewportPSNR(ViewportPSNRProps):
                     mse = np.average((viewport_frame_ref - viewport_frame) ** 2)
 
                     try:
-                        qlt_by_frame[self.vid_proj][self.name][self.tiling][self.user][quality]['mse'].append(mse)
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['mse'].append(mse)
                     except AttributeError:
-                        qlt_by_frame[self.vid_proj][self.name][self.tiling][self.user][quality]['mse'] = [mse]
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['mse'] = [mse]
 
                     print(f'\r    chunk{self.chunk}_crf{self.quality}_frame{chunk_frame_idx} - {time.time() - start: 0.3f} s', end='')
             print('')
@@ -910,7 +887,7 @@ class ViewportPSNR(ViewportPSNRProps):
         # yaw_pitch_roll_frames = self.dataset[self.name][self.user]
 
         def debug_img() -> Path:
-            folder = self.viewport_psnr_path / f'{self.vid_proj}_{self.name}' / f"user{self.users_list[0]}_{self.tiling}"
+            folder = self.viewport_psnr_path / f'{self.proj}_{self.name}' / f"user{self.users_list[0]}_{self.tiling}"
             folder.mkdir(parents=True, exist_ok=True)
             return folder / f"frame_{self.video_frame_idx}.jpg"
 
@@ -992,7 +969,7 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
         # self.workfolder = super().workfolder / 'viewport_videos'  # todo: fix it
         self.workfolder.mkdir(parents=True, exist_ok=True)
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             self.get_tiles_data = load_json(self.get_tiles_json)
             self.erp_list = {tiling: vp.ERP(tiling, self.resolution, self.fov) for tiling in self.tiling_list}
 
@@ -1011,22 +988,6 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
     def worker(self, overwrite=False):
         pass
-
-    @property
-    def quality(self):
-        return self._quality
-
-    @quality.setter
-    def quality(self, value):
-        self._quality = value
-
-    @property
-    def tile(self):
-        return self._tile
-
-    @tile.setter
-    def tile(self, value):
-        self._tile = value
 
 
 # class CheckViewportPSNR(ViewportPSNR):
@@ -1101,7 +1062,7 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 class TestDataset(ViewportPSNRProps):
     def __init__(self, config):
         self.config = config
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     for turn in range(self.decoding_num):
@@ -1111,7 +1072,7 @@ class TestDataset(ViewportPSNRProps):
                                 self.worker()
 
     def worker(self, overwrite=False):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             proj_h, proj_w, n_channels = self.video_shape
             users_data = self.dataset[self.name]
 
@@ -1121,7 +1082,7 @@ class TestDataset(ViewportPSNRProps):
             for self.tiling in self.tiling_list:
                 if self.tiling == '1x1': continue  # Remover depois
 
-                folder = self.get_tiles_folder / f'{self.vid_proj}_{self.name}_{self.tiling}'
+                folder = self.get_tiles_folder / f'{self.proj}_{self.name}_{self.tiling}'
                 folder.mkdir(parents=True, exist_ok=True)
 
                 M, N = splitx(self.tiling)
@@ -1142,7 +1103,7 @@ class TestDataset(ViewportPSNRProps):
                         yaw_pitch_roll_frames = iter(users_data[user])
 
                         for self.chunk in self.chunk_list:
-                            get_tiles_val: list[int] = get_tiles_data[self.vid_proj][self.name][self.tiling][user]['chunks'][0][
+                            get_tiles_val: list[int] = get_tiles_data[self.proj][self.name][self.tiling][user]['chunks'][0][
                                 self.chunk]  # Foi um erro colocar isso na forma de lista. Remover o [0] um dia
                             tiles_reader: dict[str, FFmpegReader] = {str(self.tile): FFmpegReader(f'{self.segment_file}').nextFrame() for self.tile in get_tiles_val}
                             img_proj = np.zeros((proj_h, proj_w, n_channels), dtype='uint8')
