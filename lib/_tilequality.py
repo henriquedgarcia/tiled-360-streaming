@@ -35,12 +35,6 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
         return self.video_quality_folder / f'tile{self.tile}_{int(self.chunk):03d}.csv'
 
     @property
-    def quality_result_json(self) -> Path:
-        folder = self.project_path / self._quality_folder
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder / f'quality_{self.video}.json'
-
-    @property
     def quality_result_img(self) -> Path:
         folder = self.quality_folder / '_metric plots' / f'{self.video}'
         folder.mkdir(parents=True, exist_ok=True)
@@ -71,7 +65,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
     def load_weight_ndarray(self):
         weight_ndarray_file = Path(f'datasets/'
                                    f'weight_ndarray'
-                                   f'_{self.vid_proj}'
+                                   f'_{self.proj}'
                                    f'_{self.resolution}'
                                    f'.pickle')
 
@@ -85,7 +79,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
     def make_weight_ndarray(self):
         proj_h, proj_w = self.video_shape[:2]
 
-        if self.vid_proj == 'erp':
+        if self.proj == 'erp':
             pi_proj = np.pi / proj_h
             proj_h_2 = 0.5 - proj_h / 2
 
@@ -93,7 +87,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
                 w = np.cos((y + proj_h_2) * pi_proj)
                 return w
 
-        elif self.vid_proj == 'cmp':
+        elif self.proj == 'cmp':
             r = proj_h / 4
             r1 = 0.5 - r
             r2 = r ** 2
@@ -105,7 +99,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
                 w = (1 + d / r2) ** (-1.5)
                 return w
         else:
-            raise ValueError(f'Wrong self.vid_proj. Value == {self.vid_proj}')
+            raise ValueError(f'Wrong self.vid_proj. Value == {self.proj}')
 
         self.weight_ndarray = np.fromfunction(func, (proj_h, proj_w), dtype='float')
 
@@ -118,7 +112,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
         sph_points_mask_file = Path(f'datasets/'
                                     f'sph_points'
-                                    f'_{self.vid_proj}'
+                                    f'_{self.proj}'
                                     f'_{self.resolution}_mask'
                                     f'.pickle')
 
@@ -137,12 +131,12 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         for line in sph_file_lines:
             el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
 
-            if self.vid_proj == 'erp':
+            if self.proj == 'erp':
                 m, n = ea2erp(np.array([[az], [el]]), self.video_shape)
-            elif self.vid_proj == 'cmp':
+            elif self.proj == 'cmp':
                 (m, n), face = ea2cmp_face(np.array([[az], [el]]), self.video_shape)
             else:
-                raise ValueError(f'wrong value to {self.vid_proj=}')
+                raise ValueError(f'wrong value to {self.proj=}')
 
             self.sph_points_mask[n, m] = 1
 
@@ -254,7 +248,7 @@ class SegmentsQuality(SegmentsQualityProps):
 
     def iterator(self):
         self.init()
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             self.results = AutoDict()
             shape = self.video_shape[:2]
             if self.weight_ndarray.shape != shape:  # suppose that changed projection, the resolution is changed too.
@@ -386,7 +380,7 @@ class CollectQuality(SegmentsQualityProps):
     def main(self):
         # self.get_tile_image()
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             # if list(self.videos_list).index(self.video) < 3: continue
             print(f'\n{self.video}')
             if self.quality_json_exist(): continue
@@ -471,7 +465,7 @@ class MakePlot(SegmentsQualityProps):
             return [np.average(results[value2][chunk][value1])
                     for chunk in self.chunk_list]
 
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             folder = self.quality_folder / '_metric plots' / f'{self.video}'
             folder.mkdir(parents=True, exist_ok=True)
             self.results = load_json(self.quality_result_json)
@@ -486,7 +480,7 @@ class MakePlot(SegmentsQualityProps):
                                          figsize=(8, 5), dpi=200)
 
     def main2(self):
-        for self.video in self.videos_list:
+        for self.video in self.video_list:
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
@@ -523,7 +517,7 @@ class MakePlot(SegmentsQualityProps):
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
-        print(f'\rProcessing [{self.vid_proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
+        print(f'\rProcessing [{self.proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
 
         fig, axes = plt.subplots(2, 2, figsize=(8, 5), dpi=200)
         axes: list[plt.Axes] = list(np.ravel(axes))
