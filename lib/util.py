@@ -51,6 +51,12 @@ def count_decoding(dectime_log: Path) -> int:
 
 
 def decode_file(filename, threads=None):
+    """
+    Decode the filename HEVC video with "threads".
+    :param filename:
+    :param threads:
+    :return:
+    """
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
            f'-codec hevc '
            f'{"" if not threads else f"-threads {threads} "}'
@@ -64,16 +70,13 @@ def decode_file(filename, threads=None):
 
 
 def run_command(command: str):
+    """
+    run with the shell
+    :param command:
+    :return:
+    """
     print(command)
     os.system(command)
-    # process = run(command, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    # process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True, encoding='UTF-8')
-    # process.wait()
-    # while True:
-    #     line = process.stdout.readline()
-    #     line = line.replace(b'\r\x1b[0m\x1b[37m')
-    #     if not line: break
-    #     print(f'{line}')
 
 
 def get_times(content: str):
