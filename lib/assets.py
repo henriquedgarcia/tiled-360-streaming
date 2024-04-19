@@ -68,8 +68,7 @@ class Config:
         self.videos_list = videos_list['videos_list']
 
         for name in self.videos_list:
-            self.videos_list[name].update({"fps": self.config_data['fps'],
-                                           "gop": self.config_data['gop']})
+            self.videos_list[name].update({"fps": self.config_data['fps'], "gop": self.config_data['gop']})
 
         self.config_data['videos_list'] = self.videos_list
 
@@ -118,8 +117,8 @@ class Factors:
         return int(self.config['decoding_num'])
 
     @property
-    def fov(self) -> int:
-        return int(self.config['fov'])
+    def fov(self) -> str:
+        return self.config['fov']
 
     @property
     def codec(self) -> str:
@@ -151,9 +150,11 @@ class Factors:
     def main_list_props(self):
         ...
 
+    _metric_list = ['time', 'time_std', 'rate', 'SSIM', 'MSE', 'WS-MSE', 'S-MSE']
+
     @property
     def metric_list(self) -> list[str]:
-        return ['time', 'time_std', 'rate', 'MSE', 'WS-MSE', 'S-MSE']
+        return self._metric_list
 
     @property
     def video_list(self) -> dict[str, dict[str, Union[int, float, str]]]:
@@ -240,7 +241,7 @@ class Factors:
 
     @property
     def duration(self) -> str:
-        return self.video_list[self.video]['duration']
+        return '60'
 
     @property
     def group(self) -> str:
@@ -365,8 +366,7 @@ class Factors:
     @property
     def cmp_face_shape(self) -> (int, int, int):
         h, w, c = self.video_shape
-        return round(h / 2), round(w / 3), c
-    # </editor-fold>
+        return round(h / 2), round(w / 3), c  # </editor-fold>
 
 
 class ContextObj(Factors):
@@ -548,8 +548,7 @@ class Utils(Log, ContextObj):
               f'  fps: {self.fps}\n'
               f'  gop: {self.gop}\n'
               f'  qualities: {self.quality_list}\n'
-              f'  patterns: {self.tiling_list}'
-              )
+              f'  patterns: {self.tiling_list}')
         print('=' * 70)
 
     def tile_position(self):
@@ -573,8 +572,6 @@ class Utils(Log, ContextObj):
         try:
             yield
             with Pool(4) as p:
-                p.map(run_command, self.command_pool)
-            # for command in self.command_pool:
-            #     run_command(command)
+                p.map(run_command, self.command_pool)  # for command in self.command_pool:  #     run_command(command)
         finally:
             pass
