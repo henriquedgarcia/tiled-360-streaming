@@ -15,11 +15,11 @@ worker_list: dict[str, dict[str, Type]] = {
     # '1': ('CheckTiles', 'CheckTilesOptions'),
     '2': lib.DectimeGraphsOptions,
     '3': lib.QualityAssessmentOptions,
+    '4': lib.UserMetricsOptions,
     # '4': ('MakeViewport', 'QualityAssessment'),
     # '5': ('Dashing', 'QualityAssessment'),
     # '6': ('QualityAssessment', 'QualityAssessment'),
     # '7': ('Siti', 'QualityAssessment'),
-    # '8': lib.UserMetricsOptions,
 }
 
 
