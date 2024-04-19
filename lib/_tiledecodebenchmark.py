@@ -23,7 +23,6 @@ t = ['9x6', '12x8']
 class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     # Folders
 
-
     @property
     def basename(self):
         return Path(f'{self.name}_'
