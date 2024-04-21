@@ -3,7 +3,7 @@ from typing import Union, Callable, Optional
 import cv2
 import numpy as np
 
-from util import get_borders, rot_matrix
+from .util import get_borders, rot_matrix
 
 
 class ViewportProps:
@@ -47,7 +47,7 @@ class ViewportProps:
         if self._normals_rotated is not None:
             return self._normals_rotated
 
-        self._normals_rotated = self.mat_rot @ self.base_normals
+        self._normals_rotated = (self.base_normals.T @ self.mat_rot.T).T
         return self._normals_rotated
 
     @property
@@ -55,7 +55,7 @@ class ViewportProps:
         if self._vp_rotated_xyz is not None:
             return self._vp_rotated_xyz
 
-        self._vp_rotated_xyz = self.mat_rot @ self.base_vp_xyz
+        self._vp_rotated_xyz = (self.base_vp_xyz.T @ self.mat_rot.T).T
         return self._vp_rotated_xyz
 
 

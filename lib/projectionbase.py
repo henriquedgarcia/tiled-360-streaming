@@ -7,17 +7,17 @@ import numpy as np
 from PIL import Image
 from numpy import linalg
 
-from util import get_borders, show1, splitx
-from viewport import Viewport
+from .util import get_borders, show1, splitx
+from .viewport import Viewport
 
 
 class ProjActions:
     @abstractmethod
-    def nm2xyz(self, nm_coord: np.ndarray, proj_shape: np.ndarray) -> np.ndarray:
+    def nm2xyz(self, nm: np.ndarray, proj_shape: np.ndarray) -> np.ndarray:
         """
         Projection specific.
 
-        :param nm_coord: shape==(2,...)
+        :param nm: shape==(2,...)
         :param proj_shape:
         :return:
         """
@@ -25,11 +25,11 @@ class ProjActions:
         pass
 
     @abstractmethod
-    def xyz2nm(self, xyz_coord: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
+    def xyz2nm(self, xyz: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
         """
         Projection specific.
 
-        :param xyz_coord: shape==(2,...)
+        :param xyz: shape==(2,...)
         :param proj_shape:
         :return:
         """
@@ -101,9 +101,9 @@ class ProjActions:
 
         self.frame_img = frame_img
 
-        nm_coord = self.xyz2nm(self.viewport.vp_xyz_rotated, self.frame_img.shape)
-        nm_coord = nm_coord.transpose((1, 2, 0))
-        out = cv2.remap(self.frame_img, map1=nm_coord[..., 1:2].astype(np.float32), map2=nm_coord[..., 0:1].astype(np.float32), interpolation=cv2.INTER_LINEAR,
+        nm = self.xyz2nm(self.viewport.vp_xyz_rotated, self.frame_img.shape)
+        nm = nm.transpose((1, 2, 0))
+        out = cv2.remap(self.frame_img, map1=nm[..., 1:2].astype(np.float32), map2=nm[..., 0:1].astype(np.float32), interpolation=cv2.INTER_LINEAR,
                         borderMode=cv2.BORDER_WRAP)
 
         return out
@@ -138,7 +138,7 @@ class ProjActions:
         tile_borders_xyz = []
         for tile in range(self.n_tiles):
             borders_nm = self.tile_borders_nm[tile]
-            borders_xyz = self.nm2xyz(nm_coord=borders_nm, proj_shape=self.proj_shape)
+            borders_xyz = self.nm2xyz(nm=borders_nm, proj_shape=self.proj_shape)
             tile_borders_xyz.append(borders_xyz)
         return tile_borders_xyz
 
@@ -207,8 +207,8 @@ class ProjActions:
         """
         self.clear_projection()
         vp_borders_xyz = get_borders(coord_nm=self.viewport.vp_xyz_rotated, thickness=thickness)
-        nm_coord = self.xyz2nm(vp_borders_xyz, proj_shape=self.proj_shape).astype(int)
-        self.canvas[nm_coord[0, ...], nm_coord[1, ...]] = lum
+        nm = self.xyz2nm(vp_borders_xyz, proj_shape=self.proj_shape).astype(int)
+        self.canvas[nm[0, ...], nm[1, ...]] = lum
         return self.canvas
 
 
@@ -231,7 +231,7 @@ class ProjBase(ProjProps, ABC):
         self.proj_shape = np.array(splitx(self.proj_res)[::-1], dtype=int)
         self.proj_h = self.proj_shape[0]
         self.proj_w = self.proj_shape[1]
-        self.projection = np.zeros(self.proj_shape, dtype='uint8')
+        self.canvas = np.zeros(self.proj_shape, dtype='uint8')
         self.proj_coord_nm = np.mgrid[0:self.proj_h, 0:self.proj_w]
         self.proj_coord_xyz = self.nm2xyz(self.proj_coord_nm, self.proj_shape)
 
@@ -261,11 +261,11 @@ class ProjBase(ProjProps, ABC):
         self.yaw_pitch_roll = [0, 0, 0]
 
     @abstractmethod
-    def nm2xyz(self, nm_coord: np.ndarray, shape: np.ndarray) -> np.ndarray:
+    def nm2xyz(self, nm: np.ndarray, proj_shape: np.ndarray) -> np.ndarray:
         pass
 
     @abstractmethod
-    def xyz2nm(self, xyz_coord: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
+    def xyz2nm(self, xyz: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
         pass
 
 

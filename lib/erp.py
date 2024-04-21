@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 from PIL import Image
 
-from projectionbase import ProjBase, compose
+from .projectionbase import ProjBase, compose
 
 
 class ERP(ProjBase):

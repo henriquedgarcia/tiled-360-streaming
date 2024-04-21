@@ -1,7 +1,9 @@
 from typing import Union
+
 import numpy as np
 from PIL import Image
-from projectionbase import ProjBase, compose
+
+from .projectionbase import ProjBase, compose
 
 
 class Methods:
@@ -203,31 +205,31 @@ class Methods:
 
 
 class CMP(Methods, ProjBase):
-    def nm2xyz(self, nm_coord: np.ndarray, shape: Union[np.ndarray, tuple], rotate: bool = True):
+    def nm2xyz(self, nm: np.ndarray, proj_shape: Union[np.ndarray, tuple], rotate: bool = True):
         """
         CMP specific.
 
-        :param nm_coord: shape==(2,...)
-        :param shape: (N, M)
+        :param nm: shape==(2,...)
+        :param proj_shape: (N, M)
         :param rotate: True
         :return: x, y, z
         """
-        nmface = self.cmp2nmface(nm_coord, shape)
+        nmface = self.cmp2nmface(nm, proj_shape)
         vuface = self.nmface2vuface(nmface)
         xyz, face = self.vuface2xyz_face(vuface)
         return xyz
 
-    def xyz2nm(self, xyz_coord: np.ndarray, proj_shape: np.ndarray = None, round_nm: bool = False, rotate=True):
+    def xyz2nm(self, xyz: np.ndarray, proj_shape: np.ndarray = None, round_nm: bool = False, rotate=True):
         """
         CMP specific.
 
         :param rotate:
-        :param xyz_coord: [[[x, y, z], ..., M], ..., N] (shape == (N,M,3))
+        :param xyz: [[[x, y, z], ..., M], ..., N] (shape == (N,M,3))
         :param proj_shape: the shape of projection that cover all sphere
         :param round_nm: round the coords? is not needed.
         :return:
         """
-        vuface = self.xyz2vuface(xyz_coord)
+        vuface = self.xyz2vuface(xyz)
         nmface = self.vuface2nmface(vuface, proj_shape=proj_shape)
         cmp, face = self.nmface2cmp_face(nmface, proj_shape=proj_shape)
 
@@ -244,7 +246,7 @@ class CMP(Methods, ProjBase):
         # ax.scatter(-1, 1, -1, marker='o', color='red')
         # ax.scatter(-1, -1, 1, marker='o', color='red')
         # ax.scatter(-1, -1, -1, marker='o', color='red')
-        # [ax.scatter(x, y, z, marker='o', color='red') for x, y, z in zip(xyz_coord[0, 0:4140:100], xyz_coord[1, 0:4140:100], xyz_coord[2, 0:4140:100])]
+        # [ax.scatter(x, y, z, marker='o', color='red') for x, y, z in zip(xyz[0, 0:4140:100], xyz[1, 0:4140:100], xyz[2, 0:4140:100])]
         #
         # face0 = vuface[2] == 0
         # face1 = vuface[2] == 1

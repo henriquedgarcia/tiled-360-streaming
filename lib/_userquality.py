@@ -17,8 +17,8 @@ from .assets import Config, AutoDict, print_error
 from .transform import xyz2ea
 from .util import load_json, save_json, lin_interpol, idx2xy, splitx
 
-from cmp import CMP
-from erp import ERP, compose
+from .cmp import CMP
+from .erp import ERP, compose
 
 pi = np.pi
 pi2 = np.pi * 2
