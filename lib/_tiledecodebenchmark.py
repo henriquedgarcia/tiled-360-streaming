@@ -10,8 +10,7 @@ from matplotlib import pyplot as plt
 
 from .assets import GlobalPaths, Config, Log, AutoDict, Utils, print_error
 from .siti import SiTi
-from .transform import splitx
-from .util import save_json, load_json, run_command, decode_file, get_times
+from .util import save_json, load_json, run_command, decode_file, get_times, splitx
 
 v = ['wingsuit_dubai_cmp_nas']
 t = ['9x6', '12x8']
