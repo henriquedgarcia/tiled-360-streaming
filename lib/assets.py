@@ -10,8 +10,7 @@ from typing import Optional, Union
 
 import pandas as pd
 
-from .transform import splitx
-from .util import run_command
+from .util import run_command, splitx
 
 
 class AutoDict(dict):

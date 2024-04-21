@@ -10,8 +10,8 @@ from skimage.metrics import structural_similarity as ssim, mean_squared_error as
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
 from .assets import Log, AutoDict, print_error
-from .transform import ea2erp, ea2cmp_face, splitx
-from .util import save_json, load_json, save_pickle, load_pickle, iter_frame
+from .transform import ea2erp, ea2cmp_face
+from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx
 
 
 class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
