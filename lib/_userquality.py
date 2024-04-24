@@ -206,10 +206,6 @@ class GetTiles(GetTilesProps):
             # self.plot_test()
 
     def init(self):
-        self.erp_list = {self.tiling: ERP(tiling=self.tiling, proj_res='576x288', fov=self.fov)
-                         for self.tiling in self.tiling_list}
-        self.cmp_list = {self.tiling: CMP(tiling=self.tiling, proj_res='432x288', fov=self.fov)
-                         for self.tiling in self.tiling_list}
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
                           'chunks': {str(i): ["0"] for i in range(1, int(self.duration) + 1)}}
 
@@ -1061,52 +1057,59 @@ class TestGetTiles(GetTiles):
         self.quality = '28'
 
         for self.proj in self.proj_list:
+            if self.proj == 'cmp': continue
             for self.tiling in self.tiling_list:
                 M, N = splitx(self.tiling)
 
                 if self.proj == 'erp':
-                    projection = ERP(tiling=self.tiling, proj_res=self.resolution, fov=self.fov)
+                    projection = ERP(tiling=self.tiling, proj_res='720x360',  vp_shape=(294, 440), fov=self.fov)
                 else:
-                    projection = CMP(tiling=self.tiling, proj_res=self.resolution, fov=self.fov)
+                    projection = CMP(tiling=self.tiling, proj_res='540x360', fov=self.fov)
 
                 for self.name in self.name_list:
-                    get_tiles_data = load_json(self.get_tiles_json)
                     folder = self.get_tiles_folder / f'{self.proj}_{self.name}_{self.tiling}'
                     folder.mkdir(parents=True, exist_ok=True)
 
                     proj_h, proj_w = projection.proj_shape
                     tile_h, tile_w = projection.tile_shape
 
-                    for user in self.users_list:
-                        output_video = folder / f"user{user}.mp4"
-                        if output_video.exists():
-                            self.log(f'The output video {output_video} exist. Skipping', output_video)
-                            continue
-
-                        video_writer = FFmpegWriter(output_video, inputdict={'-r': '30'}, outputdict={'-crf': '0', '-r': '30', '-pix_fmt': 'yuv420p'})
-                        get_tiles_chunks = get_tiles_data[self.proj][self.name][self.tiling][self.user]['chunks']
+                    for user in [self.users_list[0]]:
+                        print(f'{self.proj}, {self.name}, {self.tiling}, {self.user}')
                         yaw_pitch_roll_frames = iter(self.dataset[self.name][user])
-
+                        frame_n = 0
                         for self.chunk in self.chunk_list:
                             frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-                            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
-                                            for self.tile in get_tiles_chunks[self.chunk]}
+                            tiles_reader = {}
 
                             for _ in range(30):  # 30 frames per chunk
-                                for self.tile in get_tiles_chunks[self.chunk]:
-                                    tile_m, tile_n = idx2xy(int(self.tile), (N, M))
-                                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
-                                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = next(tiles_reader[self.tile])
+                                print(f'\tframe: {frame_n}.')
+
+                                output_video = folder / f"user{user}_{frame_n}.png"
+                                if output_video.exists():
+                                    print(f'\t\tFrame exists. skipping')
+                                    continue
 
                                 projection.yaw_pitch_roll = next(yaw_pitch_roll_frames)
-                                # vp_array = projection.get_viewport(frame_proj, yaw_pitch_roll)  # .astype('float64')
-                                # vp_array.astype('uint8')
-                                frame = v360.compose(projection, Image.fromarray(frame_proj))
-                                video_writer.writeFrame(frame)
-                            video_writer.close()
+                                seen_tiles = projection.get_vptiles()
+                                print(f'\ttiles {seen_tiles}.')
 
+                                for self.tile in seen_tiles:
+                                    tile_m, tile_n = idx2xy(int(self.tile), (N, M))
+                                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
+                                    try:
+                                        tile_frame = next(tiles_reader[self.tile])
+                                    except KeyError:
+                                        tiles_reader[self.tile] = FFmpegReader(f'{self.segment_file}').nextFrame()
+                                        tile_frame = next(tiles_reader[self.tile])
+
+                                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
+                                    tile_resized_array = np.asarray(tile_resized)
+                                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
+
+                                frame: Image = v360.compose(projection, Image.fromarray(frame_proj))
+                                frame.save(output_video)
+                                frame_n += 1
                         print('')
-                        video_writer.close()
 
 
 UserMetricsOptions = {'0': ProcessNasrabadi,  # 0
