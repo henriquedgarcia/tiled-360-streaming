@@ -8,17 +8,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
-from skvideo.io import FFmpegWriter, FFmpegReader
+from skvideo.io import FFmpegReader
 
 import lib.erp as v360
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
 from ._tilequality import SegmentsQualityPaths
 from .assets import Config, AutoDict, print_error
+from .cmp import CMP
+from .erp import ERP
 from .transform import xyz2ea
 from .util import load_json, save_json, lin_interpol, idx2xy, splitx
-
-from .cmp import CMP
-from .erp import ERP, compose
 
 pi = np.pi
 pi2 = np.pi * 2
@@ -794,11 +793,6 @@ class ViewportPSNRProps(GetTilesProps):
 class ViewportPSNR(ViewportPSNRProps):
     seen_tiles_by_chunks: dict
 
-    def __init__(self, config: str):
-        self.config = Config(config)
-        self.print_resume()
-        self.main()
-
     def main(self):
         for self.video in self.video_list:
             for self.tiling in self.tiling_list:
@@ -841,8 +835,8 @@ class ViewportPSNR(ViewportPSNRProps):
                     self.mount_frame(proj_frame_ref, seen_tiles, '0')
                     self.mount_frame(proj_frame, seen_tiles, quality)
 
-                    viewport_frame_ref = self.erp.get_viewport(proj_frame_ref, yaw_pitch_roll)  # .astype('float64')
-                    viewport_frame = self.erp.get_viewport(proj_frame, yaw_pitch_roll)  # .astype('float64')
+                    viewport_frame_ref = self.erp.get_vp_image(proj_frame_ref, yaw_pitch_roll)  # .astype('float64')
+                    viewport_frame = self.erp.get_vp_image(proj_frame, yaw_pitch_roll)  # .astype('float64')
                     # </editor-fold>
 
                     mse = np.average((viewport_frame_ref - viewport_frame) ** 2)
@@ -891,7 +885,7 @@ class ViewportPSNR(ViewportPSNRProps):
                 # Image.fromarray(proj_frame[..., ::-1]).show()
                 # Image.fromarray(cv.cvtColor(proj_frame, cv.COLOR_BGR2RGB)).show()
 
-                viewport_frame = self.erp.get_viewport(proj_frame, yaw_pitch_roll)  # .astype('float64')
+                viewport_frame = self.erp.get_vp_image(proj_frame, yaw_pitch_roll)  # .astype('float64')
 
                 print(f'\r    chunk{self.chunk}_crf{self.quality}_frame{chunk_frame_idx} - {time.time() - start: 0.3f} s', end='')
                 # vptiles = self.erp.get_vptiles(yaw_pitch_roll)
@@ -912,7 +906,7 @@ class ViewportPSNR(ViewportPSNRProps):
 
                 mask_all_tiles_borders = Image.fromarray(self.erp.draw_all_tiles_borders()).resize((width, height))
                 mask_vp_tiles = Image.fromarray(self.erp.draw_vp_tiles(yaw_pitch_roll)).resize((width, height))
-                mask_vp = Image.fromarray(self.erp.draw_vp_mask(yaw_pitch_roll, lum=200)).resize((width, height))
+                mask_vp = Image.fromarray(self.erp.draw_vp_mask(lum=200)).resize((width, height))
                 mask_vp_borders = Image.fromarray(self.erp.draw_vp_borders(yaw_pitch_roll)).resize((width, height))
 
                 frame_img = Image.composite(cover_r, proj_frame_img, mask=mask_all_tiles_borders)
@@ -942,7 +936,7 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
     workfolder = None
 
     def __init__(self, config):
-        self.config = config
+        self.config = Config(config)
         # self.workfolder = super().workfolder / 'viewport_videos'  # todo: fix it
         self.workfolder.mkdir(parents=True, exist_ok=True)
 
@@ -1062,7 +1056,7 @@ class TestGetTiles(GetTiles):
                 M, N = splitx(self.tiling)
 
                 if self.proj == 'erp':
-                    projection = ERP(tiling=self.tiling, proj_res='720x360',  vp_shape=(294, 440), fov=self.fov)
+                    projection = ERP(tiling=self.tiling, proj_res='720x360', vp_shape=(294, 440), fov=self.fov)
                 else:
                     projection = CMP(tiling=self.tiling, proj_res='540x360', fov=self.fov)
 
