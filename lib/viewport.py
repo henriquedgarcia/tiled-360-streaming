@@ -9,7 +9,6 @@ from .util import get_borders, rot_matrix
 class ViewportProps:
     base_normals: np.ndarray
     fov: np.ndarray
-    vp_state: set
     vp_xyz_base: np.ndarray
     vp_xyz_rotated: np.ndarray
     vp_shape: np.ndarray
@@ -47,7 +46,7 @@ class ViewportProps:
         if self._normals_rotated is not None:
             return self._normals_rotated
 
-        self._normals_rotated = (self.base_normals.T @ self.mat_rot.T).T
+        self._normals_rotated = np.tensordot(self.mat_rot, self.base_normals, axes=1)
         return self._normals_rotated
 
     @property
@@ -55,7 +54,7 @@ class ViewportProps:
         if self._vp_rotated_xyz is not None:
             return self._vp_rotated_xyz
 
-        self._vp_rotated_xyz = (self.base_vp_xyz.T @ self.mat_rot.T).T
+        self._vp_rotated_xyz = np.tensordot(self.mat_rot, self.base_vp_xyz, axes=1)
         return self._vp_rotated_xyz
 
 
@@ -71,10 +70,8 @@ class Viewport(ViewportProps):
         """
         self.fov = fov
         self.vp_shape = vp_shape
-        self.vp_state = set()
         self._make_normals_base()
         self._make_vp_xyz_base()
-
         self.yaw_pitch_roll = np.array([0, 0, 0])
 
     def _make_normals_base(self) -> None:
@@ -106,7 +103,7 @@ class Viewport(ViewportProps):
         """
         fov_2 = self.fov / (2, 2)
         cos_fov = np.cos(fov_2)
-        sin_fov = np.cos(fov_2)
+        sin_fov = np.sin(fov_2)
 
         self.base_normals = np.array([[0, -cos_fov[0], -sin_fov[0]],  # top
                                       [0, cos_fov[0], -sin_fov[0]],  # bottom
@@ -147,25 +144,26 @@ class Viewport(ViewportProps):
         :return: A boolean         belong = np.all(inner_product <= 0, axis=0).reshape(self.shape)
 
         """
-        inner_prod = self.rotated_normals.T @ x_y_z
-        px_in_vp = np.all(inner_prod <= 0, axis=0)
-        is_vp = np.any(px_in_vp)
+        inner_prod = np.tensordot(self.rotated_normals.T, x_y_z, axes=1)
+        belong = np.all(inner_prod <= 0, axis=0)
+        is_vp = np.any(belong)
         return is_vp
 
     def get_vp(self, frame: np.ndarray, xyz2nm: Callable) -> np.ndarray:
         """
 
-        :param frame: The projection image.
+        :param frame: The projection image. (N,M,C)
         :param xyz2nm: A function from 3D to projection.
         :return: The viewport image (RGB)
         """
         if self._vp_img is not None:
             return self._vp_img
 
-        nm_coord = xyz2nm(self.vp_xyz_rotated, frame.shape)
+        nm_coord = xyz2nm(self.vp_xyz_rotated, frame.shape[:2])
+        nm_coord = nm_coord.transpose((1, 2, 0))
         self._vp_img = cv2.remap(frame,
-                                 map1=nm_coord[1:2, ...].astype(np.float32),
-                                 map2=nm_coord[0:1, ...].astype(np.float32),
+                                 map1=nm_coord[..., 1:2].astype(np.float32),
+                                 map2=nm_coord[..., 0:1].astype(np.float32),
                                  interpolation=cv2.INTER_LINEAR,
                                  borderMode=cv2.BORDER_WRAP)
         # show1(self._out)
