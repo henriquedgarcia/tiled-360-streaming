@@ -83,7 +83,8 @@ class ProjActions:
         ea[1, sel] = ea[1, sel] + _180_deg
 
         # if yaw>=180 or yaw<180
-        sel = ea[1] >= _180_deg or ea[1] < -_180_deg
+        sel = np.logical_or(ea[1] >= _180_deg, ea[1] < -_180_deg)
+        # sel = ea[1] >= _180_deg or ea[1] < -_180_deg
         ea[1, sel] = (ea[1, sel] + _180_deg) % _360_deg - _180_deg
 
         return ea
@@ -99,13 +100,7 @@ class ProjActions:
         if yaw_pitch_roll is not None:
             self.yaw_pitch_roll = yaw_pitch_roll
 
-        self.frame_img = frame_img
-
-        nm = self.xyz2nm(self.viewport.vp_xyz_rotated, self.frame_img.shape)
-        nm = nm.transpose((1, 2, 0))
-        out = cv2.remap(self.frame_img, map1=nm[..., 1:2].astype(np.float32), map2=nm[..., 0:1].astype(np.float32), interpolation=cv2.INTER_LINEAR,
-                        borderMode=cv2.BORDER_WRAP)
-
+        out = self.viewport.get_vp(frame_img, self.xyz2nm)
         return out
 
     class TilesMethods:
@@ -166,7 +161,12 @@ class ProjActions:
         show1(self.canvas)
 
     def draw_tile_border(self, idx, lum=255) -> np.ndarray:
-        self.clear_projection()
+        """
+        Do not return copy
+        :param idx:
+        :param lum:
+        :return:
+        """
         n, m = self.tile_borders_nm[idx]
         self.canvas[n, m] = lum
         return self.canvas
@@ -175,13 +175,13 @@ class ProjActions:
         self.clear_projection()
         for tile in range(self.n_tiles):
             self.draw_tile_border(idx=tile, lum=lum)
-        return self.canvas
+        return self.canvas.copy()
 
     def draw_vp_tiles(self, lum=255):
         self.clear_projection()
         for tile in self.get_vptiles():
             self.draw_tile_border(idx=int(tile), lum=lum)
-        return self.canvas
+        return self.canvas.copy()
 
     proj_coord_xyz: np.ndarray
 
@@ -192,11 +192,16 @@ class ProjActions:
         :return: a numpy.ndarray with one deep color
         """
         self.clear_projection()
-        rotated_normals = self.viewport.rotated_normals.T
-        inner_product = np.tensordot(rotated_normals, self.proj_coord_xyz, axes=1)
-        belong = np.all(inner_product <= 0, axis=0)
+        proj_coord_xyz = self.proj_coord_xyz
+        rotated_normals = self.viewport.rotated_normals
+
+        inner_prod = np.tensordot(rotated_normals.T, proj_coord_xyz, axes=1)
+        belong = np.all(inner_prod <= 0, axis=0)
         self.canvas[belong] = lum
-        return self.canvas
+
+        # belong = np.all(inner_product <= 0, axis=0)
+        # self.canvas[belong] = lum
+        return self.canvas.copy()
 
     def draw_vp_borders(self, lum=255, thickness=1):
         """
@@ -209,7 +214,7 @@ class ProjActions:
         vp_borders_xyz = get_borders(coord_nm=self.viewport.vp_xyz_rotated, thickness=thickness)
         nm = self.xyz2nm(vp_borders_xyz, proj_shape=self.proj_shape).astype(int)
         self.canvas[nm[0, ...], nm[1, ...]] = lum
-        return self.canvas
+        return self.canvas.copy()
 
 
 class ProjProps(ProjActions, ABC):
@@ -225,7 +230,7 @@ class ProjProps(ProjActions, ABC):
 
 
 class ProjBase(ProjProps, ABC):
-    def __init__(self, *, proj_res: str, tiling: str, fov: str, vp_shape: np.ndarray = None):
+    def __init__(self, *, proj_res: str, tiling: str, fov: str, vp_shape: Union[np.ndarray, tuple, list] = None):
         # About projection
         self.proj_res = proj_res
         self.proj_shape = np.array(splitx(self.proj_res)[::-1], dtype=int)
@@ -254,8 +259,8 @@ class ProjBase(ProjProps, ABC):
         self.fov = fov
         self.fov_shape = np.deg2rad(splitx(self.fov)[::-1])
         if vp_shape is None:
-            vp_shape = np.round(self.fov_shape * self.proj_shape / (pi, 2 * pi)).astype('int')
-        self.vp_shape = vp_shape
+            vp_shape = np.round(self.fov_shape * self.proj_shape[0]/4).astype('int')
+        self.vp_shape = np.asarray(vp_shape)
         self.viewport = Viewport(self.vp_shape, self.fov_shape)
 
         self.yaw_pitch_roll = [0, 0, 0]
@@ -269,11 +274,8 @@ class ProjBase(ProjProps, ABC):
         pass
 
 
-def compose(proj: ProjBase, proj_frame_array: Image) -> np.ndarray:
-    print(f'The viewport touch the tiles {proj.get_vptiles()}.')
-
-    frame_array = np.asarray(proj_frame_array)
-    height, width, _ = frame_array.shape
+def compose(proj: ProjBase, proj_frame_image: Image) -> Image:
+    height, width = proj_frame_image.height, proj_frame_image.width
 
     # Get covers
     cover_red = Image.new("RGB", (width, height), (255, 0, 0))
@@ -288,21 +290,21 @@ def compose(proj: ProjBase, proj_frame_array: Image) -> np.ndarray:
     mask_vp_borders = Image.fromarray(proj.draw_vp_borders())
 
     # Composite mask with projection
-    proj_frame_array = Image.composite(cover_red, proj_frame_array, mask=mask_all_tiles_borders)
-    proj_frame_array = Image.composite(cover_green, proj_frame_array, mask=mask_vp_tiles)
-    proj_frame_array = Image.composite(cover_gray, proj_frame_array, mask=mask_vp)
-    proj_frame_array = Image.composite(cover_blue, proj_frame_array, mask=mask_vp_borders)
+    proj_frame_image_c = Image.composite(cover_red, proj_frame_image, mask=mask_all_tiles_borders)
+    proj_frame_image_c = Image.composite(cover_green, proj_frame_image_c, mask=mask_vp_tiles)
+    proj_frame_image_c = Image.composite(cover_gray, proj_frame_image_c, mask=mask_vp)
+    proj_frame_image_c = Image.composite(cover_blue, proj_frame_image_c, mask=mask_vp_borders)
 
     # Get Viewport
-    viewport_array = proj.get_vp_image(frame_array)
+    viewport_array = proj.get_vp_image(np.asarray(proj_frame_image))
     vp_image = Image.fromarray(viewport_array)
     width_vp = int(np.round(height * vp_image.width / vp_image.height))
     vp_image_resized = vp_image.resize((width_vp, height))
 
     # Compose new image
     new_im = Image.new('RGB', (width + width_vp + 2, height), (255, 255, 255))
-    new_im.paste(proj_frame_array, (0, 0))
+    new_im.paste(proj_frame_image_c, (0, 0))
     new_im.paste(vp_image_resized, (width + 2, 0))
 
-    new_im.show()
-    return np.asarray(new_im)
+    # new_im.show()
+    return new_im
