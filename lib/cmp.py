@@ -157,6 +157,12 @@ class Methods:
 
     @staticmethod
     def vuface2nmface(vuface, proj_shape=None):
+        """
+
+        :param vuface:
+        :param proj_shape: (h, w)
+        :return:
+        """
         nm_face = np.zeros(vuface.shape)
         nm_face[2] = vuface[2]
 
@@ -169,11 +175,17 @@ class Methods:
 
     @staticmethod
     def nmface2cmp_face(nmface, proj_shape=None):
+        """
+
+        :param nmface:
+        :param proj_shape: (h, w)
+        :return:
+        """
         new_shape = (2,) + nmface.shape[1:]
         nm = np.zeros(new_shape, dtype=int)
 
         if proj_shape is None:
-            proj_shape = nmface.shape
+            proj_shape = nmface.shape[-2:]
         face_size = proj_shape[-1] // 3
 
         face0 = nmface[2] == 0
@@ -215,7 +227,7 @@ class CMP(Methods, ProjBase):
         :return: x, y, z
         """
         nmface = self.cmp2nmface(nm, proj_shape)
-        vuface = self.nmface2vuface(nmface)
+        vuface = self.nmface2vuface(nmface, proj_shape)
         xyz, face = self.vuface2xyz_face(vuface)
         return xyz
 
