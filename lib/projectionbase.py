@@ -135,12 +135,16 @@ class ProjActions:
             tile_borders_xyz.append(borders_xyz)
         return tile_borders_xyz
 
-    def get_vptiles(self) -> list[str]:
+    def get_vptiles(self, yaw_pitch_roll=None) -> list[str]:
         """
 
         :return:
         """
         if self.tiling == '1x1': return ['0']
+
+        if yaw_pitch_roll is not None:
+            self.yaw_pitch_roll = yaw_pitch_roll
+
         vptiles = []
         for tile in range(self.n_tiles):
             if self.viewport.is_viewport(self.tile_borders_xyz[tile]):
@@ -247,7 +251,8 @@ class ProjBase(ProjProps, ABC):
         # About Tiles
         self.n_tiles = self.tiling_h * self.tiling_w
         self.tile_shape = (self.proj_shape / self.tiling_shape).astype(int)
-        self.tile_h, self.tile_w = self.tile_shape
+        self.tile_h = self.tile_shape[0]
+        self.tile_w = self.tile_shape[1]
         self.tile_position_list = self.get_tile_position_list()
         self.tile_border_base = get_borders(shape=self.tile_shape)
         self.tile_borders_nm = self.get_tile_borders_nm()
