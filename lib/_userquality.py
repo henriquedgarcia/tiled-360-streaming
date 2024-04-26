@@ -13,9 +13,10 @@ from skvideo.io import FFmpegReader
 import lib.erp as v360
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths
 from ._tilequality import SegmentsQualityPaths
-from .assets import Config, AutoDict, print_error
+from .assets import AutoDict, print_error
 from .cmp import CMP
 from .erp import ERP
+from .projectionbase import ProjBase
 from .transform import xyz2ea
 from .util import load_json, save_json, lin_interpol, idx2xy, splitx
 
@@ -185,6 +186,7 @@ class GetTiles(GetTilesProps):
     cmp_list: dict[str, v360.ProjBase]
     tiles_1x1: dict[str, Union[dict[str, list[str]], list[list[str]]]]
     error: bool
+    projection_dict: dict
 
     def main(self):
         self.init()
@@ -208,9 +210,16 @@ class GetTiles(GetTilesProps):
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
                           'chunks': {str(i): ["0"] for i in range(1, int(self.duration) + 1)}}
 
+        self.projection_dict = AutoDict()
+        for self.tiling in self.tiling_list:
+            erp = ERP(tiling=self.tiling, proj_res='720x360', vp_shape=(294, 440), fov=self.fov)
+            cmp = CMP(tiling=self.tiling, proj_res='540x360', vp_shape=(294, 440), fov=self.fov)
+            self.projection_dict['erp'][self.tiling] = erp
+            self.projection_dict['cmp'][self.tiling] = cmp
+
     def skip(self, check_result=True):
         self.results = AutoDict()
-        self.changed_flag = False
+        self.changed_flag = True
         self.error = False
 
         if self.get_tiles_json.exists():
@@ -228,18 +237,14 @@ class GetTiles(GetTilesProps):
             self.results[self.proj][self.name][self.tiling][self.user] = self.tiles_1x1
             return
 
-        if self.proj == 'erp':
-            self.projection = self.erp_list[self.tiling]
-        elif self.proj == 'cmp':
-            self.projection = self.cmp_list[self.tiling]
+        projection = self.projection_dict[self.proj][self.tiling]
 
         result_frames = []
         result_chunks = {}
         tiles_in_chunk = set()
 
         for frame, (yaw_pitch_roll) in enumerate(self.dataset[self.name][self.user]):
-            self.projection.yaw_pitch_roll = yaw_pitch_roll
-            vptiles: list[str] = self.projection.get_vptiles()
+            vptiles: list[str] = projection.get_vptiles(yaw_pitch_roll)
             tiles_in_chunk.update(vptiles)
             result_frames.append(vptiles)
 
@@ -494,7 +499,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
             ax: list[plt.Axes]
             fig, ax = plt.subplots(2, 4, figsize=(12, 5), dpi=200)
             ax: plt.Axes
-            ax = list(ax.flat)
+            ax = np.ravel(ax)
             result_by_quality = AutoDict()  # By quality by chunk
 
             for self.quality in self.quality_list:
@@ -578,7 +583,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
             ax: list[plt.Axes]
             fig, ax = plt.subplots(2, 5, figsize=(15, 5), dpi=200)
             ax: plt.Axes
-            ax = list(ax.flat)
+            ax = np.ravel(ax)
 
             for self.quality in self.quality_list:
                 result_lv2 = defaultdict(list)  # By chunk
@@ -605,7 +610,7 @@ class UserProjectionMetrics(UserProjectionMetricsProps):
                             result_lv1[f'{self.metric}_q2'].append(percentile[3])
                             result_lv1[f'{self.metric}_max'].append(percentile[4])
 
-                    # each metrics represent the metrics by complete reprodution of the one vídeo with one tiling in one quality for one user
+                    # each metrics represent the metrics by complete reproduction of the one vídeo with one tiling in one quality for one user
                     result_lv2[f'time_total'].append(np.sum(result_lv1[f'time_sum']))  # tempo total sem decodificação paralela
                     result_lv2[f'time_avg_sum'].append(np.average(result_lv1[f'time_sum']))  # tempo médio sem decodificação paralela
                     result_lv2[f'time_total_avg'].append(np.sum(result_lv1[f'time_avg']))  # tempo total com decodificação paralela
@@ -736,7 +741,9 @@ class ViewportPSNRProps(GetTilesProps):
                 return self._erp_list
             except AttributeError:
                 print(f'Loading list of ERPs')
-                self._erp_list = {tiling: ERP(tiling, self.resolution, self.fov, vp_shape=np.array([90, 110]) * 6) for tiling in self.tiling_list}
+                self._erp_list = {tiling: ERP(tiling=tiling, proj_res=self.resolution,
+                                              fov=self.fov, vp_shape=np.array([90, 110]) * 6)
+                                  for tiling in self.tiling_list}
 
     @property
     def user(self):
@@ -935,15 +942,16 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
     readers: AutoDict
     workfolder = None
 
-    def __init__(self, config):
-        self.config = Config(config)
+    def main(self):
         # self.workfolder = super().workfolder / 'viewport_videos'  # todo: fix it
         self.workfolder.mkdir(parents=True, exist_ok=True)
 
         for self.video in self.video_list:
             self.get_tiles_data = load_json(self.get_tiles_json)
-            self.erp_list = {tiling: v360.ERP(tiling, self.resolution, self.fov) for tiling in self.tiling_list}
-
+            self.erp_list = {tiling: v360.ERP(tiling=tiling,
+                                              proj_res=self.resolution,
+                                              fov=self.fov)
+                             for tiling in self.tiling_list}
             for self.tiling in self.tiling_list:
                 self.erp = self.erp_list[self.tiling]
                 self.tile_h, self.tile_w = self.erp.tile_shape[:2]
@@ -1031,13 +1039,71 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
 
 class TestGetTiles(GetTiles):
+    _get_tiles_data: dict
+    projection_dict: dict
+
+    def init(self):
+        self.tiling_list.remove('1x1')
+        self.quality = '28'
+        self._get_tiles_data = {}
+        self.make_projections()
+
+    @property
+    def get_tiles_data(self):
+        query = f'{self.proj}_{self.name}'
+        try:
+            data = self._get_tiles_data[query]
+        except KeyError:
+            data = load_json(self.get_tiles_json)
+            self._get_tiles_data[query] = data
+        return data
+
+    @property
+    def get_tiles_samples(self):
+        """
+
+        :return: {'frame': list,  # 1800 elements
+                  'chunks': {str: list}} # 60 elements
+        """
+        return self.get_tiles_data[self.proj][self.name][self.tiling][self.user]
+
+    def make_projections(self):
+        self.projection_dict = {}
+        for self.tiling in self.tiling_list:
+            erp = ERP(tiling=self.tiling, proj_res='720x360', vp_shape=(294, 440), fov=self.fov)
+            cmp = CMP(tiling=self.tiling, proj_res='540x360', vp_shape=(294, 440), fov=self.fov)
+            self.projection_dict['erp'] = {self.tiling: erp}
+            self.projection_dict['cmp'] = {self.tiling: cmp}
+
+    @property
+    def projection_obj(self) -> ProjBase:
+        return self.projection_dict[self.proj][self.tiling]
+
+    M: int
+    N: int
+
+    @property
+    def tiling(self):
+        return self._tiling
+
+    @tiling.setter
+    def tiling(self, value):
+        self.M, self.N = splitx(self.tiling)
+        self._tiling = value
+
+    @property
+    def output_video(self):
+        folder = self.get_tiles_folder / 'videos' / f'{self.proj}_{self.name}_{self.tiling}'
+        folder.mkdir(parents=True, exist_ok=True)
+        output_video = folder / f"user{self.user}_{self.frame_n}.png"
+
+        return output_video
+
     def main(self):
         self.init()
 
         for self.proj in self.proj_list:
             for self.name in self.name_list:
-                self.get_tiles_data = load_json(self.get_tiles_json)
-
                 for self.tiling in self.tiling_list:
                     for self.user in self.users_list:
                         self.worker()
@@ -1046,64 +1112,51 @@ class TestGetTiles(GetTiles):
                     print('\n\tSaving.')
                     save_json(self.results, self.get_tiles_json)
 
+    frame_n: int
+
     def worker(self, overwrite=False):
-        self.tiling_list.remove('1x1')
-        self.quality = '28'
+        print(f'{self.proj}, {self.name}, {self.tiling}, {self.user}')
+        yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
+        self.frame_n = 0
+        seen_tiles = self.get_tiles_samples['chunk']
 
-        for self.proj in self.proj_list:
-            if self.proj == 'cmp': continue
-            for self.tiling in self.tiling_list:
-                M, N = splitx(self.tiling)
+        proj_h, proj_w = self.projection_obj.proj_shape
+        tile_h, tile_w = self.projection_obj.tile_shape
 
-                if self.proj == 'erp':
-                    projection = ERP(tiling=self.tiling, proj_res='720x360', vp_shape=(294, 440), fov=self.fov)
-                else:
-                    projection = CMP(tiling=self.tiling, proj_res='540x360', fov=self.fov)
+        for self.chunk in self.chunk_list:
+            frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
+            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
+                            for self.tile in seen_tiles}
 
-                for self.name in self.name_list:
-                    folder = self.get_tiles_folder / f'{self.proj}_{self.name}_{self.tiling}'
-                    folder.mkdir(parents=True, exist_ok=True)
+            for _ in range(30):  # 30 frames per chunk
+                print(f'\tframe: {self.frame_n}.')
 
-                    proj_h, proj_w = projection.proj_shape
-                    tile_h, tile_w = projection.tile_shape
+                if self.output_video.exists():
+                    print(f'\t\tFrame exists. skipping')
+                    continue
 
-                    for user in [self.users_list[0]]:
-                        print(f'{self.proj}, {self.name}, {self.tiling}, {self.user}')
-                        yaw_pitch_roll_frames = iter(self.dataset[self.name][user])
-                        frame_n = 0
-                        for self.chunk in self.chunk_list:
-                            frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-                            tiles_reader = {}
+                self.projection_obj.yaw_pitch_roll = next(yaw_pitch_roll_iter)
+                # seen_tiles = projection.get_vptiles()
+                print(f'\ttiles {seen_tiles}.')
 
-                            for _ in range(30):  # 30 frames per chunk
-                                print(f'\tframe: {frame_n}.')
+                for self.tile in seen_tiles:
+                    tile_m, tile_n = idx2xy(int(self.tile), (self.N, self.M))
+                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
 
-                                output_video = folder / f"user{user}_{frame_n}.png"
-                                if output_video.exists():
-                                    print(f'\t\tFrame exists. skipping')
-                                    continue
+                    try:
+                        tile_frame = next(tiles_reader[self.tile])
+                    except KeyError:
+                        tiles_reader[self.tile] = FFmpegReader(f'{self.segment_file}').nextFrame()
+                        tile_frame = next(tiles_reader[self.tile])
 
-                                projection.yaw_pitch_roll = next(yaw_pitch_roll_frames)
-                                seen_tiles = projection.get_vptiles()
-                                print(f'\ttiles {seen_tiles}.')
+                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
+                    tile_resized_array = np.asarray(tile_resized)
+                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
 
-                                for self.tile in seen_tiles:
-                                    tile_m, tile_n = idx2xy(int(self.tile), (N, M))
-                                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
-                                    try:
-                                        tile_frame = next(tiles_reader[self.tile])
-                                    except KeyError:
-                                        tiles_reader[self.tile] = FFmpegReader(f'{self.segment_file}').nextFrame()
-                                        tile_frame = next(tiles_reader[self.tile])
-
-                                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
-                                    tile_resized_array = np.asarray(tile_resized)
-                                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
-
-                                frame: Image = v360.compose(projection, Image.fromarray(frame_proj))
-                                frame.save(output_video)
-                                frame_n += 1
-                        print('')
+                frame: Image = v360.compose(self.projection_obj, Image.fromarray(frame_proj))
+                frame.save(self.output_video)
+                self.frame_n += 1
+        print('')
 
 
 UserMetricsOptions = {'0': ProcessNasrabadi,  # 0
