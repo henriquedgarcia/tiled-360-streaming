@@ -19,7 +19,7 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
 
     @property
     def quality_folder(self) -> Path:
-        folder = self.quality_folder
+        folder = self.project_path / self._quality_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 
@@ -142,7 +142,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
     def read_video_quality_csv(self):
         try:
-            self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8')
+            self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8', index_col=0)
         except FileNotFoundError as e:
             print(f'\n\t\tCSV_NOTFOUND_ERROR')
             self.log('CSV_NOTFOUND_ERROR', self.video_quality_csv)
@@ -168,7 +168,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             self.tile_position[self.tile] = [x1, y1, x2, y2]
 
     def check_video_quality_csv(self):
-        if len(self.chunk_quality_df['frame']) != int(self.gop):
+        if len(self.chunk_quality_df['MSE']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
             print_error(f'\n\t\tMISSING_FRAMES', end='')
             self.log(f'MISSING_FRAMES', self.video_quality_csv)
@@ -193,8 +193,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
     @property
     def chunk_results(self):
         results = self.results
-        for state in self.state:
-            results = results[state]
+        results = results[self.proj][self.name][self.tiling]
+        results = results[self.quality][self.tile][self.chunk]
         return results
 
 
@@ -208,8 +208,9 @@ class SegmentsQuality(SegmentsQualityProps):
         print(f'\r{self.state_str()}: ', end='')
 
         if self.skip(): return
-
         chunk_quality = defaultdict(list)
+        # if self.video_quality_csv.exists():
+            # chunk_quality = self.chunk_quality_df.to_dict(orient='list')
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
         iter_segment = iter_frame(self.segment_file)
@@ -217,13 +218,20 @@ class SegmentsQuality(SegmentsQualityProps):
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
             print(f'\r\t{frame=}', end='')
-            chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
-            chunk_quality['MSE'].append(self._mse(frame1, frame2))
-            chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
             chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
-
-        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
+        self.chunk_quality_df['S-MSE'] = chunk_quality['S-MSE']
+        self.chunk_quality_df.to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\n\ttime={time() - start}.")
+
+        # todo: descomentar isso e apagar o de cima
+        # for frame, (frame1, frame2) in enumerate(zip_frames):
+        #     print(f'\r\t{frame=}', end='')
+        #     chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
+        #     chunk_quality['MSE'].append(self._mse(frame1, frame2))
+        #     chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
+        #     chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
+        # pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
+        # print(f"\n\ttime={time() - start}.")
 
     def skip(self):
         skip = False
@@ -244,7 +252,9 @@ class SegmentsQuality(SegmentsQualityProps):
             print('')
             return skip
 
-        return True
+        # todo: descomentar isso e apagar o return de baixo
+        # return True
+        return False
 
     def iterator(self):
         self.init()
@@ -257,6 +267,7 @@ class SegmentsQuality(SegmentsQualityProps):
                 self.load_sph_file()
 
             for self.tiling in self.tiling_list:
+                if self.tiling == '1x1': continue
                 self.update_tile_position()
 
                 for self.quality in self.quality_list:
@@ -335,7 +346,7 @@ class SegmentsQuality(SegmentsQualityProps):
 
         sqr_dif = (tile_ref_m - tile_deg_m) ** 2
 
-        smse_nn = sqr_dif.sum() / 655362
+        smse_nn = sqr_dif.sum() / np.sum(self.tile_mask)
         return smse_nn
 
     def _collect_ffmpeg_psnr(self) -> dict[str, float]:
