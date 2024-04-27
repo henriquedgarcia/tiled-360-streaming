@@ -16,18 +16,14 @@ class Attributes:
     nm2xyz: Callable
     proj_coord_xyz: np.ndarray
     proj_shape: np.ndarray
-    proj_shape: np.ndarray
     tile_border_base: np.ndarray
     tile_borders_nm: np.ndarray
     tile_borders_xyz: list
     tile_position_list: list
     tile_shape: Union[np.ndarray, tuple]
-    tile_shape: Union[np.ndarray, tuple]
     tiling: str
     viewport: Viewport
-    viewport: Viewport
     xyz2nm: Callable
-    yaw_pitch_roll: np.ndarray
     yaw_pitch_roll: np.ndarray
 
 
