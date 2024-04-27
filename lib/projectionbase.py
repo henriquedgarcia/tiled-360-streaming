@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Callable
 
 import numpy as np
 from PIL import Image
@@ -9,30 +9,29 @@ from .util import get_borders, show1, splitx
 from .viewport import Viewport
 
 
-class ProjActions:
-    @abstractmethod
-    def nm2xyz(self, nm: np.ndarray, proj_shape: np.ndarray) -> np.ndarray:
-        """
-        Projection specific.
+class Attributes:
+    canvas: np.ndarray
+    frame_img = np.zeros([0])
+    n_tiles: int
+    nm2xyz: Callable
+    proj_coord_xyz: np.ndarray
+    proj_shape: np.ndarray
+    proj_shape: np.ndarray
+    tile_border_base: np.ndarray
+    tile_borders_nm: np.ndarray
+    tile_borders_xyz: list
+    tile_position_list: list
+    tile_shape: Union[np.ndarray, tuple]
+    tile_shape: Union[np.ndarray, tuple]
+    tiling: str
+    viewport: Viewport
+    viewport: Viewport
+    xyz2nm: Callable
+    yaw_pitch_roll: np.ndarray
+    yaw_pitch_roll: np.ndarray
 
-        :param nm: shape==(2,...)
-        :param proj_shape:
-        :return:
-        """
 
-        pass
-
-    @abstractmethod
-    def xyz2nm(self, xyz: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
-        """
-        Projection specific.
-
-        :param xyz: shape==(2,...)
-        :param proj_shape:
-        :return:
-        """
-        pass
-
+class TransformMethods:
     @staticmethod
     def xyz2ea(xyz: np.ndarray) -> np.ndarray:
         """
@@ -87,13 +86,8 @@ class ProjActions:
 
         return ea
 
-    class ViewportMethods:
-        ...
 
-    viewport: Viewport
-    frame_img = np.zeros([0])
-    yaw_pitch_roll: np.ndarray
-
+class ViewportMethods(TransformMethods, Attributes):
     def get_vp_image(self, frame_img: np.ndarray, yaw_pitch_roll=None) -> np.ndarray:
         if yaw_pitch_roll is not None:
             self.yaw_pitch_roll = yaw_pitch_roll
@@ -101,18 +95,8 @@ class ProjActions:
         out = self.viewport.get_vp(frame_img, self.xyz2nm)
         return out
 
-    class TilesMethods:
-        ...
 
-    proj_shape: np.ndarray
-    tile_shape: Union[np.ndarray, tuple]
-    n_tiles: int
-    tile_position_list: list
-    tile_borders_xyz: list
-    tile_border_base: np.ndarray
-    tile_borders_nm: np.ndarray
-    tiling: str
-
+class TilesMethods(TransformMethods, Attributes):
     def get_tile_position_list(self):
         tile_position_list = []
         for n in range(0, self.proj_shape[0], self.tile_shape[0]):
@@ -151,11 +135,8 @@ class ProjActions:
                 vptiles.append(str(tile))
         return vptiles
 
-    class DrawMethods:
-        ...
 
-    canvas: np.ndarray
-
+class DrawMethods(TilesMethods, Attributes):
     def clear_projection(self):
         self.canvas[...] = 0
 
@@ -185,8 +166,6 @@ class ProjActions:
             self.draw_tile_border(idx=int(tile), lum=lum)
         return self.canvas.copy()
 
-    proj_coord_xyz: np.ndarray
-
     def draw_vp_mask(self, lum=200) -> np.ndarray:
         """
         Project the sphere using ERP. Where is Viewport the
@@ -212,6 +191,7 @@ class ProjActions:
         :param thickness: in pixel.
         :return: a numpy.ndarray with one deep color
         """
+
         self.clear_projection()
         vp_borders_xyz = get_borders(coord_nm=self.viewport.vp_xyz_rotated, thickness=thickness)
         nm = self.xyz2nm(vp_borders_xyz, proj_shape=self.proj_shape).astype(int)
@@ -219,7 +199,7 @@ class ProjActions:
         return self.canvas.copy()
 
 
-class ProjProps(ProjActions, ABC):
+class Props(Attributes):
     proj_coord_nm: Union[list, np.ndarray]
 
     @property
@@ -231,7 +211,12 @@ class ProjProps(ProjActions, ABC):
         self.viewport.yaw_pitch_roll = np.array(value)
 
 
-class ProjBase(ProjProps, ABC):
+class ProjBase(Props,
+               DrawMethods,
+               TilesMethods,
+               ViewportMethods,
+               TransformMethods,
+               ABC):
     def __init__(self, *, proj_res: str, tiling: str, fov: str, vp_shape: Union[np.ndarray, tuple, list] = None):
         # About projection
         self.proj_res = proj_res
@@ -270,10 +255,24 @@ class ProjBase(ProjProps, ABC):
 
     @abstractmethod
     def nm2xyz(self, nm: np.ndarray, proj_shape: np.ndarray) -> np.ndarray:
+        """
+        Projection specific.
+
+        :param nm: shape==(2,...)
+        :param proj_shape:
+        :return:
+        """
         pass
 
     @abstractmethod
     def xyz2nm(self, xyz: np.ndarray, proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
+        """
+        Projection specific.
+
+        :param xyz: shape==(2,...)
+        :param proj_shape:
+        :return:
+        """
         pass
 
 
