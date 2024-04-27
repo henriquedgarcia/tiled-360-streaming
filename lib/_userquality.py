@@ -1096,13 +1096,6 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
 
 class TestGetTiles(GetTiles):
-
-    def init(self):
-        self.tiling_list.remove('1x1')
-        self.quality = '28'
-        self._get_tiles_data = {}
-        self.make_projections()
-
     @property
     def output_video(self):
         folder = self.get_tiles_folder / 'videos' / f'{self.proj}_{self.name}_{self.tiling}'
@@ -1110,6 +1103,12 @@ class TestGetTiles(GetTiles):
         output_video = folder / f"user{self.user}_{self.frame_n}.png"
 
         return output_video
+
+    def init(self):
+        self.tiling_list.remove('1x1')
+        self.quality = '28'
+        self._get_tiles_data = {}
+        self.make_projections()
 
     def main(self):
         self.init()
@@ -1144,7 +1143,8 @@ class TestGetTiles(GetTiles):
                     print(f'\t\tFrame exists. skipping')
                     continue
 
-                self.projection_obj.yaw_pitch_roll = next(yaw_pitch_roll_iter)
+                yaw_pitch_roll = next(yaw_pitch_roll_iter)
+                self.projection_obj.yaw_pitch_roll = yaw_pitch_roll
                 # seen_tiles = projection.get_vptiles()
                 print(f'\ttiles {seen_tiles[self.chunk]}.')
 
