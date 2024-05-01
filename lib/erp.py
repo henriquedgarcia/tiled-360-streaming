@@ -8,7 +8,8 @@ from .projectionbase import ProjBase, compose
 
 class ERP(ProjBase):
     def nm2xyz(self, nm: np.ndarray,
-               proj_shape: Union[np.ndarray, tuple]) -> np.ndarray:
+               proj_shape: Union[np.ndarray, tuple]
+               ) -> np.ndarray:
         if proj_shape is None:
             proj_shape = nm.shape[1:]
 
@@ -60,7 +61,6 @@ class ERP(ProjBase):
             proj_shape = xyz.shape[:2]
 
         ea = self.xyz2ea(xyz)
-        ea = self.normalize_ea(ea)
         vu = self.ea2vu(ea)
         nm = self.vu2nm(vu, proj_shape)
 
@@ -91,7 +91,7 @@ class ERP(ProjBase):
         n1 = np.asarray([proj_shape[0], proj_shape[1]]).reshape(shape)
 
         nm = vu * n1
-        nm = np.ceil(nm)
+        nm = np.floor(nm)
         return nm.astype(int)
 
     #############################
