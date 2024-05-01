@@ -10,7 +10,6 @@ class ViewportProps:
     base_normals: np.ndarray
     fov: np.ndarray
     vp_xyz_base: np.ndarray
-    vp_xyz_rotated: np.ndarray
     vp_shape: np.ndarray
     base_vp_xyz: np.ndarray
 
