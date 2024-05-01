@@ -270,7 +270,14 @@ def position2trajectory(positions_list, fps=30):
     return yaw_speed, pitch_speed
 
 
-def idx2xy(idx: int, shape: tuple):
+def idx2xy(idx: Union[int, str], shape: tuple):
+    """
+
+    :param idx: index
+    :param shape: (height, width)
+    :return: tuple
+    """
+    idx = int(idx)
     tile_x = idx % shape[1]
     tile_y = idx // shape[1]
     return tile_x, tile_y
