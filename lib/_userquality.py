@@ -843,86 +843,87 @@ class ViewportPSNRProps(GetTilesProps):
 
 
 class ViewportPSNR(ViewportPSNRProps):
-    seen_tiles_by_chunks: dict
-    cmp: CMP
-    erp: ERP
-
     def init(self):
         self._get_tiles_data = {}
-        self.make_projections()
+        self.make_projections(proj_res=("4320x2160", '3240x2160'), vp_shape=np.array([90, 110]) * 12)
 
     def main(self):
+        self.init()
         for self.proj in self.proj_list:
             for self.name in self.name_list:
-                self.seen_tiles = load_json(self.get_tiles_json)
-
                 for self.tiling in self.tiling_list:
-                    if self.proj == 'erp':
-                        self.projection_obj = ERP(tiling=self.tiling, proj_res=self.resolution,
-                                                  fov=self.fov, vp_shape=np.array([90, 110]) * 12)
-                    else:
-                        self.projection_obj = CMP(tiling=self.tiling, proj_res=self.resolution,
-                                                  fov=self.fov, vp_shape=np.array([90, 110]) * 12)
-
                     for self.user in self.users_list:
-                        self.worker()
-                        # self.make_video()
+                        for self.quality in self.quality_list:
+                            self.worker()
+                            # self.make_video()
+
+    frame_n: int
 
     def worker(self):
         print(f'{self.proj}, {self.name}, {self.tiling}, {self.user}')
+
         if self.viewport_psnr_file.exists():
-            print(f'\tThe file {"/".join(self.viewport_psnr_file.parts[-2:])} exist. Skipping')
+            print(f'\tThe file exist. Skipping')
             return
-        yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
+
         self.frame_n = -1
+        yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
         seen_tiles = self.get_tiles_samples['chunks']
 
+        proj_h, proj_w = self.projection_obj.proj_shape
+        tile_h, tile_w = self.projection_obj.tile_shape
         qlt_by_frame = AutoDict()
-        proj_frame = np.zeros(tuple(self.projection_obj.proj_shape) + (3,), dtype='uint8')
-        proj_frame_ref = np.zeros(tuple(self.projection_obj.proj_shape) + (3,), dtype='uint8')
-
-        self.seen_tiles_by_chunks = self.seen_tiles[self.proj][self.name][self.tiling][self.user]['chunks']
 
         for self.chunk in self.chunk_list:
             print(f'Processing {self.name}_{self.tiling}_user{self.user}_chunk{self.chunk}')
-
-            _seen_tiles = self.seen_tiles_by_chunks[self.chunk]
-            _seen_tiles = list(map(str, _seen_tiles))
-            proj_frame[:] = 0
-            proj_frame_ref[:] = 0
             start = time.time()
 
-            # Operations by frame
-            for quality in self.quality_list:
-                self.readers = {}
-                for chunk_frame_idx in range(int(self.gop)):  # 30 frames per chunk
-                    self.video_frame_idx = (int(self.chunk) - 1) * 30 + chunk_frame_idx
-                    yaw_pitch_roll = self.yaw_pitch_roll_frames[self.video_frame_idx]
+            frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
+            frame_proj_ref = np.zeros((proj_h, proj_w, 3), dtype='uint8')
 
-                    # <editor-fold desc=" Build 'proj_frame_ref' and 'proj_frame_ref' and get Viewport">
-                    self.mount_frame(proj_frame_ref, _seen_tiles, '0')
-                    self.mount_frame(proj_frame, _seen_tiles, quality)
-                    viewport_frame_ref = self.projection_obj.get_vp_image(proj_frame_ref, yaw_pitch_roll)  # .astype('float64')
-                    viewport_frame = self.projection_obj.get_vp_image(proj_frame, yaw_pitch_roll)  # .astype('float64')
-                    # </editor-fold>
+            tiles_reader_ref = {self.tile: FFmpegReader(f'{self.reference_segment}').nextFrame()
+                                for self.tile in seen_tiles[self.chunk]}
+            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
+                            for self.tile in seen_tiles[self.chunk]}
 
-                    _viewport_frame_ref = np.average(viewport_frame_ref, axis=2)
-                    _viewport_frame = np.average(viewport_frame, axis=2)
-                    _mse = mse(_viewport_frame_ref, _viewport_frame)
-                    _ssim = ssim(_viewport_frame_ref, _viewport_frame,
+            for frame_idx in range(30):  # 30 frames per chunk
+                self.frame_n += 1
+                print(f'\tframe: {self.frame_n}. tiles {seen_tiles[self.chunk]}')
+
+                yaw_pitch_roll = next(yaw_pitch_roll_iter)
+
+                for self.tile in seen_tiles[self.chunk]:
+                    tile_m, tile_n = idx2xy(int(self.tile), (self.N, self.M))
+                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
+
+                    tile_frame_ref = next(tiles_reader_ref[self.tile])
+                    tile_ref_resized = Image.fromarray(tile_frame_ref).resize((tile_w, tile_h))
+                    tile_ref_resized_array = np.asarray(tile_ref_resized)
+                    frame_proj_ref[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_ref_resized_array
+                    viewport_frame_ref = self.projection_obj.get_vp_image(frame_proj_ref,
+                                                                          yaw_pitch_roll)  # .astype('float64')
+
+                    tile_frame = next(tiles_reader[self.tile])
+                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
+                    tile_resized_array = np.asarray(tile_resized)
+                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
+                    viewport_frame = self.projection_obj.get_vp_image(frame_proj, yaw_pitch_roll)  # .astype('float64')
+
+                    _mse = mse(viewport_frame_ref, viewport_frame)
+                    _ssim = ssim(viewport_frame_ref, viewport_frame,
                                  data_range=255.0,
                                  gaussian_weights=True, sigma=1.5,
                                  use_sample_covariance=False)
 
                     try:
-                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['mse'].append(_mse)
-                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['ssim'].append(_ssim)
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][self.quality]['mse'].append(_mse)
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][self.quality]['ssim'].append(_ssim)
                     except AttributeError:
-                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['mse'] = [_mse]
-                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][quality]['ssim'] = [ssim]
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][self.quality]['mse'] = [_mse]
+                        qlt_by_frame[self.proj][self.name][self.tiling][self.user][self.quality]['ssim'] = [_ssim]
 
-                    print(f'\r    chunk{self.chunk}_crf{self.quality}_frame{chunk_frame_idx} - {time.time() - start: 0.3f} s', end='')
-            print('')
+            print(f'\tchunk{self.chunk}_crf{self.quality}_frame{self.frame_n} - {time.time() - start: 0.3f} s')
+        print('')
         save_json(qlt_by_frame, self.viewport_psnr_file)
 
     @property
