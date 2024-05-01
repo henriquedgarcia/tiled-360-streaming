@@ -3,7 +3,6 @@ from typing import Union, Callable
 
 import numpy as np
 from PIL import Image
-from numpy import linalg
 
 from .util import get_borders, show1, splitx
 from .viewport import Viewport
@@ -72,22 +71,11 @@ class TransformMethods:
         _180_deg = np.pi
         _360_deg = 2 * np.pi
 
-        # if pitch>90
-        sel = ea[1] > _90_deg
-        ea[0, sel] = _180_deg - ea[0, sel]
-        ea[1, sel] = ea[1, sel] + _180_deg
+        new_ea = np.zeros(ea.shape)
+        new_ea[0] = -np.abs(np.abs(ea[0] + _90_deg) - _180_deg) + _90_deg
+        new_ea[1] = (ea[1] + _180_deg) % _360_deg - _180_deg
 
-        # if pitch<90
-        sel = ea[1] < -_90_deg
-        ea[0, sel] = -_180_deg - ea[0, sel]
-        ea[1, sel] = ea[1, sel] + _180_deg
-
-        # if yaw>=180 or yaw<180
-        sel = np.logical_or(ea[1] >= _180_deg, ea[1] < -_180_deg)
-        # sel = ea[1] >= _180_deg or ea[1] < -_180_deg
-        ea[1, sel] = (ea[1, sel] + _180_deg) % _360_deg - _180_deg
-
-        return ea
+        return new_ea
 
 
 class ViewportMethods(TransformMethods, Attributes):
@@ -250,7 +238,7 @@ class ProjBase(Props,
         self.fov = fov
         self.fov_shape = np.deg2rad(splitx(self.fov)[::-1])
         if vp_shape is None:
-            vp_shape = np.round(self.fov_shape * self.proj_shape[0]/4).astype('int')
+            vp_shape = np.round(self.fov_shape * self.proj_shape[0] / 4).astype('int')
         self.vp_shape = np.asarray(vp_shape)
         self.viewport = Viewport(self.vp_shape, self.fov_shape)
 
@@ -279,30 +267,30 @@ class ProjBase(Props,
         pass
 
 
-def compose(proj: ProjBase, proj_frame_image: Image) -> Image:
+def compose(proj: ProjBase,
+            proj_frame_image: Image,
+            all_tiles_borders_image: Image,
+            vp_tiles_image: Image,
+            vp_mask_image: Image,
+            vp_borders_image: Image,
+            vp_image: Image,
+            ) -> Image:
     height, width = proj_frame_image.height, proj_frame_image.width
 
-    # Get covers
-    cover_red = Image.new("RGB", (width, height), (255, 0, 0))
-    cover_green = Image.new("RGB", (width, height), (0, 255, 0))
-    cover_gray = Image.new("RGB", (width, height), (200, 200, 200))
-    cover_blue = Image.new("RGB", (width, height), (0, 0, 255))
-
-    # Get masks
-    mask_all_tiles_borders = Image.fromarray(proj.draw_all_tiles_borders())
-    mask_vp_tiles = Image.fromarray(proj.draw_vp_tiles())
-    mask_vp = Image.fromarray(proj.draw_vp_mask())
-    mask_vp_borders = Image.fromarray(proj.draw_vp_borders())
-
     # Composite mask with projection
-    proj_frame_image_c = Image.composite(cover_red, proj_frame_image, mask=mask_all_tiles_borders)
-    proj_frame_image_c = Image.composite(cover_green, proj_frame_image_c, mask=mask_vp_tiles)
-    proj_frame_image_c = Image.composite(cover_gray, proj_frame_image_c, mask=mask_vp)
-    proj_frame_image_c = Image.composite(cover_blue, proj_frame_image_c, mask=mask_vp_borders)
+    cover_red = Image.new("RGB", (width, height), (255, 0, 0))
+    proj_frame_image_c = Image.composite(cover_red, proj_frame_image, mask=all_tiles_borders_image)
 
-    # Get Viewport
-    viewport_array = proj.get_vp_image(np.asarray(proj_frame_image))
-    vp_image = Image.fromarray(viewport_array)
+    cover_green = Image.new("RGB", (width, height), (0, 255, 0))
+    proj_frame_image_c = Image.composite(cover_green, proj_frame_image_c, mask=vp_tiles_image)
+
+    cover_gray = Image.new("RGB", (width, height), (200, 200, 200))
+    proj_frame_image_c = Image.composite(cover_gray, proj_frame_image_c, mask=vp_mask_image)
+
+    cover_blue = Image.new("RGB", (width, height), (0, 0, 255))
+    proj_frame_image_c = Image.composite(cover_blue, proj_frame_image_c, mask=vp_borders_image)
+
+    # Resize Viewport
     width_vp = int(np.round(height * vp_image.width / vp_image.height))
     vp_image_resized = vp_image.resize((width_vp, height))
 
