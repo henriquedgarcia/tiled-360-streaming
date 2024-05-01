@@ -39,11 +39,14 @@ class TransformMethods:
         :param xyz: shape = (3, ...)
         :return: np.ndarray([azimuth, elevation]) - in rad. shape = (2, ...)
         """
-        new_shape = (2,) + xyz.shape[1:]
-        ea = np.zeros(new_shape)
-        r = linalg.norm(xyz, axis=0)
+        ea = np.zeros((2,) + xyz.shape[1:])
+
+        r = np.sqrt(xyz[0] ** 2 + xyz[1] ** 2 + xyz[2] ** 2)
+
         ea[0] = np.arcsin(-xyz[1] / r)
         ea[1] = np.arctan2(xyz[0], xyz[2])
+        ea[1] = (ea[1] + np.pi) % (2*np.pi) - np.pi
+
         return ea
 
     @staticmethod
