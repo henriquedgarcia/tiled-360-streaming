@@ -180,8 +180,8 @@ class GetTilesProps(GetTilesPath):
     def projection_obj(self) -> ProjBase:
         return self.projection_dict[self.proj][self.tiling]
 
-    M: int
-    N: int
+    tiling_h: int
+    tiling_w: int
 
     @property
     def tiling(self) -> str:
@@ -189,8 +189,23 @@ class GetTilesProps(GetTilesPath):
 
     @tiling.setter
     def tiling(self, value: str):
-        self.M, self.N = splitx(value)
         self._tiling = value
+        self.tiling_h, self.tiling_w = self.tiling_shape
+
+    @property
+    def tile_shape(self):
+        shape = (self.proj_shape / self.tiling_shape).astype(int)
+        return shape
+
+    @property
+    def tiling_shape(self):
+        shape = np.array(splitx(self.tiling)[::-1], dtype=int)
+        return shape
+
+    @property
+    def proj_shape(self):
+        shape = np.array(splitx(self.scale)[::-1], dtype=int)
+        return shape
 
     @property
     def dataset(self) -> dict:
@@ -1096,75 +1111,103 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
 
 class TestGetTiles(GetTiles):
-
     def init(self):
         self.tiling_list.remove('1x1')
         self.quality = '28'
         self._get_tiles_data = {}
         self.make_projections()
 
-    @property
-    def output_video(self):
-        folder = self.get_tiles_folder / 'videos' / f'{self.proj}_{self.name}_{self.tiling}'
-        folder.mkdir(parents=True, exist_ok=True)
-        output_video = folder / f"user{self.user}_{self.frame_n}.png"
-
-        return output_video
-
     def main(self):
         self.init()
 
-        for self.proj in self.proj_list:
+        for self.proj in [self.proj_list[1]]:
             for self.name in self.name_list:
                 for self.tiling in self.tiling_list:
                     for self.user in [self.users_list[0]]:
                         self.worker()
 
-    frame_n: int
+    _frame_n: int
+
+    # @property
+    # def frame_n(self):
+    #     n = self._frame_n
+    #     self._frame_n += 1
+    #     return n
+    #
+    # @frame_n.setter
+    # def frame_n(self, value):
+    #     self._frame_n=value
 
     def worker(self, overwrite=False):
         print(f'{self.proj}, {self.name}, {self.tiling}, {self.user}')
         yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
-        self.frame_n = -1
-        seen_tiles = self.get_tiles_samples['chunks']
-
-        proj_h, proj_w = self.projection_obj.proj_shape
-        tile_h, tile_w = self.projection_obj.tile_shape
-
+        self.frame_n = 0
         for self.chunk in self.chunk_list:
-            frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
-                            for self.tile in seen_tiles[self.chunk]}
-
-            for _ in range(30):  # 30 frames per chunk
-                self.frame_n += 1
-                print(f'\tframe: {self.frame_n}.')
-
+            for proj_frame in self.mount_chunk_frames():
                 if self.output_video.exists():
-                    print(f'\t\tFrame exists. skipping')
+                    print(f' Exist. Skiping.')
+                    self.frame_n += 1
+                    next(yaw_pitch_roll_iter)
                     continue
 
                 self.projection_obj.yaw_pitch_roll = next(yaw_pitch_roll_iter)
-                # seen_tiles = projection.get_vptiles()
-                print(f'\ttiles {seen_tiles[self.chunk]}.')
 
-                for self.tile in seen_tiles[self.chunk]:
-                    tile_m, tile_n = idx2xy(int(self.tile), (self.N, self.M))
-                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
+                all_tiles_borders = self.projection_obj.draw_all_tiles_borders()
+                vp_tiles = self.projection_obj.draw_vp_tiles()
+                vp_mask = self.projection_obj.draw_vp_mask()
+                try:
+                    vp_borders = self.projection_obj.draw_vp_borders()
+                except IndexError:
+                    vp_borders = self.projection_obj.draw_vp_borders()
 
-                    try:
-                        tile_frame = next(tiles_reader[self.tile])
-                    except KeyError:
-                        tiles_reader[self.tile] = FFmpegReader(f'{self.segment_file}').nextFrame()
-                        tile_frame = next(tiles_reader[self.tile])
+                viewport_array = self.projection_obj.get_vp_image(proj_frame)
 
-                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
-                    tile_resized_array = np.asarray(tile_resized)
-                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
-
-                frame: Image = compose(self.projection_obj, Image.fromarray(frame_proj))
+                frame = compose(self.projection_obj,
+                                proj_frame_image=Image.fromarray(proj_frame),
+                                all_tiles_borders_image=Image.fromarray(all_tiles_borders),
+                                vp_tiles_image=Image.fromarray(vp_tiles),
+                                vp_mask_image=Image.fromarray(vp_mask),
+                                vp_borders_image=Image.fromarray(vp_borders),
+                                vp_image=Image.fromarray(viewport_array),
+                                )
                 frame.save(self.output_video)
+                self.frame_n += 1
+
         print('')
+
+    def mount_chunk_frames(self, proj_shape=None, tile_shape=None,
+                           tiling_shape=None, chunk=None, seen_tiles=None):
+        proj_h, proj_w = self.projection_obj.proj_shape
+        frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
+        seen_tiles = self.get_tiles_samples['chunks'][self.chunk]
+        tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
+                        for self.tile in seen_tiles}
+        # seen_tiles = projection.get_vptiles()  # by frame
+
+        for frame in range(30):
+            for self.tile in seen_tiles:
+                tile_h, tile_w = self.projection_obj.tile_shape
+                tile_m, tile_n = idx2xy(int(self.tile), (self.projection_obj.tiling_h, self.projection_obj.tiling_w))
+                tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
+
+                tile_frame = next(tiles_reader[self.tile])
+
+                tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
+                tile_resized_array = np.asarray(tile_resized)
+                frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
+            yield frame_proj
+
+    @property
+    def output_video(self):
+        folder = self.get_tiles_folder / 'videos' / f'{self.proj}_{self.name}_{self.tiling}'
+        folder.mkdir(parents=True, exist_ok=True)
+        output = folder / f"user{self.user}_{self.frame_n}.png"
+
+        return output
+
+
+def show(array):
+    Image.fromarray(array).show()
 
 
 UserMetricsOptions = {'0': ProcessNasrabadi,  # 0
