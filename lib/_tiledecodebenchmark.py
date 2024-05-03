@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from .assets import GlobalPaths, Config, Log, AutoDict, Utils, print_error
+from .assets import GlobalPaths, Log, AutoDict, Utils, print_error
 from .siti import SiTi
 from .util import save_json, load_json, run_command, decode_file, get_times, splitx
 
@@ -138,7 +138,6 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
             name += f'_chunk{self.chunk}'
 
         return folder / f'siti_results_{self.video}_crf{self.quality}.csv'
-
 
     @property
     def quality_list(self) -> list[str]:
@@ -356,7 +355,7 @@ class Segment(TileDecodeBenchmarkPaths):
             self.clean_segments()
             raise e
 
-    def skip(self, decode=False):
+    def skip(self):
         # first compressed file
         if not self.compressed_file.exists():
             self.log('compressed_file NOTFOUND.', self.compressed_file)
@@ -637,17 +636,16 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         siti_stats = defaultdict(list)
         if self.siti_stats.exists():
             print(f'{self.siti_stats} - the file exist')
-            def calc():
-                siti_stats = pd.read_csv(self.siti_stats)
-                siti_stats1 = siti_stats[['group', 'name', 'proj', 'si_med', 'ti_med', 'bitrate']]
-                # siti_stats2 = siti_stats1.sort_values('name').sort_values('proj').sort_values('group')
-                midx = pd.MultiIndex.from_frame(siti_stats1[['group', 'name', 'proj']])
-                data = siti_stats1[['si_med', 'ti_med', 'bitrate']]
-                siti_stats3 = pd.DataFrame(data.values, index=midx)
 
+            # def calc():
+            #     siti_stats = pd.read_csv(self.siti_stats)
+            #     siti_stats1 = siti_stats[['group', 'name', 'proj', 'si_med', 'ti_med', 'bitrate']]
+            #     # siti_stats2 = siti_stats1.sort_values('name').sort_values('proj').sort_values('group')
+            #     mid_x = pd.MultiIndex.from_frame(siti_stats1[['group', 'name', 'proj']])
+            #     data = siti_stats1[['si_med', 'ti_med', 'bitrate']]
+            #     siti_stats3 = pd.DataFrame(data.values, index=mid_x)
 
-
-            # return
+            return
 
         for self.video in self.video_list:
             siti_results = pd.read_csv(self.siti_results, index_col=0)
