@@ -304,7 +304,7 @@ class Segment(TileDecodeBenchmarkPaths):
         cmd = 'bin/MP4Box '
         cmd += '-split 1 '
         cmd += f'{self.compressed_file.as_posix()} '
-        cmd += f"-out {self.segments_folder.as_posix()}/tile{self.tile}_'$'num%03d$.mp4"
+        cmd += f"-out {self.segments_folder.as_posix()}/tile{self.tile}_'$'num%03d$.mp4 "
         cmd += f'2>&1 {self.segment_log.as_posix()}'
 
         if os.name == 'nt':
