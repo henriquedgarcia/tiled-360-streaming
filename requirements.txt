@@ -10,3 +10,5 @@ tqdm
 opencv
 cython
 scikit-image
+setuptools
+pillow
