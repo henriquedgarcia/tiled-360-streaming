@@ -450,6 +450,33 @@ class GlobalPaths(Factors):
         folder.mkdir(parents=True, exist_ok=True)
         return folder / f'quality_{self.video}.json'
 
+    # Tiles chunk path
+    @property
+    def basename2(self):
+        return Path(f'{self.name}_{self.resolution}_{self.fps}/'
+                    f'{self.tiling}/'
+                    f'{self.rate_control}{self.quality}/')
+
+    @property
+    def segments_folder(self) -> Path:
+        folder = self.project_path / self.segment_folder / self.basename2 / f'tile{self.tile}'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    @property
+    def segment_file(self) -> Path:
+        chunk = int(str(self.chunk))
+        return self.segments_folder / f'tile{self.tile}_{chunk:03d}.mp4'
+
+    @property
+    def reference_segment(self) -> Union[Path, None]:
+        qlt = self.quality
+        self.quality = '0'
+        segment_file = self.segment_file
+        self.quality = qlt
+        return segment_file
+
+
 
 class Log(Factors):
     log_text: defaultdict
