@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from logging import warning
 from pathlib import Path
@@ -16,7 +15,27 @@ v = ['wingsuit_dubai_cmp_nas']
 t = ['9x6', '12x8']
 
 
-# v=['angel_falls_erp_nas', 'angel_falls_cmp_nas', 'blue_angels_cmp_nas', 'blue_angels_erp_nas', 'cable_cam_erp_nas', 'cable_cam_cmp_nas', 'chariot_race_cmp_nas', 'chariot_race_erp_nas', 'closet_tour_erp_nas', 'closet_tour_cmp_nas', 'drone_chases_car_erp_nas', 'drone_chases_car_cmp_nas', 'drone_footage_erp_nas', 'drone_footage_cmp_nas', 'drone_video_erp_nas', 'drone_video_cmp_nas', 'drop_tower_erp_nas', 'drop_tower_cmp_nas', 'dubstep_dance_erp_nas', 'dubstep_dance_cmp_nas', 'elevator_lift_erp_nas', 'elevator_lift_cmp_nas', 'glass_elevator_erp_nas', 'glass_elevator_cmp_nas', 'montana_erp_nas', 'montana_cmp_nas', 'motorsports_park_erp_nas', 'motorsports_park_cmp_nas', 'nyc_drive_erp_nas', 'nyc_drive_cmp_nas', 'pac_man_erp_nas', 'pac_man_cmp_nas', 'penthouse_erp_nas', 'penthouse_cmp_nas', 'petite_anse_erp_nas', 'petite_anse_cmp_nas', 'rhinos_erp_nas', 'rhinos_cmp_nas', 'sunset_erp_nas', 'sunset_cmp_nas', 'three_peaks_erp_nas', 'three_peaks_cmp_nas', 'video_04_erp_nas', 'video_04_cmp_nas', 'video_19_erp_nas', 'video_19_cmp_nas', 'video_20_erp_nas', 'video_20_cmp_nas', 'video_22_erp_nas', 'video_22_cmp_nas', 'video_23_erp_nas', 'video_23_cmp_nas', 'video_24_erp_nas', 'video_24_cmp_nas', 'wingsuit_dubai_erp_nas', 'wingsuit_dubai_cmp_nas']
+# v=['angel_falls_erp_nas', 'angel_falls_cmp_nas', 'blue_angels_cmp_nas',
+# 'blue_angels_erp_nas', 'cable_cam_erp_nas', 'cable_cam_cmp_nas',
+# 'chariot_race_cmp_nas', 'chariot_race_erp_nas', 'closet_tour_erp_nas',
+# 'closet_tour_cmp_nas', 'drone_chases_car_erp_nas',
+# 'drone_chases_car_cmp_nas', 'drone_footage_erp_nas',
+# 'drone_footage_cmp_nas', 'drone_video_erp_nas', 'drone_video_cmp_nas',
+# 'drop_tower_erp_nas', 'drop_tower_cmp_nas', 'dubstep_dance_erp_nas',
+# 'dubstep_dance_cmp_nas', 'elevator_lift_erp_nas',
+# 'elevator_lift_cmp_nas', 'glass_elevator_erp_nas',
+# 'glass_elevator_cmp_nas', 'montana_erp_nas', 'montana_cmp_nas',
+# 'motorsports_park_erp_nas', 'motorsports_park_cmp_nas',
+# 'nyc_drive_erp_nas', 'nyc_drive_cmp_nas', 'pac_man_erp_nas',
+# 'pac_man_cmp_nas', 'penthouse_erp_nas', 'penthouse_cmp_nas',
+# 'petite_anse_erp_nas', 'petite_anse_cmp_nas', 'rhinos_erp_nas',
+# 'rhinos_cmp_nas', 'sunset_erp_nas', 'sunset_cmp_nas',
+# 'three_peaks_erp_nas', 'three_peaks_cmp_nas', 'video_04_erp_nas',
+# 'video_04_cmp_nas', 'video_19_erp_nas', 'video_19_cmp_nas',
+# 'video_20_erp_nas', 'video_20_cmp_nas', 'video_22_erp_nas',
+# 'video_22_cmp_nas', 'video_23_erp_nas', 'video_23_cmp_nas',
+# 'video_24_erp_nas', 'video_24_cmp_nas', 'wingsuit_dubai_erp_nas',
+# 'wingsuit_dubai_cmp_nas']
 
 
 class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
@@ -29,12 +48,6 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
                     f'{self.fps}_'
                     f'{self.tiling}_'
                     f'{self.rate_control}{self.quality}')
-
-    @property
-    def basename2(self):
-        return Path(f'{self.name}_{self.resolution}_{self.fps}/'
-                    f'{self.tiling}/'
-                    f'{self.rate_control}{self.quality}/')
 
     @property
     def original_file(self) -> Path:
@@ -58,17 +71,6 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
         return compressed_log
 
     @property
-    def segments_folder(self) -> Path:
-        folder = self.project_path / self.segment_folder / self.basename2 / f'tile{self.tile}'
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder
-
-    @property
-    def segment_file(self) -> Path:
-        chunk = int(str(self.chunk))
-        return self.segments_folder / f'tile{self.tile}_{chunk:03d}.mp4'
-
-    @property
     def segment_log(self) -> Path:
         return self.segments_folder / f'tile{self.tile}.log'
 
@@ -79,14 +81,6 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
         segment_log = self.segment_log
         self.quality = qlt
         return segment_log
-
-    @property
-    def reference_segment(self) -> Union[Path, None]:
-        qlt = self.quality
-        self.quality = '0'
-        segment_file = self.segment_file
-        self.quality = qlt
-        return segment_file
 
     @property
     def reference_compressed(self) -> Union[Path, None]:
@@ -306,7 +300,7 @@ class Segment(TileDecodeBenchmarkPaths):
         cmd += f'{self.compressed_file.as_posix()} '
         cmd += f"-out {self.segments_folder.as_posix()}/tile{self.tile}_'$'num%03d$.mp4 "
         # cmd += f'2>&1 {self.segment_log.as_posix()}'
-  
+
         cmd = f'bash -c "{cmd} &> {self.segment_log.as_posix()}"'
 
         # if os.name == 'nt':
@@ -739,7 +733,7 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
     def scatter_plot_siti(self):
         siti_stats = pd.read_csv(self.siti_stats)
-        change_name = lambda x: x.replace('_nas', '')
+        def change_name(x): return x.replace('_nas', '')
         siti_stats['video'].apply(change_name)
 
         si_max = siti_stats['si_med'].max()
