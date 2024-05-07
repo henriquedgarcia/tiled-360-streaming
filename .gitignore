@@ -5,7 +5,6 @@ __pycache__/
 .vscode
 bin/
 build/
-datasets/
 lib/images/
 old/
 original/
@@ -23,3 +22,4 @@ results
 *.old
 *.csv
 *.pickle
+*.zip
