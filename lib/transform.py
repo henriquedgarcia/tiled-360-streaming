@@ -417,56 +417,6 @@ def vuface2xyz_face(vuface: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return xyz, face
 
 
-def xyz2vuface(xyz: np.ndarray) -> np.ndarray:
-    """
-
-    :param xyz: (3, H, W)
-    :return:
-    """
-
-    vuface = np.zeros(xyz.shape)
-    abs_xyz = np.abs(xyz)
-
-    def selection(v1, v2, v3, v4, v5):
-        selection1 = np.logical_and(v1, v2)
-        selection2 = np.logical_and(selection1, v3)
-        selection3 = np.logical_and(selection2, v4)
-        selection4 = np.logical_and(selection3, v5)
-        return selection4
-
-    face0 = selection(-xyz[0] >= -xyz[2], -xyz[0] > xyz[2], -xyz[0] >= -xyz[1], -xyz[0] > xyz[1], xyz[0] < 0)
-    vuface[2][face0] = 0
-    vuface[1][face0] = xyz[2][face0] / abs_xyz[0][face0]
-    vuface[0][face0] = xyz[1][face0] / abs_xyz[0][face0]
-
-    face1 = selection(xyz[2] >= -xyz[0], xyz[2] > xyz[0], xyz[2] >= -xyz[1], xyz[2] > xyz[1], xyz[2] > 0)
-    vuface[2][face1] = 1
-    vuface[1][face1] = xyz[0][face1] / abs_xyz[2][face1]
-    vuface[0][face1] = xyz[1][face1] / abs_xyz[2][face1]
-
-    face2 = selection(xyz[0] >= xyz[2], xyz[0] > -xyz[2], xyz[0] >= -xyz[1], xyz[0] > xyz[1], xyz[0] > 0)
-    vuface[2][face2] = 2
-    vuface[1][face2] = -xyz[2][face2] / abs_xyz[0][face2]
-    vuface[0][face2] = xyz[1][face2] / abs_xyz[0][face2]
-
-    face3 = selection(xyz[1] >= xyz[0], xyz[1] > -xyz[0], xyz[1] >= -xyz[2], xyz[1] > xyz[2], xyz[1] > 0)
-    vuface[2][face3] = 3
-    vuface[1][face3] = -xyz[0][face3] / abs_xyz[1][face3]
-    vuface[0][face3] = xyz[2][face3] / abs_xyz[1][face3]
-
-    face4 = selection(-xyz[2] >= xyz[0], -xyz[2] > -xyz[0], -xyz[2] >= -xyz[1], -xyz[2] > xyz[1], xyz[2] < 0)
-    vuface[2][face4] = 4
-    vuface[1][face4] = -xyz[0][face4] / abs_xyz[2][face4]
-    vuface[0][face4] = xyz[1][face4] / abs_xyz[2][face4]
-
-    face5 = selection(-xyz[1] >= xyz[0], -xyz[1] > -xyz[0], -xyz[1] >= xyz[2], -xyz[1] > -xyz[2], xyz[1] < 0)
-    vuface[2][face5] = 5
-    vuface[1][face5] = -xyz[0][face5] / abs_xyz[1][face5]
-    vuface[0][face5] = -xyz[2][face5] / abs_xyz[1][face5]
-
-    return vuface
-
-
 def xyz2cmp_face(xyz: np.ndarray, proj_shape=None) -> tuple[np.ndarray, np.ndarray]:
     """
 
