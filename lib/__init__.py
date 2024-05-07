@@ -2,3 +2,4 @@ from lib._tiledecodebenchmark import TileDecodeBenchmarkOptions
 from lib._userquality import UserMetricsOptions
 from lib._dectimegraphs import DectimeGraphsOptions
 from lib._tilequality import QualityAssessmentOptions
+from lib.get_tiles import GetTilesOptions
