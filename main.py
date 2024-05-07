@@ -16,6 +16,7 @@ worker_list: dict[str, dict[str, Type]] = {
     '2': lib.DectimeGraphsOptions,
     '3': lib.QualityAssessmentOptions,
     '4': lib.UserMetricsOptions,
+    '5': lib.GetTilesOptions,
     # '4': ('MakeViewport', 'QualityAssessment'),
     # '5': ('Dashing', 'QualityAssessment'),
     # '6': ('QualityAssessment', 'QualityAssessment'),
