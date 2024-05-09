@@ -9,7 +9,7 @@ import pandas as pd
 from PIL import Image
 from skvideo.io import FFmpegReader
 
-from .assets import GlobalPaths, Log, Utils, AutoDict, print_error
+from .assets import GlobalPaths, Log, Utils, AutoDict
 from .py360tools import xyz2ea, ERP, CMP, ProjBase, compose
 from .util import load_json, save_json, lin_interpol, splitx, idx2xy
 
@@ -135,25 +135,6 @@ class GetTilesProps(GetTilesPath):
     _get_tiles_data: dict
     projection_dict: dict
 
-    @property
-    def get_tiles_data(self):
-        query = f'{self.proj}_{self.name}'
-        try:
-            data = self._get_tiles_data[query]
-        except KeyError:
-            data = load_json(self.get_tiles_json)
-            self._get_tiles_data[query] = data
-        return data
-
-    @property
-    def get_tiles_samples(self):
-        """
-
-        :return: {'frame': list,  # 1800 elements
-                  'chunks': {str: list}} # 60 elements
-        """
-        return self.get_tiles_data[self.proj][self.name][self.tiling][self.user]
-
     def make_projections(self, proj_res=('720x360', '540x360'), vp_shape=(294, 440)):
         self.projection_dict = AutoDict()
         for self.tiling in self.tiling_list:
@@ -171,33 +152,6 @@ class GetTilesProps(GetTilesPath):
     @property
     def projection_obj(self) -> ProjBase:
         return self.projection_dict[self.proj][self.tiling]
-
-    tiling_h: int
-    tiling_w: int
-
-    @property
-    def tiling(self) -> str:
-        return self._tiling
-
-    @tiling.setter
-    def tiling(self, value: str):
-        self._tiling = value
-        self.tiling_h, self.tiling_w = self.tiling_shape
-
-    @property
-    def tile_shape(self):
-        shape = (self.proj_shape / self.tiling_shape).astype(int)
-        return shape
-
-    @property
-    def tiling_shape(self):
-        shape = np.array(splitx(self.tiling)[::-1], dtype=int)
-        return shape
-
-    @property
-    def proj_shape(self):
-        shape = np.array(splitx(self.scale)[::-1], dtype=int)
-        return shape
 
     @property
     def dataset(self) -> dict:
@@ -240,7 +194,7 @@ class GetTilesProps(GetTilesPath):
 
 
 class GetTiles(GetTilesProps):
-    projection: ProjBase
+    _projection: ProjBase
     n_frames: int
     changed_flag: bool
     erp_list: dict[str, ProjBase]
@@ -248,24 +202,35 @@ class GetTiles(GetTilesProps):
     tiles_1x1: dict[str, Union[dict[str, list[str]], list[list[str]]]]
     error: bool
     projection_dict: dict
+    proj: str = None
+    name: str = None
+    tiling: str = None
+    user: str = None
 
     def main(self):
         self.init()
 
         for self.proj in self.proj_list:
             for self.name in self.name_list:
-                if self.skip(): continue
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        self.worker()
+                self.load_results()
 
-                if self.changed_flag and not self.error:
-                    print('\n\tSaving.')
-                    save_json(self.results, self.get_tiles_json)
+                try:
+                    for self.tiling in self.tiling_list:
+                        self.load_projection()
+
+                        for self.user in self.users_list:
+                            start = time()
+                            self.worker()
+                            print(f'\ttime =  {time() - start}')
+                finally:
+                    self.save_results()
 
             # self.count_tiles()
             # self.heatmap()
             # self.plot_test()
+
+    def load_projection(self):
+        self._projection = self.projection_dict['erp'][self.tiling]
 
     def init(self):
         self.tiles_1x1 = {'frame': [["0"]] * self.n_frames,
@@ -273,79 +238,69 @@ class GetTiles(GetTilesProps):
 
         self.projection_dict = AutoDict()
         for self.tiling in self.tiling_list:
-            erp = ERP(tiling=self.tiling, proj_res='720x360', vp_shape=(294, 440), fov=self.fov)
-            cmp = CMP(tiling=self.tiling, proj_res='540x360', vp_shape=(294, 440), fov=self.fov)
+            if self.tiling == '1x1': continue
+            erp = ERP(tiling=self.tiling, proj_res='1080x540', vp_shape=(540, 660), fov=self.fov)
+            cmp = CMP(tiling=self.tiling, proj_res='810x540', vp_shape=(540, 660), fov=self.fov)
             self.projection_dict['erp'][self.tiling] = erp
             self.projection_dict['cmp'][self.tiling] = cmp
 
-    def skip(self, check_result=True):
-        self.results = AutoDict()
-        self.changed_flag = True
-        self.error = False
+    def load_results(self):
+        self.changed_flag = False
 
-        if self.get_tiles_json.exists():
-            print_error(f'\n    The file get_tiles_json exist.')
-            if check_result:
-                self.changed_flag = False
-                self._get_tiles_data = load_json(self.get_tiles_json,
-                                                 object_hook=AutoDict)
-            return
+        try:
+            self.results = load_json(self.get_tiles_json,
+                                     object_hook=AutoDict)
+        except FileNotFoundError:
+            self.results = AutoDict()
+
+    def save_results(self):
+        if self.changed_flag:
+            print('\n\tSaving.')
+            save_json(self.results, self.get_tiles_json)
+
+        pass
+
+    def get_user_samples(self) -> AutoDict:
+        """
+
+        :return: {'frame': list,  # 1800 elements
+                  'chunks': {str: list}} # 60 elements
+        """
+        return self.results[self.proj][self.name][self.tiling][self.user]
+
+    def get_dataset_user_samples(self):
+        return self.dataset[self.name][self.user]
 
     def worker(self):
         print(f'{self.proj} {self.name} {self.tiling} - User {self.user}')
 
+        if self.get_user_samples() != {}:
+            return
+        elif not self.changed_flag:
+            self.changed_flag = True
+
         if self.tiling == '1x1':
-            self.results[self.proj][self.name][self.tiling][self.user] = self.tiles_1x1
+            self.get_user_samples().update(self.tiles_1x1)
             return
 
-        projection = self.projection_dict[self.proj][self.tiling]
-
         result_frames = []
-        result_chunks = {}
-        tiles_in_chunk = set()
-
-        for frame, (yaw_pitch_roll) in enumerate(self.dataset[self.name][self.user]):
-            vptiles: list[str] = projection.get_vptiles(yaw_pitch_roll)
-            tiles_in_chunk.update(vptiles)
+        for yaw_pitch_roll in self.get_dataset_user_samples():
+            vptiles: list[str] = self._projection.get_vptiles(yaw_pitch_roll)
             result_frames.append(vptiles)
 
+        result_chunks = {}
+        tiles_in_chunk = set()
+        for frame, vptiles in enumerate(result_frames):
+            tiles_in_chunk.update(vptiles)
+
             if (frame + 1) % 30 == 0:
-                # vptiles by chunk start from 1 gpac defined
-                chunk = frame // 30 + 1
+                chunk = frame // 30 + 1  # chunk start from 1
                 result_chunks[f'{chunk}'] = list(tiles_in_chunk)
                 tiles_in_chunk.clear()
 
-        self.results[self.proj][self.name][self.tiling][self.user]['frame'] = result_frames
-        self.results[self.proj][self.name][self.tiling][self.user]['chunks'] = result_chunks
-
-    # def differences(self):
-    #     if not self.get_tiles_json.exists():
-    #         print(f'The file {self.get_tiles_json} NOT exist. Skipping')
-    #         return
-    #
-    #     self.results1 = load_json(self.get_tiles_json)
-    #     self.results2 = load_json(self.get_tiles_json.with_suffix(f'.json.old'))
-    #
-    #     for self.tiling in self.tiling_list:
-    #         for self.user in self.users_list:
-    #             keys = ('frame', 'head_positions', 'chunks',)
-    #             result_frames1: list = self.results1[self.vid_proj][self.name][self.tiling][self.user]['frame']
-    #             result_frames2: list = self.results2[self.vid_proj][self.name][self.tiling][self.user]['frame']
-    #             result_chunks1: dict = self.results1[self.vid_proj][self.name][self.tiling][self.user]['chunks']
-    #             result_chunks2: dict = self.results2[self.vid_proj][self.name][self.tiling][self.user]['chunks']
-    #
-    #             # head_positions1: list = self.results1[self.vid_proj][self.name][self.tiling][self.user]
-    #             ['head_positions']
-    #             # head_positions2: list = self.results2[self.vid_proj][self.name][self.tiling][self.user]
-    #             ['head_positions']
-    #
-    #             # for get_tiles_frame1, get_tiles_frame2 in zip(result_frames1,result_frames2):
-    #             print(f'[{self.name}][{self.tiling}][{self.user}] ', end='')
-    #             result_frames2_str = [list(map(str, item)) for item in result_frames2]
-    #             if result_frames1 == result_frames2_str:
-    #                 print(f' igual')
-    #             else:
-    #                 print('não igual')
+        user_samples = self.get_user_samples()
+        user_samples['frames'] = result_frames
+        user_samples['chunks'] = result_chunks
 
     def count_tiles(self):
         if self.counter_tiles_json.exists(): return
@@ -537,7 +492,7 @@ class TestGetTiles(GetTiles):
                            tiling_shape=None, chunk=None, seen_tiles=None):
         proj_h, proj_w = self.projection_obj.proj_shape
         frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-        seen_tiles = self.get_tiles_samples['chunks'][self.chunk]
+        seen_tiles = self.get_user_samples()['chunks'][self.chunk]
         tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
                         for self.tile in seen_tiles}
         # seen_tiles = projection.get_vptiles()  # by frame
