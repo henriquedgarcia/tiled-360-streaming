@@ -1,3 +1,6 @@
 [submodule ".\\lib\\py360tools"]
 	path = .\\lib\\py360tools
 	url = https://github.com/henriquedgarcia/py360tools.git
+[submodule "lib/py360tools"]
+	path = lib/py360tools
+	url = https://github.com/henriquedgarcia/py360tools.git
