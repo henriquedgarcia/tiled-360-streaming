@@ -8,14 +8,14 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
-from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
-from .assets import Log, AutoDict, print_error
-from .py360tools.lib.cmp import ea2cmp_face
-from .py360tools.lib.erp import ea2erp
+from .assets import Log, AutoDict, print_error, Utils, GlobalPaths
+from .py360tools import ea2erp, ea2cmp_face
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx
 
 
-class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
+class SegmentsQualityPaths(Utils,
+                           Log,
+                           GlobalPaths):
     _quality_folder = Path('quality')
 
     @property
@@ -147,12 +147,15 @@ class SegmentsQualityProps(SegmentsQualityPaths,
                               map(float,
                                   line.strip().split())))  # to rad
 
+            ea = np.array([[az], [el]])
+            proj_shape = self.video_shape
+
             if self.proj == 'erp':
-                m, n = ea2erp(np.array([[az], [el]]),
-                              self.video_shape)
+                m, n = ea2erp(ea=ea,
+                              proj_shape=proj_shape)
             elif self.proj == 'cmp':
-                (m, n), face = ea2cmp_face(np.array([[az], [el]]),
-                                           self.video_shape)
+                (m, n), face = ea2cmp_face(ea=ea,
+                                           proj_shape=proj_shape)
             else:
                 raise ValueError(f'wrong value to {self.proj=}')
 
@@ -249,25 +252,13 @@ class SegmentsQuality(SegmentsQualityProps):
                          iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r\t{frame=}',
-                  end='')
-            chunk_quality['S-MSE'].append(self._smse_nn(frame1,
-                                                        frame2))
-        self.chunk_quality_df['S-MSE'] = chunk_quality['S-MSE']
-        self.chunk_quality_df.to_csv(self.video_quality_csv,
-                                     encoding='utf-8',
-                                     index_label='frame')
+            print(f'\r\t{frame=}', end='')
+            chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
+            chunk_quality['MSE'].append(self._mse(frame1, frame2))
+            chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
+            chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
+        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\n\ttime={time() - start}.")
-
-        # todo: descomentar isso e apagar o de cima
-        # for frame, (frame1, frame2) in enumerate(zip_frames):
-        #     print(f'\r\t{frame=}', end='')
-        #     chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
-        #     chunk_quality['MSE'].append(self._mse(frame1, frame2))
-        #     chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
-        #     chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
-        # pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
-        # print(f"\n\ttime={time() - start}.")
 
     def skip(self):
         skip = False
@@ -440,9 +431,8 @@ class CollectQuality(SegmentsQualityProps):
         # self.get_tile_image()
 
         for self.video in self.video_list:
-            # if list(self.videos_list).index(self.video) < 3: continue
             print(f'\n{self.video}')
-            if self.quality_json_exist(): continue
+            if self.quality_json_exist(check_result=False): continue
 
             self.error = False
 
@@ -462,7 +452,7 @@ class CollectQuality(SegmentsQualityProps):
                         yield
 
     def quality_json_exist(self,
-                           check_result=True
+                           check_result=False
                            ):
         try:
             self.results = load_json(self.quality_result_json,
@@ -473,9 +463,11 @@ class CollectQuality(SegmentsQualityProps):
             return False
 
         print_error(f'\tThe file quality_result_json exist.')
+
         if check_result:
             self.change_flag = False
             return False
+
         return True
 
     def check_qlt_results(self):
