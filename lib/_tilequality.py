@@ -10,7 +10,8 @@ from skimage.metrics import structural_similarity as ssim, mean_squared_error as
 
 from ._tiledecodebenchmark import TileDecodeBenchmarkPaths, Utils
 from .assets import Log, AutoDict, print_error
-from .transform import ea2erp, ea2cmp_face
+from .py360tools.lib.cmp import ea2cmp_face
+from .py360tools.lib.erp import ea2erp
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx
 
 
@@ -20,14 +21,16 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
     @property
     def quality_folder(self) -> Path:
         folder = self.project_path / self._quality_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder
 
     @property
     def video_quality_folder(self) -> Path:
         folder = self.quality_folder / self.basename2
         # folder = self.project_path / self.quality_folder / self.basename
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder
 
     @property
@@ -37,11 +40,14 @@ class SegmentsQualityPaths(TileDecodeBenchmarkPaths):
     @property
     def quality_result_img(self) -> Path:
         folder = self.quality_folder / '_metric plots' / f'{self.video}'
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder / f'{self.tiling}_crf{self.quality}.png'
 
 
-class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
+class SegmentsQualityProps(SegmentsQualityPaths,
+                           Utils,
+                           Log):
     tile_position: dict
     change_flag: bool
     error: bool
@@ -74,7 +80,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             return
         except FileNotFoundError:
             self.make_weight_ndarray()
-            save_pickle(self.weight_ndarray, weight_ndarray_file)
+            save_pickle(self.weight_ndarray,
+                        weight_ndarray_file)
 
     def make_weight_ndarray(self):
         proj_h, proj_w = self.video_shape[:2]
@@ -83,7 +90,9 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             pi_proj = np.pi / proj_h
             proj_h_2 = 0.5 - proj_h / 2
 
-            def func(y, x):
+            def func(y,
+                     x
+                     ):
                 w = np.cos((y + proj_h_2) * pi_proj)
                 return w
 
@@ -92,7 +101,9 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             r1 = 0.5 - r
             r2 = r ** 2
 
-            def func(y, x):
+            def func(y,
+                     x
+                     ):
                 x = x % r
                 y = y % r
                 d = (x + r1) ** 2 + (y + r1) ** 2
@@ -101,7 +112,9 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         else:
             raise ValueError(f'Wrong self.vid_proj. Value == {self.proj}')
 
-        self.weight_ndarray = np.fromfunction(func, (proj_h, proj_w), dtype='float')
+        self.weight_ndarray = np.fromfunction(func,
+                                              (proj_h, proj_w),
+                                              dtype='float')
 
     def load_sph_file(self):
         """
@@ -121,7 +134,8 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             return
         except FileNotFoundError:
             self.process_sphere_file()
-            save_pickle(self.sph_points_mask, sph_points_mask_file)
+            save_pickle(self.sph_points_mask,
+                        sph_points_mask_file)
 
     def process_sphere_file(self):
         self.sph_points_mask = np.zeros(self.video_shape)
@@ -129,12 +143,16 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
         sph_file_lines = sph_file.read_text().splitlines()[1:]
         # for each line (sample), convert to cartesian system and horizontal system
         for line in sph_file_lines:
-            el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
+            el, az = list(map(np.deg2rad,
+                              map(float,
+                                  line.strip().split())))  # to rad
 
             if self.proj == 'erp':
-                m, n = ea2erp(np.array([[az], [el]]), self.video_shape)
+                m, n = ea2erp(np.array([[az], [el]]),
+                              self.video_shape)
             elif self.proj == 'cmp':
-                (m, n), face = ea2cmp_face(np.array([[az], [el]]), self.video_shape)
+                (m, n), face = ea2cmp_face(np.array([[az], [el]]),
+                                           self.video_shape)
             else:
                 raise ValueError(f'wrong value to {self.proj=}')
 
@@ -142,15 +160,19 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
     def read_video_quality_csv(self):
         try:
-            self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8', index_col=0)
+            self.chunk_quality_df = pd.read_csv(self.video_quality_csv,
+                                                encoding='utf-8',
+                                                index_col=0)
         except FileNotFoundError as e:
             print(f'\n\t\tCSV_NOTFOUND_ERROR')
-            self.log('CSV_NOTFOUND_ERROR', self.video_quality_csv)
+            self.log('CSV_NOTFOUND_ERROR',
+                     self.video_quality_csv)
             raise e
         except pd.errors.EmptyDataError as e:
             self.video_quality_csv.unlink(missing_ok=True)
             print(f'\n\t\tCSV_EMPTY_DATA_ERROR')
-            self.log('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
+            self.log('CSV_EMPTY_DATA_ERROR',
+                     self.video_quality_csv)
             raise e
 
         self.check_video_quality_csv()
@@ -158,25 +180,35 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
     def check_video_quality_csv(self):
         if len(self.chunk_quality_df['MSE']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
-            print_error(f'\n\t\tMISSING_FRAMES', end='')
-            self.log(f'MISSING_FRAMES', self.video_quality_csv)
+            print_error(f'\n\t\tMISSING_FRAMES',
+                        end='')
+            self.log(f'MISSING_FRAMES',
+                     self.video_quality_csv)
             raise FileNotFoundError
 
         if 1 in self.chunk_quality_df['SSIM'].to_list():
-            self.log(f'CSV SSIM has 1.', self.segment_file)
-            print_error(f'\n\t\tCSV SSIM has 0.', end='')
+            self.log(f'CSV SSIM has 1.',
+                     self.segment_file)
+            print_error(f'\n\t\tCSV SSIM has 0.',
+                        end='')
 
         if 0 in self.chunk_quality_df['MSE'].to_list():
-            self.log('CSV MSE has 0.', self.segment_file)
-            print_error(f'\n\t\tCSV MSE has 0.', end='')
+            self.log('CSV MSE has 0.',
+                     self.segment_file)
+            print_error(f'\n\t\tCSV MSE has 0.',
+                        end='')
 
         if 0 in self.chunk_quality_df['WS-MSE'].to_list():
-            self.log('CSV WS-MSE has 0.', self.segment_file)
-            print_error(f'\n\t\tCSV WS-MSE has 0.', end='')
+            self.log('CSV WS-MSE has 0.',
+                     self.segment_file)
+            print_error(f'\n\t\tCSV WS-MSE has 0.',
+                        end='')
 
         if 0 in self.chunk_quality_df['S-MSE'].to_list():
-            self.log('CSV S-MSE has 0.', self.segment_file)
-            print_error(f'\n\t\tCSV S-MSE has 0.', end='')
+            self.log('CSV S-MSE has 0.',
+                     self.segment_file)
+            print_error(f'\n\t\tCSV S-MSE has 0.',
+                        end='')
 
     def update_tile_position(self):
         self.tile_position = {}
@@ -213,13 +245,18 @@ class SegmentsQuality(SegmentsQualityProps):
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
         iter_segment = iter_frame(self.segment_file)
-        zip_frames = zip(iter_reference_segment, iter_segment)
+        zip_frames = zip(iter_reference_segment,
+                         iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r\t{frame=}', end='')
-            chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
+            print(f'\r\t{frame=}',
+                  end='')
+            chunk_quality['S-MSE'].append(self._smse_nn(frame1,
+                                                        frame2))
         self.chunk_quality_df['S-MSE'] = chunk_quality['S-MSE']
-        self.chunk_quality_df.to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
+        self.chunk_quality_df.to_csv(self.video_quality_csv,
+                                     encoding='utf-8',
+                                     index_label='frame')
         print(f"\n\ttime={time() - start}.")
 
         # todo: descomentar isso e apagar o de cima
@@ -235,12 +272,14 @@ class SegmentsQuality(SegmentsQualityProps):
     def skip(self):
         skip = False
         if not self.segment_file.exists():
-            self.log('segment_file NOTFOUND', self.segment_file)
+            self.log('segment_file NOTFOUND',
+                     self.segment_file)
             print_error(f'segment_file NOTFOUND')
             skip = True
 
         if not self.reference_segment.exists():
-            self.log('reference_segment NOTFOUND', self.reference_segment)
+            self.log('reference_segment NOTFOUND',
+                     self.reference_segment)
             print_error(f'reference_segment NOTFOUND')
             skip = True
 
@@ -275,7 +314,9 @@ class SegmentsQuality(SegmentsQualityProps):
                             yield
 
     @staticmethod
-    def _mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+    def _mse(im_ref: np.ndarray,
+             im_deg: np.ndarray
+             ) -> float:
         """
         https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
@@ -289,10 +330,13 @@ class SegmentsQuality(SegmentsQualityProps):
         """
         # im_sqr_err = (im_ref - im_deg) ** 2
         # mse = np.average(im_sqr_err)
-        return mse(im_ref, im_deg)
+        return mse(im_ref,
+                   im_deg)
 
     @staticmethod
-    def _ssim(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+    def _ssim(im_ref: np.ndarray,
+              im_deg: np.ndarray
+              ) -> float:
         """
         https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
@@ -306,12 +350,17 @@ class SegmentsQuality(SegmentsQualityProps):
         """
         # im_sqr_err = (im_ref - im_deg) ** 2
         # mse = np.average(im_sqr_err)
-        return ssim(im_ref, im_deg,
+        return ssim(im_ref,
+                    im_deg,
                     data_range=255.0,
-                    gaussian_weights=True, sigma=1.5,
+                    gaussian_weights=True,
+                    sigma=1.5,
                     use_sample_covariance=False)
 
-    def _wsmse(self, im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+    def _wsmse(self,
+               im_ref: np.ndarray,
+               im_deg: np.ndarray
+               ) -> float:
         """
         Must be same size
         :param im_ref:
@@ -323,7 +372,10 @@ class SegmentsQuality(SegmentsQualityProps):
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
         return wmse
 
-    def _smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
+    def _smse_nn(self,
+                 tile_ref: np.ndarray,
+                 tile_deg: np.ndarray
+                 ):
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
         resolution.
@@ -399,7 +451,8 @@ class CollectQuality(SegmentsQualityProps):
 
             if self.change_flag and not self.error:
                 print('\n\tSaving.')
-                save_json(self.results, self.quality_result_json)
+                save_json(self.results,
+                          self.quality_result_json)
 
     def main_loop(self):
         for self.tiling in self.tiling_list:
@@ -408,7 +461,9 @@ class CollectQuality(SegmentsQualityProps):
                     for self.chunk in self.chunk_list:
                         yield
 
-    def quality_json_exist(self, check_result=True):
+    def quality_json_exist(self,
+                           check_result=True
+                           ):
         try:
             self.results = load_json(self.quality_result_json,
                                      AutoDict)
@@ -431,7 +486,8 @@ class CollectQuality(SegmentsQualityProps):
             return
 
     def work(self):
-        print(f'\r\t{self.state_str()} ', end='')
+        print(f'\r\t{self.state_str()} ',
+              end='')
         try:
             self.check_qlt_results()
         except KeyError:
@@ -465,7 +521,9 @@ class MakePlot(SegmentsQualityProps):
 
     def main(self):
 
-        def get_serie(value1, value2):
+        def get_serie(value1,
+                      value2
+                      ):
             # self.results[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk][self.metric]
             results = self.results[self.proj][self.name][self.tiling][self.quality]
 
@@ -474,17 +532,21 @@ class MakePlot(SegmentsQualityProps):
 
         for self.video in self.video_list:
             folder = self.quality_folder / '_metric plots' / f'{self.video}'
-            folder.mkdir(parents=True, exist_ok=True)
+            folder.mkdir(parents=True,
+                         exist_ok=True)
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     # self.get_tile_image()
                     quality_plot_file = folder / f'{self.tiling}_crf{self.quality}.png'
-                    self.make_tile_image(self.metric_list, self.tile_list,
+                    self.make_tile_image(self.metric_list,
+                                         self.tile_list,
                                          quality_plot_file,
                                          get_serie,
-                                         nrows=2, ncols=2,
-                                         figsize=(8, 5), dpi=200)
+                                         nrows=2,
+                                         ncols=2,
+                                         figsize=(8, 5),
+                                         dpi=200)
 
     def main2(self):
         for self.video in self.video_list:
@@ -493,24 +555,36 @@ class MakePlot(SegmentsQualityProps):
                 for self.quality in self.quality_list:
                     self.get_tile_image()
 
-    def make_tile_image(self, iter1, iter2, quality_plot_file: Path,
+    def make_tile_image(self,
+                        iter1,
+                        iter2,
+                        quality_plot_file: Path,
                         get_serie: Callable,
-                        nrows=1, ncols=1,
-                        figsize=(8, 5), dpi=200):
+                        nrows=1,
+                        ncols=1,
+                        figsize=(8, 5),
+                        dpi=200
+                        ):
         if quality_plot_file.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
-        print(f'\r{self.state_str()}', end='')
+        print(f'\r{self.state_str()}',
+              end='')
 
-        fig, axes = plt.subplots(nrows, ncols, figsize=figsize, dpi=dpi)
+        fig, axes = plt.subplots(nrows,
+                                 ncols,
+                                 figsize=figsize,
+                                 dpi=dpi)
         axes: list[plt.Axes] = list(np.ravel([axes]))
         fig: plt.Figure
 
         for i, value1 in enumerate(iter1):
             for value2 in iter2:
-                result = get_serie(value1, value2)
-                axes[i].plot(result, label=f'{value2}')
+                result = get_serie(value1,
+                                   value2)
+                axes[i].plot(result,
+                             label=f'{value2}')
             axes[i].set_title(value1)
 
         fig.suptitle(f'{self.state_str()}')
@@ -524,16 +598,21 @@ class MakePlot(SegmentsQualityProps):
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
-        print(f'\rProcessing [{self.proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
+        print(f'\rProcessing [{self.proj}][{self.video}][{self.tiling}][crf{self.quality}]',
+              end='')
 
-        fig, axes = plt.subplots(2, 2, figsize=(8, 5), dpi=200)
+        fig, axes = plt.subplots(2,
+                                 2,
+                                 figsize=(8, 5),
+                                 dpi=200)
         axes: list[plt.Axes] = list(np.ravel(axes))
         fig: plt.Figure
 
         for i, self.metric in enumerate(self.metric_list):
             for self.tile in self.tile_list:
                 result = [np.average(self.chunk_results[self.metric]) for self.chunk in self.chunk_list]
-                axes[i].plot(result, label=f'{self.tile}')
+                axes[i].plot(result,
+                             label=f'{self.tile}')
             axes[i].set_title(self.metric)
 
         fig.suptitle(f'{self.state_str()}')
