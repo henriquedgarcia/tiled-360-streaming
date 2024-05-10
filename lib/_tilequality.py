@@ -155,18 +155,6 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 
         self.check_video_quality_csv()
 
-    def update_tile_position(self):
-        self.tile_position = {}
-        for self.tile in self.tile_list:
-            proj_h, proj_w = self.video_shape[:2]
-
-            tiling_m, tiling_n = splitx(self.tiling)
-            tile_w, tile_h = int(proj_w / tiling_m), int(proj_h / tiling_n)
-            tile_x, tile_y = int(self.tile) % tiling_m, int(self.tile) // tiling_m
-            x1, x2 = tile_x * tile_w, tile_x * tile_w + tile_w  # not inclusive
-            y1, y2 = tile_y * tile_h, tile_y * tile_h + tile_h  # not inclusive
-            self.tile_position[self.tile] = [x1, y1, x2, y2]
-
     def check_video_quality_csv(self):
         if len(self.chunk_quality_df['MSE']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
@@ -190,6 +178,18 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
             self.log('CSV S-MSE has 0.', self.segment_file)
             print_error(f'\n\t\tCSV S-MSE has 0.', end='')
 
+    def update_tile_position(self):
+        self.tile_position = {}
+        for self.tile in self.tile_list:
+            proj_h, proj_w = self.video_shape[:2]
+
+            tiling_m, tiling_n = splitx(self.tiling)
+            tile_w, tile_h = int(proj_w / tiling_m), int(proj_h / tiling_n)
+            tile_x, tile_y = int(self.tile) % tiling_m, int(self.tile) // tiling_m
+            x1, x2 = tile_x * tile_w, tile_x * tile_w + tile_w  # not inclusive
+            y1, y2 = tile_y * tile_h, tile_y * tile_h + tile_h  # not inclusive
+            self.tile_position[self.tile] = [x1, y1, x2, y2]
+
     @property
     def chunk_results(self):
         results = self.results
@@ -205,12 +205,10 @@ class SegmentsQuality(SegmentsQualityProps):
             self.work()
 
     def work(self):
-        print(f'\r{self.state_str()}: ', end='')
+        print(f'\r{self.state_str()}: ')
 
         if self.skip(): return
         chunk_quality = defaultdict(list)
-        # if self.video_quality_csv.exists():
-            # chunk_quality = self.chunk_quality_df.to_dict(orient='list')
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
         iter_segment = iter_frame(self.segment_file)
@@ -252,9 +250,7 @@ class SegmentsQuality(SegmentsQualityProps):
             print('')
             return skip
 
-        # todo: descomentar isso e apagar o return de baixo
-        # return True
-        return False
+        return True
 
     def iterator(self):
         self.init()
