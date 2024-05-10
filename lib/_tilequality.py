@@ -201,6 +201,7 @@ class SegmentsQualityProps(SegmentsQualityPaths, Utils, Log):
 class SegmentsQuality(SegmentsQualityProps):
 
     def main(self):
+        self.init()
         for _ in self.iterator():
             self.work()
 
@@ -253,7 +254,6 @@ class SegmentsQuality(SegmentsQualityProps):
         return True
 
     def iterator(self):
-        self.init()
         for self.video in self.video_list:
             self.results = AutoDict()
             shape = self.video_shape[:2]
