@@ -14,7 +14,9 @@ from .util import run_command, splitx
 
 
 class AutoDict(dict):
-    def __missing__(self, key):
+    def __missing__(self,
+                    key
+                    ):
         self[key] = type(self)()
         return self[key]
 
@@ -49,14 +51,19 @@ class Bcolors:
     ENDC = '\033[0m'
 
 
-def print_error(msg: str, end: str = '\n'):
-    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}', end=end)
+def print_error(msg: str,
+                end: str = '\n'
+                ):
+    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}',
+          end=end)
 
 
 class Config:
     config_data: dict
 
-    def __init__(self, config_file: Union[Path, str]):
+    def __init__(self,
+                 config_file: Union[Path, str]
+                 ):
         print(f'Loading {config_file}.')
 
         self.config_file = Path(config_file)
@@ -71,10 +78,15 @@ class Config:
 
         self.config_data['videos_list'] = self.videos_list
 
-    def __getitem__(self, key):
+    def __getitem__(self,
+                    key
+                    ):
         return self.config_data[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self,
+                    key,
+                    value
+                    ):
         self.config_data[key] = value
 
 
@@ -162,7 +174,9 @@ class Factors:
     @property
     def name_list(self) -> list[str]:
         if self._name_list is None:
-            _name_list = set([video.replace('_cmp', '').replace('_erp', '') for video in self.video_list])
+            _name_list = set([video.replace('_cmp',
+                                            '').replace('_erp',
+                                                        '') for video in self.video_list])
             self._name_list = sorted(list(_name_list))
         return self._name_list
 
@@ -190,7 +204,8 @@ class Factors:
 
     @property
     def chunk_list(self) -> list[str]:
-        for chunk in range(1, int(self.duration) + 1):
+        for chunk in range(1,
+                           int(self.duration) + 1):
             yield str(chunk)
 
     @property
@@ -282,17 +297,22 @@ class Factors:
         return self._metric
 
     @metric.setter
-    def metric(self, value):
+    def metric(self,
+               value
+               ):
         self._metric = value
 
     @property
     def video(self) -> str:
         if self._video is None and None not in (self._name, self._proj):
-            return self._name.replace('_nas', f'_{self._proj}_nas')
+            return self._name.replace('_nas',
+                                      f'_{self._proj}_nas')
         return self._video
 
     @video.setter
-    def video(self, value):
+    def video(self,
+              value
+              ):
         self._video = value
         self._name = None
         self._proj = None
@@ -300,11 +320,15 @@ class Factors:
     @property
     def name(self) -> str:
         if self._name is None and self._video is not None:
-            return self._video.replace('_cmp', '').replace('_erp', '')
+            return self._video.replace('_cmp',
+                                       '').replace('_erp',
+                                                   '')
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self,
+             value
+             ):
         self._name = value
         self._video = None
 
@@ -315,7 +339,9 @@ class Factors:
         return self._proj
 
     @proj.setter
-    def proj(self, value):
+    def proj(self,
+             value
+             ):
         self._video = None
         self._proj = value
 
@@ -324,7 +350,9 @@ class Factors:
         return self._quality
 
     @quality.setter
-    def quality(self, value):
+    def quality(self,
+                value
+                ):
         self._quality = value
 
     @property
@@ -332,7 +360,9 @@ class Factors:
         return self._tiling
 
     @tiling.setter
-    def tiling(self, value):
+    def tiling(self,
+               value
+               ):
         self._tiling = value
 
     @property
@@ -340,7 +370,9 @@ class Factors:
         return self._tile
 
     @tile.setter
-    def tile(self, value):
+    def tile(self,
+             value
+             ):
         self._tile = value
 
     @property
@@ -348,7 +380,9 @@ class Factors:
         return self._chunk
 
     @chunk.setter
-    def chunk(self, value):
+    def chunk(self,
+              value
+              ):
         self._chunk = value
 
     # </editor-fold>
@@ -435,19 +469,22 @@ class GlobalPaths(Factors):
         :return:
         """
         folder = self.project_path / self.dectime_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder / f'time_{self.video}.json'
 
     @property
     def bitrate_result_json(self) -> Path:
         folder = self.project_path / self.segment_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder / f'rate_{self.video}.json'
 
     @property
     def quality_result_json(self) -> Path:
         folder = self.project_path / self.quality_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder / f'quality_{self.video}.json'
 
     # Tiles chunk path
@@ -458,14 +495,26 @@ class GlobalPaths(Factors):
                     f'{self.rate_control}{self.quality}/')
 
     @property
+    def compresseds_folder(self) -> Path:
+        folder = self.project_path / self.compressed_folder / self.basename2
+        folder.absolute().mkdir(parents=True,
+                                exist_ok=True)
+        return folder
+
+    @property
+    def compressed_file(self) -> Path:
+        return self.compresseds_folder / f'tile{self.tile}.mp4'
+
+    @property
     def segments_folder(self) -> Path:
         folder = self.project_path / self.segment_folder / self.basename2 / f'tile{self.tile}'
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder
 
     @property
     def segment_file(self) -> Path:
-        chunk = int(str(self.chunk))
+        chunk = int(self.chunk)
         return self.segments_folder / f'tile{self.tile}_{chunk:03d}.mp4'
 
     @property
@@ -475,7 +524,6 @@ class GlobalPaths(Factors):
         segment_file = self.segment_file
         self.quality = qlt
         return segment_file
-
 
 
 class Log(Factors):
@@ -490,7 +538,10 @@ class Log(Factors):
         finally:
             self.save_log()
 
-    def log(self, error_code: str, filepath):
+    def log(self,
+            error_code: str,
+            filepath
+            ):
         self.log_text['video'].append(f'{self.video}')
         self.log_text['tiling'].append(f'{self.tiling}')
         self.log_text['quality'].append(f'{self.quality}')
@@ -503,15 +554,20 @@ class Log(Factors):
     def save_log(self):
         cls_name = self.__class__.__name__
         filename = f'log/log_{cls_name}_{datetime.datetime.now()}.csv'
-        filename = filename.replace(':', '-')
+        filename = filename.replace(':',
+                                    '-')
         df_log_text = pd.DataFrame(self.log_text)
-        df_log_text.to_csv(filename, encoding='utf-8')
+        df_log_text.to_csv(filename,
+                           encoding='utf-8')
 
 
-class Utils(Log, ContextObj):
+class Utils(Log,
+            ContextObj):
     command_pool: list
 
-    def __init__(self, config: str):
+    def __init__(self,
+                 config: str
+                 ):
         self.config = Config(config)
         self.print_resume()
         start = time()
@@ -598,6 +654,7 @@ class Utils(Log, ContextObj):
         try:
             yield
             with Pool(4) as p:
-                p.map(run_command, self.command_pool)  # for command in self.command_pool:  #     run_command(command)
+                p.map(run_command,
+                      self.command_pool)  # for command in self.command_pool:  #     run_command(command)
         finally:
             pass
