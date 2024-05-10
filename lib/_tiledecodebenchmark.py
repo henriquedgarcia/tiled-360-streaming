@@ -38,7 +38,9 @@ t = ['9x6', '12x8']
 # 'wingsuit_dubai_cmp_nas']
 
 
-class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
+class TileDecodeBenchmarkPaths(Utils,
+                               Log,
+                               GlobalPaths):
     # Folders
 
     @property
@@ -56,14 +58,9 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     @property
     def lossless_file(self) -> Path:
         folder = self.project_path / self.lossless_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder / f'{self.name}_{self.resolution}_{self.fps}.mp4'
-
-    @property
-    def compressed_file(self) -> Path:
-        folder = self.project_path / self.compressed_folder / self.basename2
-        folder.absolute().mkdir(parents=True, exist_ok=True)
-        return folder / f'tile{self.tile}.mp4'
 
     @property
     def compressed_log(self) -> Path:
@@ -93,7 +90,8 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     @property
     def _dectime_folder(self) -> Path:
         folder = self.project_path / self.dectime_folder / self.basename2 / f'tile{self.tile}'
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder
 
     @property
@@ -104,7 +102,8 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     @property
     def siti_folder(self):
         folder = self.project_path / self.siti_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         return folder
 
     @property
@@ -118,7 +117,8 @@ class TileDecodeBenchmarkPaths(Utils, Log, GlobalPaths):
     @property
     def siti_results(self) -> Path:
         folder = self.project_path / self.siti_folder
-        folder.mkdir(parents=True, exist_ok=True)
+        folder.mkdir(parents=True,
+                     exist_ok=True)
         name = f'siti_results'
         if self.video:
             name += f'_{self.video}'
@@ -150,7 +150,9 @@ class Prepare(TileDecodeBenchmarkPaths):
         for self.video in self.video_list:
             self.worker()
 
-    def worker(self, overwrite=False):
+    def worker(self,
+               overwrite=False
+               ):
         original_file: Path = self.original_file
         lossless_file: Path = self.lossless_file
         lossless_log: Path = self.lossless_file.with_suffix('.log')
@@ -221,10 +223,13 @@ class Compress(TileDecodeBenchmarkPaths):
         cmd = f'bash -c "{cmd}&> {self.compressed_log.as_posix()}"'
         self.command_pool.append(cmd)
 
-    def skip(self, decode=False):
+    def skip(self,
+             decode=False
+             ):
         # first Lossless file
         if not self.lossless_file.exists():
-            self.log(f'The lossless_file not exist.', self.lossless_file)
+            self.log(f'The lossless_file not exist.',
+                     self.lossless_file)
             print(f'The file {self.lossless_file} not exist. Skipping.')
             return True
 
@@ -245,13 +250,15 @@ class Compress(TileDecodeBenchmarkPaths):
             return False
 
         if 'encoded 1800 frames' not in compressed_log_text:
-            self.log('compressed_log is corrupt', self.compressed_log)
+            self.log('compressed_log is corrupt',
+                     self.compressed_log)
             print_error(f'The file {self.compressed_log} is corrupt. Skipping.')
             self.clean_compress()
             return False
 
         if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-            self.log('CODEC ERROR', self.compressed_log)
+            self.log('CODEC ERROR',
+                     self.compressed_log)
             print_error(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
             self.clean_compress()
             return False
@@ -261,7 +268,8 @@ class Compress(TileDecodeBenchmarkPaths):
             stdout = decode_file(self.compressed_file)
             if "frame= 1800" not in stdout:
                 print_error(f'Compress Decode Error. Cleaning..')
-                self.log(f'Compress Decode Error.', self.compressed_file)
+                self.log(f'Compress Decode Error.',
+                         self.compressed_file)
                 self.clean_compress()
                 return False
 
@@ -311,12 +319,15 @@ class Segment(TileDecodeBenchmarkPaths):
 
     segment_log_txt: str
 
-    def check_segment_log(self, decode=False):
+    def check_segment_log(self,
+                          decode=False
+                          ):
         if 'file 60 done' not in self.segment_log_txt:
             # self.compressed_file.unlink(missing_ok=True)
             # self.compressed_log.unlink(missing_ok=True)
             print_error(f'The file {self.segment_log} is corrupt. Cleaning.')
-            self.log('Segment_log is corrupt. Cleaning', self.segment_log)
+            self.log('Segment_log is corrupt. Cleaning',
+                     self.segment_log)
             raise FileNotFoundError
 
         # Se log está ok; verifique os segmentos.
@@ -324,14 +335,16 @@ class Segment(TileDecodeBenchmarkPaths):
             try:
                 segment_file_size = self.segment_file.stat().st_size
             except FileNotFoundError as e:
-                self.log(f'Segmentlog is OK, but segment not exist.', self.segment_log)
+                self.log(f'Segmentlog is OK, but segment not exist.',
+                         self.segment_log)
                 print_error(f'Segmentlog is OK, but segment not exist. Cleaning.')
                 raise e
 
             if segment_file_size == 0:
                 # um segmento size 0 e o Log diz que está ok. limpeza.
                 print_error(f'Segmentlog is OK. The file SIZE 0. Cleaning.')
-                self.log(f'Segmentlog is OK. The file {self.segment_file} SIZE 0', self.segment_file)
+                self.log(f'Segmentlog is OK. The file {self.segment_file} SIZE 0',
+                         self.segment_file)
                 raise FileNotFoundError
 
             # decodifique os segmentos
@@ -340,7 +353,8 @@ class Segment(TileDecodeBenchmarkPaths):
 
                 if "frame=   30" not in stdout:
                     print_error(f'Segment Decode Error. Cleaning..')
-                    self.log(f'Segment Decode Error.', self.segment_file)
+                    self.log(f'Segment Decode Error.',
+                             self.segment_file)
                     raise FileNotFoundError
 
     def read_segment_log(self):
@@ -354,7 +368,8 @@ class Segment(TileDecodeBenchmarkPaths):
     def skip(self):
         # first compressed file
         if not self.compressed_file.exists():
-            self.log('compressed_file NOTFOUND.', self.compressed_file)
+            self.log('compressed_file NOTFOUND.',
+                     self.compressed_file)
             print_error(f'The file {self.compressed_file} not exist. Skipping.')
             return True
 
@@ -410,17 +425,20 @@ class Decode(TileDecodeBenchmarkPaths):
                 return False
             else:
                 print_error(f'The segment not exist. ')
-                self.log("segment_file not exist.", self.segment_file)
+                self.log("segment_file not exist.",
+                         self.segment_file)
                 return True
 
     def worker(self) -> Any:
-        print(f'Decoding file "{self.segment_file}". ', end='')
+        print(f'Decoding file "{self.segment_file}". ',
+              end='')
 
         if self.skip():
             return
 
         print(f'Turn {self.turn + 1}')
-        stdout = decode_file(self.segment_file, threads=1)
+        stdout = decode_file(self.segment_file,
+                             threads=1)
         with self.dectime_log.open('a') as f:
             f.write(f'\n==========\n{stdout}')
             print(' OK')
@@ -462,7 +480,8 @@ class GetBitrate(TileDecodeBenchmarkPaths):
 
             if self.change_flag and not self.error:
                 print('Saving.')
-                save_json(self.result_rate, self.bitrate_result_json)
+                save_json(self.result_rate,
+                          self.bitrate_result_json)
 
     def skip1(self, ):
         if self.bitrate_result_json.exists():
@@ -476,13 +495,15 @@ class GetBitrate(TileDecodeBenchmarkPaths):
         return False
 
     def bitrate(self) -> Any:
-        print(f'\r{self.state_str()}: ', end='')
+        print(f'\r{self.state_str()}: ',
+              end='')
 
         try:
             bitrate = self.get_bitrate()
         except FileNotFoundError:
             self.error = True
-            self.log('BITRATE FILE NOT FOUND', self.dectime_log)
+            self.log('BITRATE FILE NOT FOUND',
+                     self.dectime_log)
             print_error(f'\n\n\tThe segment not exist. Skipping.')
             return
 
@@ -494,13 +515,15 @@ class GetBitrate(TileDecodeBenchmarkPaths):
                 self.change_flag = True
 
         self.result_rate[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = bitrate
-        print(f'{self.bitrate}', end='')
+        print(f'{self.bitrate}',
+              end='')
 
     def get_bitrate(self):
         chunk_size = self.segment_file.stat().st_size
 
         if chunk_size == 0:
-            self.log('BITRATE==0', self.segment_file)
+            self.log('BITRATE==0',
+                     self.segment_file)
             self.segment_file.unlink()
             raise FileNotFoundError
 
@@ -545,16 +568,19 @@ class GetDectime(TileDecodeBenchmarkPaths):
 
             if self.change_flag and not self.error:
                 print('Saving.')
-                save_json(self.result_times, self.dectime_result_json)
+                save_json(self.result_times,
+                          self.dectime_result_json)
 
     def dectime(self) -> Any:
-        print(f'\r{self.state_str()} = ', end='')
+        print(f'\r{self.state_str()} = ',
+              end='')
 
         try:
             times = self.get_dectime()
         except FileNotFoundError:
             self.error = True
-            self.log('DECTIME_FILE_NOT_FOUND', self.dectime_log)
+            self.log('DECTIME_FILE_NOT_FOUND',
+                     self.dectime_log)
             print_error(f'\n\tThe dectime log not exist. Skipping.')
             return
 
@@ -566,7 +592,8 @@ class GetDectime(TileDecodeBenchmarkPaths):
                 self.change_flag = True
 
         self.result_times[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
-        print(f'{times}', end='')
+        print(f'{times}',
+              end='')
 
     def skip1(self):
         if self.dectime_result_json.exists():
@@ -587,11 +614,13 @@ class GetDectime(TileDecodeBenchmarkPaths):
 
         if len(times) < self.decoding_num:
             print_error(f'\n    The dectime is lower than {self.decoding_num}: ')
-            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}', self.dectime_log)
+            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}',
+                     self.dectime_log)
 
         if 0 in times:
             print_error(f'\n    0  found: ')
-            self.log('DECTIME_ZERO_FOUND', self.dectime_log)
+            self.log('DECTIME_ZERO_FOUND',
+                     self.dectime_log)
 
         return times
 
@@ -619,7 +648,8 @@ class MakeSiti(TileDecodeBenchmarkPaths):
                 continue
 
             if not self.compressed_file.exists():
-                self.log('compressed_file NOT_FOUND', self.compressed_file)
+                self.log('compressed_file NOT_FOUND',
+                         self.compressed_file)
                 print(f'compressed_file not exist {self.compressed_file}. Skipping.')
                 continue
 
@@ -644,7 +674,8 @@ class MakeSiti(TileDecodeBenchmarkPaths):
             return
 
         for self.video in self.video_list:
-            siti_results = pd.read_csv(self.siti_results, index_col=0)
+            siti_results = pd.read_csv(self.siti_results,
+                                       index_col=0)
             si = siti_results['si']
             ti = siti_results['ti']
             bitrate = self.compressed_file.stat().st_size * 8 / 60
@@ -669,19 +700,26 @@ class MakeSiti(TileDecodeBenchmarkPaths):
             siti_stats['ti_min'].append(np.min(ti))
             siti_stats['ti_med'].append(np.median(ti))
 
-        pd.DataFrame(siti_stats).to_csv(self.siti_stats, index=False)
+        pd.DataFrame(siti_stats).to_csv(self.siti_stats,
+                                        index=False)
 
     def plot_siti(self):
 
         def plot1():
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), dpi=300)
+            fig, (ax1, ax2) = plt.subplots(2,
+                                           1,
+                                           figsize=(8, 6),
+                                           dpi=300)
             for self.video in self.video_list:
                 siti_results = load_json(self.siti_results)
-                name = self.name.replace('_nas', '')
+                name = self.name.replace('_nas',
+                                         '')
                 si = siti_results[self.video]['si']
                 ti = siti_results[self.video]['ti']
-                ax1.plot(si, label=name)
-                ax2.plot(ti, label=name)
+                ax1.plot(si,
+                         label=name)
+                ax2.plot(ti,
+                         label=name)
 
             ax1.set_xlabel("Frame")
             ax1.set_ylabel("Spatial Information")
@@ -691,7 +729,8 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
             handles, labels = ax1.get_legend_handles_labels()
             fig.suptitle('SI/TI by frame')
-            fig.legend(handles, labels,
+            fig.legend(handles,
+                       labels,
                        loc='upper left',
                        bbox_to_anchor=[0.8, 0.93],
                        fontsize='small')
@@ -703,15 +742,21 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         def plot2():
             proj_list = ['erp', 'cmp']
             for name in self.name_list:
-                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), dpi=300)
+                fig, (ax1, ax2) = plt.subplots(2,
+                                               1,
+                                               figsize=(8, 6),
+                                               dpi=300)
                 for proj in proj_list:
-                    self.video = name.replace('_nas', f'_{proj}_nas')
+                    self.video = name.replace('_nas',
+                                              f'_{proj}_nas')
 
                     siti_results_df = pd.read_csv(self.siti_results)
                     si = siti_results_df['si']
                     ti = siti_results_df['ti']
-                    ax1.plot(si, label=self.video)
-                    ax2.plot(ti, label=self.video)
+                    ax1.plot(si,
+                             label=self.video)
+                    ax2.plot(ti,
+                             label=self.video)
 
                 ax1.set_xlabel("Frame")
                 ax1.set_ylabel("Spatial Information")
@@ -733,7 +778,11 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
     def scatter_plot_siti(self):
         siti_stats = pd.read_csv(self.siti_stats)
-        def change_name(x): return x.replace('_nas', '')
+
+        def change_name(x):
+            return x.replace('_nas',
+                             '')
+
         siti_stats['video'].apply(change_name)
 
         si_max = siti_stats['si_med'].max()
@@ -741,15 +790,22 @@ class MakeSiti(TileDecodeBenchmarkPaths):
 
         siti_erp = siti_stats['proj'] == 'erp'
         siti_stats_erp = siti_stats[siti_erp][['video', 'si_med', 'ti_med']]
-        fig_erp, ax_erp = plt.subplots(1, 1, figsize=(8, 6), dpi=300)
+        fig_erp, ax_erp = plt.subplots(1,
+                                       1,
+                                       figsize=(8, 6),
+                                       dpi=300)
 
         for idx, (video, si, ti) in siti_stats_erp.iterrows():
-            ax_erp.scatter(si, ti, label=video + ' ')
+            ax_erp.scatter(si,
+                           ti,
+                           label=video + ' ')
 
         ax_erp.set_xlabel("Spatial Information")
         ax_erp.set_ylabel("Temporal Information")
-        ax_erp.set_xlim(xmax=si_max + 5, xmin=0)
-        ax_erp.set_ylim(ymax=ti_max + 5, ymin=0)
+        ax_erp.set_xlim(xmax=si_max + 5,
+                        xmin=0)
+        ax_erp.set_ylim(ymax=ti_max + 5,
+                        ymin=0)
         ax_erp.legend(loc='upper left',
                       bbox_to_anchor=(1.01, 1.0),
                       fontsize='small')
@@ -762,15 +818,22 @@ class MakeSiti(TileDecodeBenchmarkPaths):
         ############################################
         siti_cmp = siti_stats['proj'] == 'cmp'
         siti_stats_cmp = siti_stats[siti_cmp][['video', 'si_med', 'ti_med']]
-        fig_cmp, ax_cmp = plt.subplots(1, 1, figsize=(8, 6), dpi=300)
+        fig_cmp, ax_cmp = plt.subplots(1,
+                                       1,
+                                       figsize=(8, 6),
+                                       dpi=300)
 
         for idx, (video, si, ti) in siti_stats_cmp.iterrows():
-            ax_cmp.scatter(si, ti, label=video)
+            ax_cmp.scatter(si,
+                           ti,
+                           label=video)
 
         ax_cmp.set_xlabel("Spatial Information")
         ax_cmp.set_ylabel("Temporal Information")
-        ax_cmp.set_xlim(xmax=si_max + 5, xmin=0)
-        ax_cmp.set_ylim(ymax=ti_max + 5, ymin=0)
+        ax_cmp.set_xlim(xmax=si_max + 5,
+                        xmin=0)
+        ax_cmp.set_ylim(ymax=ti_max + 5,
+                        ymin=0)
         ax_cmp.legend(loc='upper left',
                       bbox_to_anchor=(1.01, 1.0),
                       fontsize='small')
