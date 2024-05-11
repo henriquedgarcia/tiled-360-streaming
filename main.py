@@ -41,6 +41,10 @@ if __name__ == '__main__':
     parser.add_argument('-r', default=None, nargs=2, metavar=('WORKER_ID', 'ROLE_ID'), help=f'Two int separated by space.')
     args = parser.parse_args()
 
+    if args.r is None:
+        parser.print_help()
+        exit(1)
+
     worker_id, role_id = args.r
     config: str = args.c if args.c is not None else config
 
