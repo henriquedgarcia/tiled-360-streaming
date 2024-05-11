@@ -68,6 +68,8 @@ class SegmentsQualityProps(SegmentsQualityPaths,
         self.weight_ndarray = np.zeros(0)
         self.old_tile = ''
 
+        self.quality_list.remove('0')
+
     def load_weight_ndarray(self):
         weight_ndarray_file = Path(f'datasets/'
                                    f'weight_ndarray'
@@ -161,24 +163,24 @@ class SegmentsQualityProps(SegmentsQualityPaths,
 
             self.sph_points_mask[n, m] = 1
 
-    def read_video_quality_csv(self):
-        try:
-            self.chunk_quality_df = pd.read_csv(self.video_quality_csv,
-                                                encoding='utf-8',
-                                                index_col=0)
-        except FileNotFoundError as e:
-            print(f'\n\t\tCSV_NOTFOUND_ERROR')
-            self.log('CSV_NOTFOUND_ERROR',
-                     self.video_quality_csv)
-            raise e
-        except pd.errors.EmptyDataError as e:
-            self.video_quality_csv.unlink(missing_ok=True)
-            print(f'\n\t\tCSV_EMPTY_DATA_ERROR')
-            self.log('CSV_EMPTY_DATA_ERROR',
-                     self.video_quality_csv)
-            raise e
-
-        self.check_video_quality_csv()
+    # def read_video_quality_csv(self):
+    #     try:
+    #         self.chunk_quality_df = pd.read_csv(self.video_quality_csv,
+    #                                             encoding='utf-8',
+    #                                             index_col=0)
+    #     except FileNotFoundError as e:
+    #         print(f'\n\t\tCSV_NOTFOUND_ERROR')
+    #         self.log('CSV_NOTFOUND_ERROR',
+    #                  self.video_quality_csv)
+    #         raise e
+    #     except pd.errors.EmptyDataError as e:
+    #         self.video_quality_csv.unlink(missing_ok=True)
+    #         print(f'\n\t\tCSV_EMPTY_DATA_ERROR')
+    #         self.log('CSV_EMPTY_DATA_ERROR',
+    #                  self.video_quality_csv)
+    #         raise e
+    #
+    #     self.check_video_quality_csv()
 
     def check_video_quality_csv(self):
         if len(self.chunk_quality_df['MSE']) != int(self.gop):
@@ -187,7 +189,7 @@ class SegmentsQualityProps(SegmentsQualityPaths,
                         end='')
             self.log(f'MISSING_FRAMES',
                      self.video_quality_csv)
-            raise FileNotFoundError
+            return False
 
         if 1 in self.chunk_quality_df['SSIM'].to_list():
             self.log(f'CSV SSIM has 1.',
@@ -212,6 +214,7 @@ class SegmentsQualityProps(SegmentsQualityPaths,
                      self.segment_file)
             print_error(f'\n\t\tCSV S-MSE has 0.',
                         end='')
+        return True
 
     def update_tile_position(self):
         self.tile_position = {}
@@ -252,13 +255,20 @@ class SegmentsQuality(SegmentsQualityProps):
                          iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r\t{frame=}', end='')
-            chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
-            chunk_quality['MSE'].append(self._mse(frame1, frame2))
-            chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
-            chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
-        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
-        print(f"\n\ttime={time() - start}.")
+            print(f'\r\t{frame=}',
+                  end='')
+            chunk_quality['SSIM'].append(self._ssim(frame1,
+                                                    frame2))
+            chunk_quality['MSE'].append(self._mse(frame1,
+                                                  frame2))
+            chunk_quality['WS-MSE'].append(self._wsmse(frame1,
+                                                       frame2))
+            chunk_quality['S-MSE'].append(self._smse_nn(frame1,
+                                                        frame2))
+        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv,
+                                           encoding='utf-8',
+                                           index_label='frame')
+        print(f"\ttime={time() - start}.")
 
     def skip(self):
         skip = False
@@ -275,13 +285,16 @@ class SegmentsQuality(SegmentsQualityProps):
             skip = True
 
         try:
-            self.read_video_quality_csv()
-        except (FileNotFoundError, pd.errors.EmptyDataError):
-            self.error = True
-            print('')
+            self.chunk_quality_df = pd.read_csv(self.video_quality_csv, encoding='utf-8', index_col=0)
+        except FileNotFoundError:
+            return skip
+        except pd.errors.EmptyDataError:
+            self.video_quality_csv.unlink(missing_ok=True)
+            self.log('CSV_EMPTY_DATA_ERROR',
+                     self.video_quality_csv)
             return skip
 
-        return True
+        return skip or self.check_video_quality_csv()
 
     def iterator(self):
         for self.video in self.video_list:
