@@ -14,8 +14,8 @@ from skvideo.io import FFmpegReader
 from ._tilequality import SegmentsQualityPaths
 from .assets import AutoDict, GlobalPaths, Utils, Log
 from .get_tiles import GetTilesProps
-from .py360tools import ERP
-from .py360tools import ProjBase
+from py360tools import ERP
+from py360tools import ProjectionBase
 from .util import load_json, save_json, idx2xy, splitx
 
 pi = np.pi
@@ -314,7 +314,7 @@ class ViewportPSNRProps(GetTilesProps):
     video_frame_idx: int
     tile_h: float
     tile_w: float
-    projection_obj: ProjBase
+    projection_obj: ProjectionBase
 
     ## Lists #############################################
     @property

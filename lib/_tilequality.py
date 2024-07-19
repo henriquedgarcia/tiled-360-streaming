@@ -9,7 +9,8 @@ from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
 from .assets import Log, AutoDict, print_error, Utils, GlobalPaths
-from .py360tools import ea2erp, ea2cmp_face
+from py360tools.transform.erp_transform import ea2erp
+from py360tools.transform.cmp_transform import ea2cmp_face
 from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx
 
 
