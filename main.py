@@ -1,55 +1,79 @@
 #!/usr/bin/env python3
+from pathlib import Path
 import argparse
 from typing import Type
 import lib
+from lib import TileDecodeBenchmarkOptions
 
-# config = f'config/config_nas_erp.json'
-# config = f'config/config_nas_cmp.json'
+config_dict = {'full': 'config_full.py',
+               'reversed': 'config_reversed.py'
+               }
 
-# config = f'config/config_nas_erp_cmp_qp.json'
-# config = f'config/config_nas_erp_cmp.json'
-config = f'config/config_full.json'
+video_dict = {'full': 'videos_full.py',
+              'reversed': 'videos_reversed.py',
+              'alambique': 'videos_alambique.py',
+              'container0': 'videos_container0.py',
+              'container1': 'videos_container1.py',
+              'fortrek': 'videos_fortrek.py',
+              'hp - elite': 'videos_hp - elite.py',
+              'lumine': 'videos_lumine.py',
+              'only cmp': 'videos_28videos_nas_cmp.py',
+              'only erp': 'videos_28videos_nas_erp.py'
+              }
 
-worker_list: dict[str, dict[str, Type]] = {
-    '0': lib.TileDecodeBenchmarkOptions,
-    # '1': ('CheckTiles', 'CheckTilesOptions'),
-    '2': lib.DectimeGraphsOptions,
-    '3': lib.QualityAssessmentOptions,
-    '4': lib.UserMetricsOptions,
-    '5': lib.GetTilesOptions,
-    # '4': ('MakeViewport', 'QualityAssessment'),
-    # '5': ('Dashing', 'QualityAssessment'),
-    # '6': ('QualityAssessment', 'QualityAssessment'),
-    # '7': ('Siti', 'QualityAssessment'),
-}
-
-
-def make_help_txt():
-    help_txt = ['Dectime Testbed.']
-    help_txt += [f'| WORKER_ID: {{ROLE_ID: "Worker Name"}}, ...']
-    for idx, worker in worker_list.items():
-        line = f'| {repr(idx):^9}: '
-        for idx2, opt in worker_list[idx].items():
-            line += f'{{{idx2}: {opt.__name__}}},'
-        help_txt += [line[:-1]]
-    return '\n'.join(help_txt)
+worker_dict = {'TileDecodeBenchmark': TileDecodeBenchmarkOptions,
+              }
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=make_help_txt())
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
+    # parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=make_help_txt())
     parser.add_argument('-c', default=None, metavar='CONFIG_FILE', help='The path to config file')
     parser.add_argument('-r', default=None, nargs=2, metavar=('WORKER_ID', 'ROLE_ID'), help=f'Two int separated by space.')
     args = parser.parse_args()
 
-    if args.r is None:
-        parser.print_help()
-        exit(1)
+    print(f'Choose a Config:')
+    keys = list(config_dict.keys())
+    while True:
+        for n, k in enumerate(keys):
+            print(f'\t{n} - {k}')
+        try:
+            option = int(input(f'Option: '))
+        except ValueError:
+            continue
+        break
+    option_key = keys[option]
+    file = Path('config') / config_dict[option_key]
+    config = eval(file.read_text())
 
-    worker_id, role_id = args.r
-    config: str = args.c if args.c is not None else config
+    print(f'Choose a video list:')
+    keys = list(video_dict.keys())
+    while True:
+        for n, k in enumerate(keys):
+            print(f'\t{n} - {k}')
+        try:
+            option = int(input(f'Option: '))
+        except ValueError:
+            continue
+        break
+    option_key = keys[option]
+    file = Path('config') / config_dict[option_key]
+    config['videos'] = eval(file.read_text())
 
-    worker_opt = worker_list[worker_id]
-    role = worker_opt[role_id]
-    role(config)
-
-    print(f'\n The end of {role} ======')
+    print(f'Choose a worker:')
+    items = list(worker_dict.items())
+    n=0
+    list_temp = []
+    while True:
+        for k, worker in items:
+            print(f'{k}:')
+            for role  in worker.values():
+                print(f'\t{n} - {role.__name__}')
+                list_temp.append(role)
+                n+=1
+        try:
+            option = int(input(f'Option: '))
+            list_temp[option](config)
+        except ValueError:
+            continue
+        break
