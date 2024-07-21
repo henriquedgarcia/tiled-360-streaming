@@ -145,24 +145,29 @@ class TileDecodeBenchmarkPaths(Utils,
         return quality_list
 
 
-class Prepare(TileDecodeBenchmarkPaths):
+class Segment(TileDecodeBenchmarkPaths):
     def main(self):
         for self.video in self.video_list:
-            self.worker()
+            self.prepare()
+            for self.tiling in self.tiling_list:
+                for self.quality in self.quality_list:
+                    for self.tile in self.tile_list:
+                        self.compress()
+                        self.segment()
 
-    def worker(self,
-               overwrite=False
-               ):
-        original_file: Path = self.original_file
-        lossless_file: Path = self.lossless_file
+    def prepare(self):
         lossless_log: Path = self.lossless_file.with_suffix('.log')
 
-        if lossless_file and not overwrite:
-            warning(f'  The file {lossless_file=} exist. Skipping.')
+        if self.lossless_file:
+            self.log(f'The lossless_file exist.',
+                     self.lossless_file)
+            print(f'The file {self.lossless_file} exist. Skipping.')
             return
 
-        if not original_file.exists():
-            warning(f'  The file {original_file=} not exist. Skipping.')
+        if not self.original_file.exists():
+            self.log(f'The original_file not exist.',
+                     self.original_file)
+            print(f'  The file {self.original_file=} not exist. Skipping.')
             return
 
         resolution_ = splitx(self.resolution)
@@ -171,30 +176,20 @@ class Prepare(TileDecodeBenchmarkPaths):
         cmd = f'bin/ffmpeg '
         cmd += f'-hide_banner -y '
         cmd += f'-ss {self.offset} '
-        cmd += f'-i {original_file.as_posix()} '
+        cmd += f'-i {self.original_file.as_posix()} '
         cmd += f'-crf 0 '
         cmd += f'-t {self.duration} '
         cmd += f'-r {self.fps} '
         cmd += f'-map 0:v '
         cmd += f'-vf scale={self.resolution},setdar={dar} '
-        cmd += f'{lossless_file.as_posix()}'
+        cmd += f'{self.lossless_file.as_posix()}'
 
         cmd = f'bash -c "{cmd}|& tee {lossless_log.as_posix()}"'
         print(cmd)
         run_command(cmd)
 
-
-class Compress(TileDecodeBenchmarkPaths):
-    def main(self):
-        for self.video in self.video_list:  # if self.video != 'chariot_race_erp_nas': continue
-            for self.tiling in self.tiling_list:
-                with self.multi() as _:
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-                            self.worker()
-
-    def worker(self):
-        if self.skip():
+    def compress(self):
+        if self.skip_compress():
             return
 
         print(f'==== Processing {self.compressed_file} ====')
@@ -223,82 +218,8 @@ class Compress(TileDecodeBenchmarkPaths):
         cmd = f'bash -c "{cmd}&> {self.compressed_log.as_posix()}"'
         self.command_pool.append(cmd)
 
-    def skip(self,
-             decode=False
-             ):
-        # first Lossless file
-        if not self.lossless_file.exists():
-            self.log(f'The lossless_file not exist.',
-                     self.lossless_file)
-            print(f'The file {self.lossless_file} not exist. Skipping.')
-            return True
-
-        # second check compressed
-        try:
-            compressed_file_size = self.compressed_file.stat().st_size
-        except FileNotFoundError:
-            compressed_file_size = 0
-
-        # third Check Logfile
-        try:
-            compressed_log_text = self.compressed_log.read_text()
-        except FileNotFoundError:
-            compressed_log_text = ''
-
-        if compressed_file_size == 0 or compressed_log_text == '':
-            self.clean_compress()
-            return False
-
-        if 'encoded 1800 frames' not in compressed_log_text:
-            self.log('compressed_log is corrupt',
-                     self.compressed_log)
-            print_error(f'The file {self.compressed_log} is corrupt. Skipping.')
-            self.clean_compress()
-            return False
-
-        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-            self.log('CODEC ERROR',
-                     self.compressed_log)
-            print_error(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
-            self.clean_compress()
-            return False
-
-        # decodifique os comprimidos
-        if decode:
-            stdout = decode_file(self.compressed_file)
-            if "frame= 1800" not in stdout:
-                print_error(f'Compress Decode Error. Cleaning..')
-                self.log(f'Compress Decode Error.',
-                         self.compressed_file)
-                self.clean_compress()
-                return False
-
-        print_error(f'The file {self.compressed_file} is OK.')
-        return True
-
-    def clean_compress(self):
-        self.compressed_log.unlink(missing_ok=True)
-        self.compressed_file.unlink(missing_ok=True)
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-        if '0' not in quality_list:
-            return ['0'] + quality_list
-        return quality_list
-
-
-class Segment(TileDecodeBenchmarkPaths):
-    def main(self):
-        for self.video in self.video_list:
-            for self.tiling in self.tiling_list:
-                with self.multi() as _:
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-                            self.worker()
-
-    def worker(self) -> Any:
-        if self.skip(): return
+    def segment(self) -> Any:
+        if self.skip_segment(): return
         print(f'==== Segment {self.compressed_file} ====')
         # todo: Alternative:
         # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
@@ -365,7 +286,58 @@ class Segment(TileDecodeBenchmarkPaths):
             self.clean_segments()
             raise e
 
-    def skip(self):
+    def skip_compress(self, decode=False):
+        # first Lossless file
+        if not self.lossless_file.exists():
+            self.log(f'The lossless_file not exist.',
+                     self.lossless_file)
+            print(f'The file {self.lossless_file} not exist. Skipping.')
+            return True
+
+        # second check compressed
+        try:
+            compressed_file_size = self.compressed_file.stat().st_size
+        except FileNotFoundError:
+            compressed_file_size = 0
+
+        # third Check Logfile
+        try:
+            compressed_log_text = self.compressed_log.read_text()
+        except FileNotFoundError:
+            compressed_log_text = ''
+
+        if compressed_file_size == 0 or compressed_log_text == '':
+            self.clean_compress()
+            return False
+
+        if 'encoded 1800 frames' not in compressed_log_text:
+            self.log('compressed_log is corrupt',
+                     self.compressed_log)
+            print_error(f'The file {self.compressed_log} is corrupt. Skipping.')
+            self.clean_compress()
+            return False
+
+        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
+            self.log('CODEC ERROR',
+                     self.compressed_log)
+            print_error(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
+            self.clean_compress()
+            return False
+
+        # decodifique os comprimidos
+        if decode:
+            stdout = decode_file(self.compressed_file)
+            if "frame= 1800" not in stdout:
+                print_error(f'Compress Decode Error. Cleaning..')
+                self.log(f'Compress Decode Error.',
+                         self.compressed_file)
+                self.clean_compress()
+                return False
+
+        print_error(f'The file {self.compressed_file} is OK.')
+        return True
+
+    def skip_segment(self):
         # first compressed file
         if not self.compressed_file.exists():
             self.log('compressed_file NOTFOUND.',
@@ -381,6 +353,10 @@ class Segment(TileDecodeBenchmarkPaths):
 
         print_error(f'The {self.segment_log} IS OK. Skipping.')
         return True
+
+    def clean_compress(self):
+        self.compressed_log.unlink(missing_ok=True)
+        self.compressed_file.unlink(missing_ok=True)
 
     def clean_segments(self):
         self.segment_log.unlink(missing_ok=True)
@@ -890,11 +866,9 @@ class RenameAndCheck(TileDecodeBenchmarkPaths):
                 pass
 
 
-TileDecodeBenchmarkOptions = {'0': Prepare,  # 0
-                              '1': Compress,  # 1
-                              '2': Segment,  # 2
-                              '3': Decode,  # 3
-                              '4': GetBitrate,  # 4
-                              '5': GetDectime,  # 5
-                              '6': MakeSiti,  # 6
+TileDecodeBenchmarkOptions = {'0': Segment,
+                              '1': Decode,
+                              '2': GetBitrate,
+                              '3': GetDectime,
+                              '4': MakeSiti,
                               }

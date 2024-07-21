@@ -10,7 +10,7 @@ from PIL import Image
 from skvideo.io import FFmpegReader
 
 from .assets import GlobalPaths, Log, Utils, AutoDict
-from .py360tools import xyz2ea, ERP, CMP, ProjBase, compose
+from py360tools import xyz2ea, ERP, CMP, ProjectionBase, compose
 from .util import load_json, save_json, lin_interpol, splitx, idx2xy
 
 pi = np.pi
@@ -150,7 +150,7 @@ class GetTilesProps(GetTilesPath):
             self.projection_dict['cmp'][self.tiling] = cmp
 
     @property
-    def projection_obj(self) -> ProjBase:
+    def projection_obj(self) -> ProjectionBase:
         return self.projection_dict[self.proj][self.tiling]
 
     @property
@@ -194,11 +194,11 @@ class GetTilesProps(GetTilesPath):
 
 
 class GetTiles(GetTilesProps):
-    _projection: ProjBase
+    _projection: ProjectionBase
     n_frames: int
     changed_flag: bool
-    erp_list: dict[str, ProjBase]
-    cmp_list: dict[str, ProjBase]
+    erp_list: dict[str, ProjectionBase]
+    cmp_list: dict[str, ProjectionBase]
     tiles_1x1: dict[str, Union[dict[str, list[str]], list[list[str]]]]
     error: bool
     projection_dict: dict
