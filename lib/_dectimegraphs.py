@@ -15,7 +15,8 @@ import scipy.stats
 from cycler import cycler
 from fitter import Fitter
 
-from .assets import AutoDict, Bcolors, GlobalPaths, Utils
+from .assets import AutoDict, Bcolors, Utils
+from .globalpaths import GlobalPaths
 from .util import load_json, save_json, save_pickle, load_pickle
 
 

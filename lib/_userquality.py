@@ -12,7 +12,8 @@ from skvideo.io import FFmpegReader
 
 # import lib.erp as v360
 from ._tilequality import SegmentsQualityPaths
-from .assets import AutoDict, GlobalPaths, Utils, Log
+from .assets import AutoDict, Utils, Log
+from .globalpaths import GlobalPaths
 from .get_tiles import GetTilesProps
 from py360tools import ERP
 from py360tools import ProjectionBase
