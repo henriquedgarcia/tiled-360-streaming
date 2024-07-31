@@ -15,8 +15,10 @@ import scipy.stats
 from cycler import cycler
 from fitter import Fitter
 
-from .assets import AutoDict, Bcolors, Utils
-from .globalpaths import GlobalPaths
+from lib.assets.autodict import AutoDict
+from lib.assets.ansi_colors import Bcolors
+from lib.assets.worker import Worker
+from lib.assets.globalpaths import GlobalPaths
 from .util import load_json, save_json, save_pickle, load_pickle
 
 
@@ -96,7 +98,7 @@ class DectimeGraphsPaths(GlobalPaths):
         return correlations_file
 
 
-class DectimeGraphsObj(DectimeGraphsPaths, Utils):
+class DectimeGraphsObj(DectimeGraphsPaths, Worker):
     video_data_metric = {}
     metric_plot_config = {'time': {'scilimits': (-3, -3),
                                    'xlabel': f'Tempo de Decod. (ms)'},

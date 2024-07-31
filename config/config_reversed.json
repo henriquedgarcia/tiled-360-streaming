@@ -1,4 +1,4 @@
-{
+config = {
     "project": "nasrabadi_28videos_erp_cmp",
     "dataset_name": "nasrabadi_28videos",
     "error_metric": "rmse",

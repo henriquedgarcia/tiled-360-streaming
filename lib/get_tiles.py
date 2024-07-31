@@ -9,8 +9,13 @@ import pandas as pd
 from PIL import Image
 from skvideo.io import FFmpegReader
 
-from .assets import GlobalPaths, Log, Utils, AutoDict
-from py360tools import xyz2ea, ERP, CMP, ProjectionBase, compose
+<<<<<<< Updated upstream
+from py360tools import ProjectionBase
+=======
+from .assets import Logger, Worker, AutoDict
+from lib.assets.globalpaths import GlobalPaths
+from .py360tools import xyz2ea, ERP, CMP, compose
+>>>>>>> Stashed changes
 from .util import load_json, save_json, lin_interpol, splitx, idx2xy
 
 pi = np.pi
@@ -24,7 +29,7 @@ rotation_map = {'cable_cam_nas': 265 / 180 * pi, 'drop_tower_nas': 180 / 180 * p
                 'wingsuit_dubai_nas': 63 / 180 * pi, 'drone_chases_car_nas': 81 / 180 * pi}
 
 
-class GetTilesPath(Utils, Log, GlobalPaths):
+class GetTilesPath(Worker, Logger, GlobalPaths):
     dataset_folder: Path
     video_id_map: dict
     user_map: dict

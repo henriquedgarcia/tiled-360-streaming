@@ -14,6 +14,8 @@ import numpy as np
 import skvideo.io
 from matplotlib import pyplot as plt
 
+from lib.assets.ansi_colors import Bcolors
+
 
 def save_json(data: Union[dict, list], filename: Union[str, Path], separators=(',', ':'), indent=None):
     with open(filename, 'w', encoding='utf-8') as f:
@@ -338,3 +340,61 @@ def show_array(nm_array: np.ndarray, shape: tuple = None):
             shape = (np.max(nm_array[0]) + 1, np.max(nm_array[1]) + 1)
     array2 = np.zeros(shape, dtype=int)[nm_array[0], nm_array[1]] = 255
     Image.fromarray(array2).show()
+
+
+def find_keys(data: dict, level=0, result=None):
+    """
+    percorre um dicionário como uma árvore, recursivamente e anota quais são as keys em cada nível.
+    """
+    if result is None:
+        result = defaultdict(set)
+
+    for key, value in data.items():
+        result[level].update([key])
+
+        if isinstance(value, dict):
+            percorre(value, level + 1, result)
+        else:
+            continue
+
+    result2 = {}
+    for key in result:
+        result2[key] = list(result[key])
+
+    return result2
+
+
+def show_options(dict_options: dict, counter=0, level=0, keys_list=None):
+    if keys_list is None:
+        keys_list = []
+    for k, v in dict_options.items():
+        if not isinstance(v, dict):
+            print('\t' * counter + f'{counter} - {k}')
+            keys_list.append(v)
+            counter += 1
+        else:
+            print('\t' * counter + f'{k}')
+            show_options(v, counter, level + 1, keys_list)
+    return keys_list
+
+
+def get_options():
+    try:
+        chosen = int(input(f'Option: '))
+    except ValueError:
+        chosen = None
+    return chosen
+
+
+def menu(dict_options):
+    while True:
+        keys = show_options(dict_options)
+        chosen = get_options()
+        if chosen is not None:
+            break
+    return keys[chosen]
+
+
+def print_error(msg: str, end: str = '\n'):
+    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}',
+          end=end)

@@ -8,30 +8,29 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
-from .assets import Log, AutoDict, print_error, Utils, GlobalPaths
-from py360tools.transform.erp_transform import ea2erp
-from py360tools.transform.cmp_transform import ea2cmp_face
-from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx
+<<<<<<< Updated upstream
+=======
+from .assets import Logger, AutoDict, print_error, Worker
+from lib.assets.globalpaths import GlobalPaths
+from .py360tools import ea2erp, ea2cmp_face
+>>>>>>> Stashed changes
+from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx, print_error
 
 
-class SegmentsQualityPaths(Utils,
-                           Log,
-                           GlobalPaths):
+class SegmentsQualityPaths(Worker, Logger, GlobalPaths):
     _quality_folder = Path('quality')
 
     @property
     def quality_folder(self) -> Path:
         folder = self.project_path / self._quality_folder
-        folder.mkdir(parents=True,
-                     exist_ok=True)
+        folder.mkdir(parents=True, exist_ok=True)
         return folder
 
     @property
     def video_quality_folder(self) -> Path:
         folder = self.quality_folder / self.basename2
         # folder = self.project_path / self.quality_folder / self.basename
-        folder.mkdir(parents=True,
-                     exist_ok=True)
+        folder.mkdir(parents=True, exist_ok=True)
         return folder
 
     @property
@@ -41,14 +40,11 @@ class SegmentsQualityPaths(Utils,
     @property
     def quality_result_img(self) -> Path:
         folder = self.quality_folder / '_metric plots' / f'{self.video}'
-        folder.mkdir(parents=True,
-                     exist_ok=True)
+        folder.mkdir(parents=True, exist_ok=True)
         return folder / f'{self.tiling}_crf{self.quality}.png'
 
 
-class SegmentsQualityProps(SegmentsQualityPaths,
-                           Utils,
-                           Log):
+class SegmentsQualityProps(SegmentsQualityPaths, Worker, Logger):
     tile_position: dict
     change_flag: bool
     error: bool
@@ -68,56 +64,8 @@ class SegmentsQualityProps(SegmentsQualityPaths,
         self.sph_points_mask = np.zeros(0)
         self.weight_ndarray = np.zeros(0)
         self.old_tile = ''
-
         self.quality_list.remove('0')
-
-    def load_weight_ndarray(self):
-        weight_ndarray_file = Path(f'datasets/'
-                                   f'weight_ndarray'
-                                   f'_{self.proj}'
-                                   f'_{self.resolution}'
-                                   f'.pickle')
-
-        try:
-            self.weight_ndarray = load_pickle(weight_ndarray_file)
-            return
-        except FileNotFoundError:
-            self.make_weight_ndarray()
-            save_pickle(self.weight_ndarray,
-                        weight_ndarray_file)
-
-    def make_weight_ndarray(self):
-        proj_h, proj_w = self.video_shape[:2]
-
-        if self.proj == 'erp':
-            pi_proj = np.pi / proj_h
-            proj_h_2 = 0.5 - proj_h / 2
-
-            def func(y,
-                     x
-                     ):
-                w = np.cos((y + proj_h_2) * pi_proj)
-                return w
-
-        elif self.proj == 'cmp':
-            r = proj_h / 4
-            r1 = 0.5 - r
-            r2 = r ** 2
-
-            def func(y,
-                     x
-                     ):
-                x = x % r
-                y = y % r
-                d = (x + r1) ** 2 + (y + r1) ** 2
-                w = (1 + d / r2) ** (-1.5)
-                return w
-        else:
-            raise ValueError(f'Wrong self.vid_proj. Value == {self.proj}')
-
-        self.weight_ndarray = np.fromfunction(func,
-                                              (proj_h, proj_w),
-                                              dtype='float')
+        self.tiling_list.remove('1x1')
 
     def load_sph_file(self):
         """
@@ -137,8 +85,7 @@ class SegmentsQualityProps(SegmentsQualityPaths,
             return
         except FileNotFoundError:
             self.process_sphere_file()
-            save_pickle(self.sph_points_mask,
-                        sph_points_mask_file)
+            save_pickle(self.sph_points_mask, sph_points_mask_file)
 
     def process_sphere_file(self):
         self.sph_points_mask = np.zeros(self.video_shape)
@@ -146,19 +93,15 @@ class SegmentsQualityProps(SegmentsQualityPaths,
         sph_file_lines = sph_file.read_text().splitlines()[1:]
         # for each line (sample), convert to cartesian system and horizontal system
         for line in sph_file_lines:
-            el, az = list(map(np.deg2rad,
-                              map(float,
-                                  line.strip().split())))  # to rad
+            el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
 
             ea = np.array([[az], [el]])
             proj_shape = self.video_shape
 
             if self.proj == 'erp':
-                m, n = ea2erp(ea=ea,
-                              proj_shape=proj_shape)
+                m, n = ea2erp(ea=ea, proj_shape=proj_shape)
             elif self.proj == 'cmp':
-                (m, n), face = ea2cmp_face(ea=ea,
-                                           proj_shape=proj_shape)
+                (m, n), face = ea2cmp_face(ea=ea, proj_shape=proj_shape)
             else:
                 raise ValueError(f'wrong value to {self.proj=}')
 
@@ -186,35 +129,25 @@ class SegmentsQualityProps(SegmentsQualityPaths,
     def check_video_quality_csv(self):
         if len(self.chunk_quality_df['MSE']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
-            print_error(f'\n\t\tMISSING_FRAMES',
-                        end='')
-            self.log(f'MISSING_FRAMES',
-                     self.video_quality_csv)
+            print_error(f'\n\t\tMISSING_FRAMES', end='')
+            self.log(f'MISSING_FRAMES', self.video_quality_csv)
             return False
 
         if 1 in self.chunk_quality_df['SSIM'].to_list():
-            self.log(f'CSV SSIM has 1.',
-                     self.segment_file)
-            print_error(f'\n\t\tCSV SSIM has 0.',
-                        end='')
+            self.log(f'CSV SSIM has 1.', self.segment_file)
+            print_error(f'\n\t\tCSV SSIM has 0.', end='')
 
         if 0 in self.chunk_quality_df['MSE'].to_list():
-            self.log('CSV MSE has 0.',
-                     self.segment_file)
-            print_error(f'\n\t\tCSV MSE has 0.',
-                        end='')
+            self.log('CSV MSE has 0.', self.segment_file)
+            print_error(f'\n\t\tCSV MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['WS-MSE'].to_list():
-            self.log('CSV WS-MSE has 0.',
-                     self.segment_file)
-            print_error(f'\n\t\tCSV WS-MSE has 0.',
-                        end='')
+            self.log('CSV WS-MSE has 0.', self.segment_file)
+            print_error(f'\n\t\tCSV WS-MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['S-MSE'].to_list():
-            self.log('CSV S-MSE has 0.',
-                     self.segment_file)
-            print_error(f'\n\t\tCSV S-MSE has 0.',
-                        end='')
+            self.log('CSV S-MSE has 0.', self.segment_file)
+            print_error(f'\n\t\tCSV S-MSE has 0.', end='')
         return True
 
     def update_tile_position(self):
@@ -237,8 +170,96 @@ class SegmentsQualityProps(SegmentsQualityPaths,
         return results
 
 
-class SegmentsQuality(SegmentsQualityProps):
+class Quality:
+    @staticmethod
+    def _mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+        """
+        https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
+        Images must be only one channel (luminance)
+        (height, width) = im_ref.shape()
+        "float32" = im_ref.dtype()
+
+        :param im_ref:
+        :param im_deg:
+        :return:
+        """
+        return mse(im_ref, im_deg)
+
+    @staticmethod
+    def _ssim(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+        """
+        https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
+
+        Images must be only one channel (luminance)
+        (height, width) = im_ref.shape()
+        "float32" = im_ref.dtype()
+
+        :param im_ref:
+        :param im_deg:
+        :return:
+        """
+        return ssim(im_ref, im_deg, data_range=255.0, gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
+
+    tile_position_dict: dict[str, list]
+    tile: str
+    weight_ndarray: np.ndarray
+
+    def _wsmse(self, im_ref: np.ndarray, im_deg: np.ndarray) -> float:
+        """
+        Must be same size
+        :param im_ref:
+        :param im_deg:
+        :return:
+        """
+        x1, y1, x2, y2 = self.tile_position_dict[self.tile]
+        weight_tile = self.weight_ndarray[y1:y2, x1:x2]
+        wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
+        return wmse
+
+    def _smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
+        """
+        Calculate of S-PSNR between two images. All arrays must be on the same
+        resolution.
+
+        :param tile_ref: The original image
+        :param tile_deg: The image degraded
+        :return:
+        """
+        if self.tile != self.old_tile or self.tile == '0':
+            x1, y1, x2, y2 = self.tile_position_dict[self.tile]
+            self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
+            self.old_tile = self.tile
+
+        tile_ref_m = tile_ref * self.tile_mask
+        tile_deg_m = tile_deg * self.tile_mask
+
+        sqr_dif = (tile_ref_m - tile_deg_m) ** 2
+
+        smse_nn = sqr_dif.sum() / np.sum(self.tile_mask)
+        return smse_nn
+
+    # def _collect_ffmpeg_psnr(self) -> dict[str, float]:
+    #     # deprecated
+    #     def get_psnr(line_txt):
+    #         return float(line_txt.strip().split(',')[3].split(':')[1])
+    #
+    #     def get_qp(line_txt):
+    #         return float(line_txt.strip().split(',')[2].split(':')[1])
+    #
+    #     psnr = None
+    #     compressed_log = self.compressed_file.with_suffix('.log')
+    #     content = compressed_log.read_text(encoding='utf-8')
+    #     content = content.splitlines()
+    #
+    #     for line in content:
+    #         if 'Global PSNR' in line:
+    #             psnr = {'psnr': get_psnr(line), 'qp_avg': get_qp(line)}
+    #             break
+        return psnr
+
+
+class SegmentsQuality(Quality, SegmentsQualityProps):
     def main(self):
         self.init()
         for _ in self.iterator():
@@ -252,36 +273,26 @@ class SegmentsQuality(SegmentsQualityProps):
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
         iter_segment = iter_frame(self.segment_file)
-        zip_frames = zip(iter_reference_segment,
-                         iter_segment)
+        zip_frames = zip(iter_reference_segment, iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r\t{frame=}',
-                  end='')
-            chunk_quality['SSIM'].append(self._ssim(frame1,
-                                                    frame2))
-            chunk_quality['MSE'].append(self._mse(frame1,
-                                                  frame2))
-            chunk_quality['WS-MSE'].append(self._wsmse(frame1,
-                                                       frame2))
-            chunk_quality['S-MSE'].append(self._smse_nn(frame1,
-                                                        frame2))
-        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv,
-                                           encoding='utf-8',
-                                           index_label='frame')
+            print(f'\r\t{frame=}', end='')
+            chunk_quality['SSIM'].append(self._ssim(frame1, frame2))
+            chunk_quality['MSE'].append(self._mse(frame1, frame2))
+            chunk_quality['WS-MSE'].append(self._wsmse(frame1, frame2))
+            chunk_quality['S-MSE'].append(self._smse_nn(frame1, frame2))
+        pd.DataFrame(chunk_quality).to_csv(self.video_quality_csv, encoding='utf-8', index_label='frame')
         print(f"\ttime={time() - start}.")
 
     def skip(self):
         skip = False
         if not self.segment_file.exists():
-            self.log('segment_file NOTFOUND',
-                     self.segment_file)
+            self.log('segment_file NOTFOUND', self.segment_file)
             print_error(f'segment_file NOTFOUND')
             skip = True
 
         if not self.reference_segment.exists():
-            self.log('reference_segment NOTFOUND',
-                     self.reference_segment)
+            self.log('reference_segment NOTFOUND', self.reference_segment)
             print_error(f'reference_segment NOTFOUND')
             skip = True
 
@@ -291,136 +302,34 @@ class SegmentsQuality(SegmentsQualityProps):
             return skip
         except pd.errors.EmptyDataError:
             self.video_quality_csv.unlink(missing_ok=True)
-            self.log('CSV_EMPTY_DATA_ERROR',
-                     self.video_quality_csv)
+            self.log('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
             return skip
 
         return skip or self.check_video_quality_csv()
 
+    wsmse: WsMse
+    sphere_points: SpherePoints
+
     def iterator(self):
-        for self.video in self.video_list:
-            self.results = AutoDict()
-            shape = self.video_shape[:2]
-            if self.weight_ndarray.shape != shape:  # suppose that changed projection, the resolution is changed too.
-                self.load_weight_ndarray()
-            if self.sph_points_mask.shape != shape:  # suppose that change the projection
-                self.load_sph_file()
+        for self.proj in self.proj_list:
+            shape = splitx(self.config.scale_dict[self.proj])[::-1]
+            self.wsmse = WsMse(shape, self.proj)
+            self.sphere_points = SpherePoints(self.config.sph_file, shape, self.proj)
 
-            for self.tiling in self.tiling_list:
-                if self.tiling == '1x1': continue
-                self.update_tile_position()
+            for self.name in self.name_list:
+                self.results = AutoDict()
 
-                for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        x1, y1, x2, y2 = self.tile_position[self.tile]
-                        self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
+                for self.tiling in self.tiling_list:
+                    if self.tiling == '1x1': continue
+                    self.update_tile_position()
 
-                        for self.chunk in self.chunk_list:
-                            yield
+                    for self.quality in self.quality_list:
+                        for self.tile in self.tile_list:
+                            x1, y1, x2, y2 = self.tile_position_dict[self.tile]
+                            self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
 
-    @staticmethod
-    def _mse(im_ref: np.ndarray,
-             im_deg: np.ndarray
-             ) -> float:
-        """
-        https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
-
-        Images must be only one channel (luminance)
-        (height, width) = im_ref.shape()
-        "float32" = im_ref.dtype()
-
-        :param im_ref:
-        :param im_deg:
-        :return:
-        """
-        # im_sqr_err = (im_ref - im_deg) ** 2
-        # mse = np.average(im_sqr_err)
-        return mse(im_ref,
-                   im_deg)
-
-    @staticmethod
-    def _ssim(im_ref: np.ndarray,
-              im_deg: np.ndarray
-              ) -> float:
-        """
-        https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
-
-        Images must be only one channel (luminance)
-        (height, width) = im_ref.shape()
-        "float32" = im_ref.dtype()
-
-        :param im_ref:
-        :param im_deg:
-        :return:
-        """
-        # im_sqr_err = (im_ref - im_deg) ** 2
-        # mse = np.average(im_sqr_err)
-        return ssim(im_ref,
-                    im_deg,
-                    data_range=255.0,
-                    gaussian_weights=True,
-                    sigma=1.5,
-                    use_sample_covariance=False)
-
-    def _wsmse(self,
-               im_ref: np.ndarray,
-               im_deg: np.ndarray
-               ) -> float:
-        """
-        Must be same size
-        :param im_ref:
-        :param im_deg:
-        :return:
-        """
-        x1, y1, x2, y2 = self.tile_position[self.tile]
-        weight_tile = self.weight_ndarray[y1:y2, x1:x2]
-        wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
-        return wmse
-
-    def _smse_nn(self,
-                 tile_ref: np.ndarray,
-                 tile_deg: np.ndarray
-                 ):
-        """
-        Calculate of S-PSNR between two images. All arrays must be on the same
-        resolution.
-
-        :param tile_ref: The original image
-        :param tile_deg: The image degraded
-        :return:
-        """
-        if self.tile != self.old_tile or self.tile == '0':
-            x1, y1, x2, y2 = self.tile_position[self.tile]
-            self.tile_mask = self.sph_points_mask[y1:y2, x1:x2]
-            self.old_tile = self.tile
-
-        tile_ref_m = tile_ref * self.tile_mask
-        tile_deg_m = tile_deg * self.tile_mask
-
-        sqr_dif = (tile_ref_m - tile_deg_m) ** 2
-
-        smse_nn = sqr_dif.sum() / np.sum(self.tile_mask)
-        return smse_nn
-
-    def _collect_ffmpeg_psnr(self) -> dict[str, float]:
-        # deprecated
-        def get_psnr(line_txt):
-            return float(line_txt.strip().split(',')[3].split(':')[1])
-
-        def get_qp(line_txt):
-            return float(line_txt.strip().split(',')[2].split(':')[1])
-
-        psnr = None
-        compressed_log = self.compressed_file.with_suffix('.log')
-        content = compressed_log.read_text(encoding='utf-8')
-        content = content.splitlines()
-
-        for line in content:
-            if 'Global PSNR' in line:
-                psnr = {'psnr': get_psnr(line),
-                        'qp_avg': get_qp(line)}
-                break
-        return psnr
+                            for self.chunk in self.chunk_list:
+                                yield
 
 
 class CollectQuality(SegmentsQualityProps):
@@ -455,8 +364,7 @@ class CollectQuality(SegmentsQualityProps):
 
             if self.change_flag and not self.error:
                 print('\n\tSaving.')
-                save_json(self.results,
-                          self.quality_result_json)
+                save_json(self.results, self.quality_result_json)
 
     def main_loop(self):
         for self.tiling in self.tiling_list:
@@ -465,12 +373,10 @@ class CollectQuality(SegmentsQualityProps):
                     for self.chunk in self.chunk_list:
                         yield
 
-    def quality_json_exist(self,
-                           check_result=False
+    def quality_json_exist(self, check_result=False
                            ):
         try:
-            self.results = load_json(self.quality_result_json,
-                                     AutoDict)
+            self.results = load_json(self.quality_result_json, AutoDict)
         except FileNotFoundError:
             self.change_flag = True
             self.results = AutoDict()
@@ -492,8 +398,7 @@ class CollectQuality(SegmentsQualityProps):
             return
 
     def work(self):
-        print(f'\r\t{self.state_str()} ',
-              end='')
+        print(f'\r\t{self.state_str()} ', end='')
         try:
             self.check_qlt_results()
         except KeyError:
@@ -526,33 +431,23 @@ class MakePlot(SegmentsQualityProps):
     folder: Path
 
     def main(self):
-
-        def get_serie(value1,
-                      value2
+        def get_serie(value1, value2
                       ):
             # self.results[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk][self.metric]
             results = self.results[self.proj][self.name][self.tiling][self.quality]
 
-            return [np.average(results[value2][chunk][value1])
-                    for chunk in self.chunk_list]
+            return [np.average(results[value2][chunk][value1]) for chunk in self.chunk_list]
 
         for self.video in self.video_list:
             folder = self.quality_folder / '_metric plots' / f'{self.video}'
-            folder.mkdir(parents=True,
-                         exist_ok=True)
+            folder.mkdir(parents=True, exist_ok=True)
             self.results = load_json(self.quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     # self.get_tile_image()
                     quality_plot_file = folder / f'{self.tiling}_crf{self.quality}.png'
-                    self.make_tile_image(self.metric_list,
-                                         self.tile_list,
-                                         quality_plot_file,
-                                         get_serie,
-                                         nrows=2,
-                                         ncols=2,
-                                         figsize=(8, 5),
-                                         dpi=200)
+                    self.make_tile_image(self.metric_list, self.tile_list, quality_plot_file, get_serie, nrows=2,
+                                         ncols=2, figsize=(8, 5), dpi=200)
 
     def main2(self):
         for self.video in self.video_list:
@@ -561,36 +456,23 @@ class MakePlot(SegmentsQualityProps):
                 for self.quality in self.quality_list:
                     self.get_tile_image()
 
-    def make_tile_image(self,
-                        iter1,
-                        iter2,
-                        quality_plot_file: Path,
-                        get_serie: Callable,
-                        nrows=1,
-                        ncols=1,
-                        figsize=(8, 5),
-                        dpi=200
+    def make_tile_image(self, iter1, iter2, quality_plot_file: Path, get_serie: Callable, nrows=1, ncols=1,
+                        figsize=(8, 5), dpi=200
                         ):
         if quality_plot_file.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
-        print(f'\r{self.state_str()}',
-              end='')
+        print(f'\r{self.state_str()}', end='')
 
-        fig, axes = plt.subplots(nrows,
-                                 ncols,
-                                 figsize=figsize,
-                                 dpi=dpi)
+        fig, axes = plt.subplots(nrows, ncols, figsize=figsize, dpi=dpi)
         axes: list[plt.Axes] = list(np.ravel([axes]))
         fig: plt.Figure
 
         for i, value1 in enumerate(iter1):
             for value2 in iter2:
-                result = get_serie(value1,
-                                   value2)
-                axes[i].plot(result,
-                             label=f'{value2}')
+                result = get_serie(value1, value2)
+                axes[i].plot(result, label=f'{value2}')
             axes[i].set_title(value1)
 
         fig.suptitle(f'{self.state_str()}')
@@ -604,21 +486,16 @@ class MakePlot(SegmentsQualityProps):
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
-        print(f'\rProcessing [{self.proj}][{self.video}][{self.tiling}][crf{self.quality}]',
-              end='')
+        print(f'\rProcessing [{self.proj}][{self.video}][{self.tiling}][crf{self.quality}]', end='')
 
-        fig, axes = plt.subplots(2,
-                                 2,
-                                 figsize=(8, 5),
-                                 dpi=200)
+        fig, axes = plt.subplots(2, 2, figsize=(8, 5), dpi=200)
         axes: list[plt.Axes] = list(np.ravel(axes))
         fig: plt.Figure
 
         for i, self.metric in enumerate(self.metric_list):
             for self.tile in self.tile_list:
                 result = [np.average(self.chunk_results[self.metric]) for self.chunk in self.chunk_list]
-                axes[i].plot(result,
-                             label=f'{self.tile}')
+                axes[i].plot(result, label=f'{self.tile}')
             axes[i].set_title(self.metric)
 
         fig.suptitle(f'{self.state_str()}')
@@ -628,7 +505,4 @@ class MakePlot(SegmentsQualityProps):
         plt.close()
 
 
-QualityAssessmentOptions = {'0': SegmentsQuality,
-                            '1': CollectQuality,
-                            '2': MakePlot,
-                            }
+QualityAssessmentOptions = {'0': SegmentsQuality, '1': CollectQuality, '2': MakePlot, }
