@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 from scipy import ndimage
 
-from lib.util import iter_frame
+from lib.utils.util import iter_frame
 
 
 class SiTi:
