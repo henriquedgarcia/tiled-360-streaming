@@ -16,7 +16,7 @@ from lib.assets.autodict import AutoDict
 from .get_tiles import GetTilesProps
 from py360tools import ERP
 from py360tools import ProjectionBase
-from .util import load_json, save_json, idx2xy, splitx
+from lib.utils.util import load_json, save_json, idx2xy, splitx
 
 pi = np.pi
 pi2 = np.pi * 2

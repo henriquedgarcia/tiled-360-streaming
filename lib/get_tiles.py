@@ -13,10 +13,10 @@ from skvideo.io import FFmpegReader
 from py360tools import ProjectionBase
 =======
 from .assets import Logger, Worker, AutoDict
-from lib.assets.globalpaths import GlobalPaths
+from lib.assets.paths import Paths
 from .py360tools import xyz2ea, ERP, CMP, compose
 >>>>>>> Stashed changes
-from .util import load_json, save_json, lin_interpol, splitx, idx2xy
+from lib.utils.util import load_json, save_json, lin_interpol, splitx, idx2xy
 
 pi = np.pi
 pi2 = np.pi * 2
@@ -29,7 +29,7 @@ rotation_map = {'cable_cam_nas': 265 / 180 * pi, 'drop_tower_nas': 180 / 180 * p
                 'wingsuit_dubai_nas': 63 / 180 * pi, 'drone_chases_car_nas': 81 / 180 * pi}
 
 
-class GetTilesPath(Worker, Logger, GlobalPaths):
+class GetTilesPath(Worker, Logger, Paths):
     dataset_folder: Path
     video_id_map: dict
     user_map: dict

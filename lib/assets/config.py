@@ -1,20 +1,149 @@
+from math import prod
 from pathlib import Path
 from typing import Union
 
-from util import load_json
-from .context_lists import ContextLists
-from .factors import Factors
+from lib.utils.util import load_json, splitx
+from .context import ctx
+from .lazyproperty import LazyProperty
 
 
-class Config(ContextLists, Factors):
+class ConfigProps:
     config_dict: dict[str, Union[str, int, dict, list]]
+    videos_dict: dict
+
+    @LazyProperty
+    def project_folder(self):
+        return Path(self.config_dict['project_folder'])
+
+    @LazyProperty
+    def sph_file(self):
+        return Path(self.config_dict['sph_file'])
+
+    @LazyProperty
+    def dataset_file(self):
+        return Path(self.config_dict['dataset_file'])
+
+    #####################
+    @LazyProperty
+    def duration(self):
+        return int(self.config_dict['duration'])
+
+    @LazyProperty
+    def fps(self):
+        return self.config_dict['fps']
+
+    @LazyProperty
+    def gop(self):
+        return self.config_dict['gop']
+
+    @LazyProperty
+    def scale(self):
+        return self.config_dict['scale'][ctx.projection]
+
+    #####################
+    @LazyProperty
+    def rate_control(self):
+        return self.config_dict['rate_control']
+
+    @LazyProperty
+    def original_quality(self):
+        return self.config_dict['original_quality']
+
+    @LazyProperty
+    def decoding_num(self):
+        return self.config_dict['decoding_num']
+
+    #####################
+    @LazyProperty
+    def bins(self):
+        return self.config_dict['bins']
+
+    @LazyProperty
+    def metric_list(self):
+        return self.config_dict['metric_list']
+
+    @LazyProperty
+    def error_metric(self):
+        return self.config_dict['error_metric']
+
+    @LazyProperty
+    def distributions(self):
+        return self.config_dict['distributions']
+
+    #####################
+    @LazyProperty
+    def fov(self):
+        return self.config_dict['fov']
+
+    @LazyProperty
+    def quality_list(self) -> list[str]:
+        return self.config_dict['quality_list']
+
+    @LazyProperty
+    def tiling_list(self) -> list[str]:
+        return self.config_dict['tiling_list']
+
+
+class Config(ConfigProps):
+    dataset: dict
+    sph_file: dict
 
     def set_config(self, config_file, videos_file):
-        self.config_dict = load_json(config_file)
-        self._videos_dict = load_json(videos_file)
-        self._dataset = load_json(self.config_dict['dataset_file'])
-        self._sph_file = load_json(self.config_dict['sph_file'])
+        """
 
+        :param config_file: The config json file
+        :type config_file: Path
+        :param videos_file: The videos list json file
+        :type videos_file: Path
+        :return:
+        """
+        self.config_dict = load_json(config_file)
+        self.videos_dict = load_json(videos_file)
+        self.dataset = load_json(self.config_dict['dataset_file'])
+        self.sph_file = load_json(self.config_dict['sph_file'])
+
+    @LazyProperty
+    def n_frames(self) -> int:
+        return int(self.duration) * int(self.fps)
+
+    @LazyProperty
+    def chunk_duration(self) -> int:
+        return int(self.gop) // int(self.fps)
+
+    @property
+    def n_tiles(self):
+        return prod(map(int, splitx(ctx.tiling)[::-1]))
+
+    @property
+    def group(self):
+        return self.videos_dict[ctx.name]['group']
+
+    @property
+    def offset(self):
+        return self.videos_dict[ctx.name]['offset']
+
+    @property
+    def video_shape(self) -> tuple:
+        w, h = splitx(self.scale)
+        return h, w
+
+    @property
+    def video_h(self) -> tuple:
+        return self.video_shape[0]
+
+    @property
+    def video_w(self) -> tuple:
+        return self.video_shape[1]
+
+    # @property
+    # def cmp_face_shape(self) -> (int, int, int):
+    #     h, w, c = self.video_shape
+    #     return round(h / 2), round(w / 3), c
+    #
+    # @property
+    # def cmp_face_resolution(self) -> str:
+    #     h, w, _ = self.cmp_face_shape
+    #     return f'{w}x{h}'
 
 
 config = Config()

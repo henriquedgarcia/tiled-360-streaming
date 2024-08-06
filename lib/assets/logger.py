@@ -7,11 +7,11 @@ import pandas as pd
 from lib.assets.context import ctx
 
 
-class Logger():
+class Logger:
     log_text: defaultdict
 
     @contextmanager
-    def logger(self):
+    def logger_context(self):
         self.log_text = defaultdict(list)
 
         try:
@@ -19,8 +19,8 @@ class Logger():
         finally:
             self.save_log()
 
-    def log(self, error_code: str, filepath):
-        self.log_text['name'].append(f'{ctx.video}')
+    def register(self, error_code: str, filepath):
+        self.log_text['name'].append(f'{ctx.name}')
         self.log_text['tiling'].append(f'{ctx.tiling}')
         self.log_text['quality'].append(f'{ctx.quality}')
         self.log_text['tile'].append(f'{ctx.tile}')
@@ -36,3 +36,6 @@ class Logger():
                                     '-')
         df_log_text = pd.DataFrame(self.log_text)
         df_log_text.to_csv(filename, encoding='utf-8')
+
+
+logger = Logger()

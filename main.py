@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
-from lib import TileDecodeBenchmarkOptions, load_json
-from lib.util import menu
+from lib import TileDecodeBenchmarkOptions
+from lib.utils.util import menu
 
 config_dict = {config_file.name.replace('config_', ''): config_file
                for config_file in Path('config').iterdir() if 'config' in config_file.name}

@@ -11,13 +11,13 @@ from skimage.metrics import structural_similarity as ssim, mean_squared_error as
 <<<<<<< Updated upstream
 =======
 from .assets import Logger, AutoDict, print_error, Worker
-from lib.assets.globalpaths import GlobalPaths
+from lib.assets.paths import Paths
 from .py360tools import ea2erp, ea2cmp_face
 >>>>>>> Stashed changes
-from .util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx, print_error
+from lib.utils.util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx, print_error
 
 
-class SegmentsQualityPaths(Worker, Logger, GlobalPaths):
+class SegmentsQualityPaths(Worker, Logger, Paths):
     _quality_folder = Path('quality')
 
     @property
@@ -130,23 +130,23 @@ class SegmentsQualityProps(SegmentsQualityPaths, Worker, Logger):
         if len(self.chunk_quality_df['MSE']) != int(self.gop):
             self.video_quality_csv.unlink(missing_ok=True)
             print_error(f'\n\t\tMISSING_FRAMES', end='')
-            self.log(f'MISSING_FRAMES', self.video_quality_csv)
+            self.logger(f'MISSING_FRAMES', self.video_quality_csv)
             return False
 
         if 1 in self.chunk_quality_df['SSIM'].to_list():
-            self.log(f'CSV SSIM has 1.', self.segment_file)
+            self.logger(f'CSV SSIM has 1.', self.segment_file)
             print_error(f'\n\t\tCSV SSIM has 0.', end='')
 
         if 0 in self.chunk_quality_df['MSE'].to_list():
-            self.log('CSV MSE has 0.', self.segment_file)
+            self.logger('CSV MSE has 0.', self.segment_file)
             print_error(f'\n\t\tCSV MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['WS-MSE'].to_list():
-            self.log('CSV WS-MSE has 0.', self.segment_file)
+            self.logger('CSV WS-MSE has 0.', self.segment_file)
             print_error(f'\n\t\tCSV WS-MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['S-MSE'].to_list():
-            self.log('CSV S-MSE has 0.', self.segment_file)
+            self.logger('CSV S-MSE has 0.', self.segment_file)
             print_error(f'\n\t\tCSV S-MSE has 0.', end='')
         return True
 
@@ -287,12 +287,12 @@ class SegmentsQuality(Quality, SegmentsQualityProps):
     def skip(self):
         skip = False
         if not self.segment_file.exists():
-            self.log('segment_file NOTFOUND', self.segment_file)
+            self.logger('segment_file NOTFOUND', self.segment_file)
             print_error(f'segment_file NOTFOUND')
             skip = True
 
         if not self.reference_segment.exists():
-            self.log('reference_segment NOTFOUND', self.reference_segment)
+            self.logger('reference_segment NOTFOUND', self.reference_segment)
             print_error(f'reference_segment NOTFOUND')
             skip = True
 
@@ -302,7 +302,7 @@ class SegmentsQuality(Quality, SegmentsQualityProps):
             return skip
         except pd.errors.EmptyDataError:
             self.video_quality_csv.unlink(missing_ok=True)
-            self.log('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
+            self.logger('CSV_EMPTY_DATA_ERROR', self.video_quality_csv)
             return skip
 
         return skip or self.check_video_quality_csv()
