@@ -18,11 +18,11 @@ from fitter import Fitter
 from lib.assets.autodict import AutoDict
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.worker import Worker
-from lib.assets.globalpaths import GlobalPaths
-from .util import load_json, save_json, save_pickle, load_pickle
+from lib.assets.paths import Paths
+from lib.utils.util import load_json, save_json, save_pickle, load_pickle
 
 
-class DectimeGraphsPaths(GlobalPaths):
+class DectimeGraphsPaths(Paths):
     error_type: str
     n_dist = 3
     bins = 30
@@ -412,7 +412,7 @@ class ByPatternMakeBucket(ByPatternProps):
         for _ in self.context_metric_proj_tiling():
             bucket = self.data_bucket[self.metric][self.proj][self.tiling]
             if self.tiles_num[self.tiling] != len(bucket):
-                self.log(f'bucket size error', self.data_bucket_file)
+                self.logger(f'bucket size error', self.data_bucket_file)
                 raise ValueError(f'bucket size error')
 
     def save(self):
@@ -948,7 +948,7 @@ class ByPatternByQualityMakeBucket(ByPatternByQualityProps, ByPatternMakeBucket)
         for _ in self.context_metric_proj_tiling_quality():
             bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
             if self.tiles_num[self.tiling] != len(bucket):
-                self.log(f'bucket size error', self.data_bucket_file)
+                self.logger(f'bucket size error', self.data_bucket_file)
                 raise ValueError(f'bucket size error')
 
 
@@ -1106,7 +1106,7 @@ class ByPatternByQualityStats666(ByPatternByQualityProps, ByPatternStats):
                 for quality in self.quality_list:
                     bucket = self.data_bucket[self.metric][proj][tiling][quality]
                     if tiles_num[tiling] != len(bucket):
-                        self.log(f'bucket size error', self.data_bucket_file)
+                        self.logger(f'bucket size error', self.data_bucket_file)
                         print(f'{Bcolors.RED}\n    bucket size error')
 
         print(f'  Saving ... ', end='')
