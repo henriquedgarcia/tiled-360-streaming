@@ -9,8 +9,6 @@
   "scale": {"erp": "4320x2160",
             "cmp": "3240x2160"},
 
-  "codec": "x265",
-  "codec_params": "keyint=30:min-keyint=30:open-gop=0:scenecut=0:info=0",
   "rate_control": "crf",
   "original_quality": "0",
   "decoding_num": 5,
