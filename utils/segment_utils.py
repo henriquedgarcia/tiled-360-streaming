@@ -60,7 +60,7 @@ def clean_compress():
     paths.compressed_file.unlink(missing_ok=True)
 
 
-def skip_segment(decode=False):
+def skip_segmenter(decode=False):
     try:
         check_segment_log()
         check_segment_video()

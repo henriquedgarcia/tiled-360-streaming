@@ -9,14 +9,14 @@ from matplotlib import pyplot as plt
 
 from lib.utils import SiTi
 from lib.utils import save_json, load_json, get_times, splitx, print_error
-from utils.segment_utils import skip_compress, skip_segment
+from utils.segment_utils import skip_compress, skip_segmenter
 from .assets import AutoDict
 from .assets import Worker, logger
 from .assets import config
 from .assets import ctx
 from .assets import paths
 from .decode import Decode
-from .utils.util import tile_position
+from .utils.transform import tile_position
 
 
 def prepare():
@@ -81,9 +81,9 @@ def compress():
 
 
 def segmenter():
-    if skip_segment(): return
+    if skip_segmenter(): return
 
-    print(f'==== Segment {paths.compressed_file} ====')
+    print(f'==== Segmenting {paths.compressed_file} ====')
     # todo: Alternative:
     # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
     # ime 1 -reset_timestamps 1 output%03d.mp4
@@ -98,7 +98,7 @@ def segmenter():
     print(cmd)
     paths.segmenter_log.parent.mkdir(parents=True, exist_ok=True)
     process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    paths.compressed_log.write_text(process.stdout)
+    paths.segmenter_log.write_text(process.stdout)
 
 
 class Segmenter(Worker):

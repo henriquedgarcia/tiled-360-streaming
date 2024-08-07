@@ -1,4 +1,4 @@
-from assets import config
+from lib.assets import config
 from lib._dectimegraphs import DectimeGraphsOptions
 from lib._tilequality import QualityAssessmentOptions
 from lib._userquality import UserMetricsOptions

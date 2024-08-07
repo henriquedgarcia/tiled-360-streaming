@@ -45,13 +45,13 @@ class Paths:
         return self.compressed_file.with_suffix('.log')
 
     @property
+    def segmenter_log(self) -> Path:
+        return self.compressed_file.with_name(f'tile{ctx.tile}_segmenter.log')
+
+    @property
     def segment_file(self) -> Path:
         chunk = int(ctx.chunk)
         return self.segments_folder / self.basename2 / f'tile{ctx.tile}_{chunk:03d}.mp4'
-
-    @property
-    def segmenter_log(self) -> Path:
-        return self.segment_file.with_name(f'tile{ctx.tile}_segment.log')
 
     @property
     def dectime_log(self) -> Path:

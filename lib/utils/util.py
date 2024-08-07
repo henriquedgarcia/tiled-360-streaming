@@ -15,7 +15,6 @@ import numpy as np
 import skvideo.io
 from matplotlib import pyplot as plt
 
-from lib.assets import config, ctx
 from lib.assets.ansi_colors import Bcolors
 
 
@@ -405,17 +404,3 @@ def print_error(msg: str, end: str = '\n'):
           end=end)
 
 
-def tile_position():
-    """
-    Need video, tiling and tile
-    :return: x1, x2, y1, y2
-    """
-    proj_h, proj_w = config.video_shape
-    tiling_w, tiling_h = splitx(ctx.tiling)
-    tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
-    tile_m, tile_n = int(ctx.tile) % tiling_w, int(ctx.tile) // tiling_w
-    x1 = tile_m * tile_w
-    y1 = tile_n * tile_h
-    x2 = tile_m * tile_w + tile_w  # not inclusive [...)
-    y2 = tile_n * tile_h + tile_h  # not inclusive [...)
-    return x1, y1, x2, y2
