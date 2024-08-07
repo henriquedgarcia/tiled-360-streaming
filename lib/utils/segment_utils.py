@@ -1,5 +1,6 @@
+from lib import config
 from lib.assets import paths, logger, ctx
-from lib.utils import print_error, decode_file
+from lib.utils import print_error, decode_file, splitx
 
 
 def skip_compress(decode=False):
@@ -110,3 +111,40 @@ def clean_segments():
     paths.segmenter_log.unlink(missing_ok=True)
     for ctx.chunk in ctx.chunk_list:
         paths.segment_file.unlink(missing_ok=True)
+
+
+def tile_position():
+    """
+    Need video, tiling and tile
+    :return: x1, x2, y1, y2
+    """
+    proj_h, proj_w = config.video_shape
+    tiling_w, tiling_h = splitx(ctx.tiling)
+    tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
+    tile_m, tile_n = int(ctx.tile) % tiling_w, int(ctx.tile) // tiling_w
+    x1 = tile_m * tile_w
+    y1 = tile_n * tile_h
+    x2 = tile_m * tile_w + tile_w  # not inclusive [...)
+    y2 = tile_n * tile_h + tile_h  # not inclusive [...)
+    return x1, y1, x2, y2
+
+
+def check_chunk_file(decode=False):
+    try:
+        segment_file_size = paths.segment_file.stat().st_size
+        assert segment_file_size > 0
+    except FileNotFoundError:
+        print_error(f'The segment not exist. ')
+        logger.log("segment_file not exist.", paths.segment_file)
+        raise FileNotFoundError
+    except AssertionError:
+        logger.register(f'The segment_file SIZE == 0', paths.segment_file)
+        print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
+        raise FileNotFoundError
+
+    if decode:
+        stdout = decode_file(paths.segment_file)
+        if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
+            print_error(f'Segment Decode Error. Cleaning..')
+            logger.register(f'Segment Decode Error.', paths.segment_file)
+            raise FileNotFoundError

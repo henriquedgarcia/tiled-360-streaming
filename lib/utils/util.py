@@ -1,18 +1,16 @@
-from collections import defaultdict
-
 import json
 import os
 import pickle
+from collections import defaultdict
 from pathlib import Path
 from subprocess import run, STDOUT, PIPE
 from time import time
 from typing import Union
 
-import pandas as pd
-from PIL import Image
-
 import numpy as np
+import pandas as pd
 import skvideo.io
+from PIL import Image
 from matplotlib import pyplot as plt
 
 from lib.assets.ansi_colors import Bcolors
@@ -127,7 +125,8 @@ def show2(projection: np.ndarray):
 def get_borders(*,
                 coord_nm: Union[tuple, np.ndarray] = None,
                 shape=None,
-                thickness=1):
+                thickness=1
+                ):
     """
     coord_nm must be shape==(C, N, M)
     :param coord_nm:
@@ -402,5 +401,3 @@ def menu(dict_options):
 def print_error(msg: str, end: str = '\n'):
     print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}',
           end=end)
-
-

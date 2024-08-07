@@ -9,14 +9,13 @@ from matplotlib import pyplot as plt
 
 from lib.utils import SiTi
 from lib.utils import save_json, load_json, get_times, splitx, print_error
-from utils.segment_utils import skip_compress, skip_segmenter
+from lib.utils.segment_utils import skip_compress, skip_segmenter, tile_position
 from .assets import AutoDict
 from .assets import Worker, logger
 from .assets import config
 from .assets import ctx
 from .assets import paths
 from .decode import Decode
-from .utils.transform import tile_position
 
 
 def prepare():
