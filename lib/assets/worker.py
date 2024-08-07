@@ -6,30 +6,13 @@ from pathlib import Path
 from .context import ctx
 from lib.assets.logger import logger
 from lib.assets.config import config
-from lib.utils.util import splitx, run_command
-
-
-def tile_position():
-    """
-    Need video, tiling and tile
-    :return: x1, x2, y1, y2
-    """
-    proj_h, proj_w = config.video_shape
-    tiling_w, tiling_h = splitx(ctx.tiling)
-    tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
-    tile_m, tile_n = int(ctx.tile) % tiling_w, int(ctx.tile) // tiling_w
-    x1 = tile_m * tile_w
-    y1 = tile_n * tile_h
-    x2 = tile_m * tile_w + tile_w  # not inclusive [...)
-    y2 = tile_n * tile_h + tile_h  # not inclusive [...)
-    return x1, y1, x2, y2
+from lib.utils.util import run_command
 
 
 class Worker:
     command_pool: list
 
-    def __init__(self, config_file: Path, videos_file: Path):
-        self.config = config.set_config(config_file, videos_file)
+    def __init__(self):
         self.print_resume()
         start = time()
 
@@ -39,23 +22,6 @@ class Worker:
 
     def main(self):
         ...
-
-    @property
-    def state(self):
-        s = []
-        if ctx.proj is not None:
-            s.append(ctx.proj)
-        if ctx.name is not None:
-            s.append(ctx.name)
-        if ctx.tiling is not None:
-            s.append(ctx.tiling)
-        if ctx.quality is not None:
-            s.append(ctx.quality)
-        if ctx.tile is not None:
-            s.append(ctx.tile)
-        if ctx.chunk is not None:
-            s.append(ctx.chunk)
-        return s
 
     def print_resume(self):
         print('=' * 70)

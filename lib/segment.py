@@ -8,87 +8,63 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from lib.utils import SiTi
-from lib.utils import save_json, load_json, decode_file, get_times, splitx, print_error
+from lib.utils import save_json, load_json, get_times, splitx, print_error
+from utils.segment_utils import skip_compress, skip_segment
 from .assets import AutoDict
-from .assets import Worker, logger, tile_position
+from .assets import Worker, logger
 from .assets import config
 from .assets import ctx
 from .assets import paths
+from .decode import Decode
+from .utils.util import tile_position
 
 
-def check_compressed_video():
-    try:
-        compressed_file_size = paths.compressed_file.stat().st_size
-        if compressed_file_size == 0:
-            clean_compress()
-            raise FileNotFoundError
-    except FileNotFoundError:
-        return False
-    return True
+def compress():
+    if skip_compress():
+        return
+
+    print(f'==== Compress {ctx} ====')
+    x1, y1, x2, y2 = tile_position()
+    qp_options = (':ipratio=1:pbratio=1'
+                  if config.rate_control == 'qp' else '')
+
+    cmd = 'bin/ffmpeg -hide_banner -y -psnr '
+    cmd += f'-i {paths.lossless_file.as_posix()} '
+    cmd += f'-c:v libx265 '
+    cmd += f'-{config.rate_control} {config.quality} -tune psnr '
+    cmd += f'-x265-params '
+    cmd += (f'keyint={config.gop}:min-keyint={config.gop}:'
+            f'open-gop=0:scenecut=0:info=0{qp_options} ')
+    cmd += f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
+    cmd += f'{paths.compressed_file.as_posix()}'
+
+    cmd = f'bash -c "{cmd}"'
+
+    print(cmd)
+    paths.compressed_file.parent.mkdir(parents=True, exist_ok=True)
+    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    paths.compressed_log.write_text(process.stdout)
 
 
-def check_decode_compressed_video():
-    stdout = decode_file(paths.compressed_file)
-    if "frame= 1800" not in stdout:
-        print_error(f'Decode Compressed Video Error. Cleaning.')
-        logger.register(f'Decoding Compress Error.', paths.compressed_file)
-        clean_compress()
-        return False
-    return True
+def segment():
+    if skip_segment(): return
 
+    print(f'==== Segment {paths.compressed_file} ====')
+    # todo: Alternative:
+    # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
+    # ime 1 -reset_timestamps 1 output%03d.mp4
+    cmd = 'bin/MP4Box '
+    cmd += '-split 1 '
+    cmd += f'{paths.compressed_file.as_posix()} '
+    cmd += f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
+    # cmd += f'2>&1 {self.segment_log.as_posix()}'
 
-def check_compressed_log():
-    try:
-        compressed_log_text = paths.compressed_log.read_text()
-    except FileNotFoundError:
-        clean_compress()
-        return False
+    cmd = f'bash -c "{cmd} &> {paths.segment_log.as_posix()}"'
 
-    if 'encoded 1800 frames' not in compressed_log_text:
-        logger.register('compressed_log is corrupt',
-                        paths.compressed_log)
-        print_error(f'The file {paths.compressed_log} is corrupt. Skipping.')
-        clean_compress()
-        return False
-
-    if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-        logger.register('CODEC ERROR', self.compressed_log)
-        print_error(f'The file {self.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
-        clean_compress()
-        return False
-    return compressed_log_text
-
-
-def check_lossless_video():
-    if not paths.lossless_file.exists():
-        logger.register(f'The lossless_file not exist.',
-                        paths.lossless_file)
-        print(f'The file {paths.lossless_file} not exist. Skipping.')
-        return False
-    return True
-
-
-def clean_compress():
-    paths.compressed_log.unlink(missing_ok=True)
-    paths.compressed_file.unlink(missing_ok=True)
-
-
-def skip_compress(decode=False):
-    # first check compressed
-    if check_compressed_video() and check_compressed_log():
-        if not decode:
-            return True
-
-        decode_result = check_decode_compressed_video()
-        if decode_result is True:
-            return True
-
-    if not check_lossless_video():
-        print_error(f'The lossless file not exist. Skipping.')
-        return True
-
-    print_error(f'The compressed_file is OK. Skipping.')
-    return False
+    print(cmd)
+    paths.segment_log.parent.mkdir(parents=True, exist_ok=True)
+    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    paths.compressed_log.write_text(process.stdout)
 
 
 def prepare():
@@ -125,39 +101,6 @@ def prepare():
     paths.lossless_log.write_text(process.stdout)
 
 
-def compress():
-    if skip_compress():
-        return
-
-    print(f'==== Compress {ctx} ====')
-    x1, y1, x2, y2 = tile_position()
-    qp_options = (':ipratio=1:pbratio=1'
-                  if config.rate_control == 'qp' else '')
-
-    cmd = 'bin/ffmpeg -hide_banner -y -psnr '
-    cmd += f'-i {paths.lossless_file.as_posix()} '
-    cmd += f'-c:v libx265 '
-    cmd += f'-{config.rate_control} {config.quality} -tune psnr '
-    cmd += f'-x265-params '
-    cmd += (f'keyint={config.gop}:min-keyint={config.gop}:'
-            f'open-gop=0:scenecut=0:info=0{qp_options} ')
-    cmd += f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
-    cmd += f'{paths.compressed_file.as_posix()}'
-
-    cmd = f'bash -c "{cmd}"'
-
-    print(cmd)
-    paths.compressed_file.parent.mkdir(parents=True, exist_ok=True)
-    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    paths.compressed_log.write_text(process.stdout)
-
-
-def clean_segments():
-    paths.segment_log.unlink(missing_ok=True)
-    for ctx.chunk in ctx.chunk_list:
-        paths.segment_file.unlink(missing_ok=True)
-
-
 class Segment(Worker):
     def main(self):
         for ctx.name in ctx.name_list:
@@ -168,141 +111,7 @@ class Segment(Worker):
                     for ctx.tiling in ctx.tiling_list:
                         for ctx.tile in ctx.tile_list:
                             compress()
-                            self.segment()
-
-    def segment(self) -> Any:
-        if self.skip_segment(): return
-
-        print(f'==== Segment {paths.compressed_file} ====')
-        # todo: Alternative:
-        # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
-        # ime 1 -reset_timestamps 1 output%03d.mp4
-        cmd = 'bin/MP4Box '
-        cmd += '-split 1 '
-        cmd += f'{paths.compressed_file.as_posix()} '
-        cmd += f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
-        # cmd += f'2>&1 {self.segment_log.as_posix()}'
-
-        cmd = f'bash -c "{cmd} &> {paths.segment_log.as_posix()}"'
-
-        # if os.name == 'nt':
-        #     cmd = f'bash -c "{cmd}"'
-
-        self.command_pool.append(cmd)
-        # run_command(cmd)
-
-    def skip_segment(self):
-        # second check segment log
-        try:
-            self.read_segment_log()
-        except FileNotFoundError:
-            return False
-
-        # first compressed file
-        if not paths.compressed_file.exists():
-            logger.register('compressed_file NOTFOUND.',
-                            paths.compressed_file)
-            print_error(f'The file {paths.compressed_file} not exist. Skipping.')
-            return True
-
-
-        print_error(f'The {paths.segment_log} IS OK. Skipping.')
-        return True
-
-    def read_segment_log(self):
-        try:
-            self.segment_log_txt = paths.segment_log.read_text()
-            self.check_segment_log()
-        except FileNotFoundError as e:
-            clean_segments()
-            raise e
-
-    segment_log_txt: str
-
-    def check_segment_log(self, decode=False):
-        if 'file 60 done' not in self.segment_log_txt:
-            # self.compressed_file.unlink(missing_ok=True)
-            # self.compressed_log.unlink(missing_ok=True)
-            print_error(f'The file {paths.segment_log} is corrupt. Cleaning.')
-            logger.register('Segment_log is corrupt. Cleaning',
-                            paths.segment_log)
-            raise FileNotFoundError
-
-        # Se log está ok; verifique os segmentos.
-        for ctx.chunk in ctx.chunk_list:
-            try:
-                segment_file_size = paths.segment_file.stat().st_size
-            except FileNotFoundError as e:
-                logger.register(f'Segmentlog is OK, but segment not exist.',
-                                paths.segment_log)
-                print_error(f'Segmentlog is OK, but segment not exist. Cleaning.')
-                raise e
-
-            if segment_file_size == 0:
-                # um segmento size 0 e o Log diz que está ok. limpeza.
-                print_error(f'Segmentlog is OK. The file SIZE 0. Cleaning.')
-                logger.register(f'Segmentlog is OK. The file {paths.segment_file} SIZE 0',
-                                paths.segment_file)
-                raise FileNotFoundError
-
-            # decodifique os segmentos
-            if decode:
-                stdout = decode_file(paths.segment_file)
-
-                if "frame=   30" not in stdout:
-                    print_error(f'Segment Decode Error. Cleaning..')
-                    logger.register(f'Segment Decode Error.',
-                                    paths.segment_file)
-                    raise FileNotFoundError
-
-
-class Decode(Worker):
-    turn: int
-
-    def main(self):
-        for self.video in self.video_list:
-            for self.tiling in self.tiling_list:
-                for self.quality in self.quality_list:
-                    for self.turn in range(self.decoding_num):
-                        for self.tile in self.tile_list:
-                            for self.chunk in self.chunk_list:
-                                self.worker()
-
-    def clean_dectime_log(self):
-        self.dectime_log.unlink(missing_ok=True)
-
-    def skip(self):
-        self.turn = 0
-        try:
-            content = self.dectime_log.read_text(encoding='utf-8')
-            times = get_times(content)
-            self.turn = len(times)
-            if self.turn < self.decoding_num:
-                raise FileNotFoundError
-            print(f' Decoded {self.turn}.')
-            return True
-        except FileNotFoundError:
-            if self.segment_file.exists():
-                return False
-            else:
-                print_error(f'The segment not exist. ')
-                self.log("segment_file not exist.",
-                         self.segment_file)
-                return True
-
-    def worker(self) -> Any:
-        print(f'Decoding file "{self.segment_file}". ',
-              end='')
-
-        if self.skip():
-            return
-
-        print(f'Turn {self.turn + 1}')
-        stdout = decode_file(self.segment_file,
-                             threads=1)
-        with self.dectime_log.open('a') as f:
-            f.write(f'\n==========\n{stdout}')
-            print(' OK')
+                            segment()
 
 
 class GetBitrate(Worker):

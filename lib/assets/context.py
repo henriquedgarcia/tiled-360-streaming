@@ -2,6 +2,16 @@ from .config import config
 from .lazyproperty import LazyProperty
 
 
+def get_str_prefix(item):
+    if item in ['tile', 'chunk']:
+        prefix = item
+    elif item == 'quality':
+        prefix = config.rate_control
+    else:
+        prefix = ''
+    return prefix
+
+
 class Context:
     name: str = None
     projection: str = None
@@ -9,25 +19,31 @@ class Context:
     tiling: str = None
     tile: str = None
     chunk: str = None
-    metric: str = None
     user: str = None
+    metric: str = None
     turn: str = None
 
-    def __str__(self):
-        txt = ''
-        for item in ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
-                     'user', 'metric', 'turn']:
-            value = getattr(self, item)
+    factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
+                    'user', 'metric', 'turn']
 
-            if value is not None:
-                if item in ['tile', 'chunk']:
-                    prefix = item
-                elif item == 'quality':
-                    prefix = config.rate_control
-                else:
-                    prefix = ''
-                txt += f'[{prefix}{value}]'
-        return txt
+    def __iter__(self):
+        """
+        Iterates over the context variables. Remove attributes with '_' and None.
+        :return:
+        """
+        itens = [getattr(self, key) for key in self.factors_list]
+        return filter(lambda item: item is not None, itens)
+
+    def __str__(self):
+        txt = []
+        for key in self.factors_list:
+            item = getattr(self, key)
+            if item is None:
+                continue
+
+            txt.append(f'[{get_str_prefix(item)}{item}]')
+
+        return ''.join(txt)
 
     @LazyProperty
     def name_list(self):
