@@ -79,10 +79,10 @@ def skip_segment(decode=False):
 
 
 def check_segment_log():
-    segment_log_txt = paths.segment_log.read_text()
+    segment_log_txt = paths.segmenter_log.read_text()
     if 'file 60 done' not in segment_log_txt:
-        logger.register('Segment_log is corrupt. Cleaning', paths.segment_log)
-        print_error(f'\tThe file {paths.segment_log} is corrupt. Cleaning.')
+        logger.register('Segment_log is corrupt. Cleaning', paths.segmenter_log)
+        print_error(f'\tThe file {paths.segmenter_log} is corrupt. Cleaning.')
         raise FileNotFoundError
 
 
@@ -107,6 +107,6 @@ def check_segment_video(decode=False):
 
 
 def clean_segments():
-    paths.segment_log.unlink(missing_ok=True)
+    paths.segmenter_log.unlink(missing_ok=True)
     for ctx.chunk in ctx.chunk_list:
         paths.segment_file.unlink(missing_ok=True)

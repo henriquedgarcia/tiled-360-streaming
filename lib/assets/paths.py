@@ -50,13 +50,13 @@ class Paths:
         return self.segments_folder / self.basename2 / f'tile{ctx.tile}_{chunk:03d}.mp4'
 
     @property
-    def segment_log(self) -> Path:
+    def segmenter_log(self) -> Path:
         return self.segment_file.with_name(f'tile{ctx.tile}_segment.log')
 
     @property
     def dectime_log(self) -> Path:
         chunk = int(str(ctx.chunk))
-        return self.segment_file.with_name(f'dectime_{chunk:03d}.log')
+        return self.segment_file.with_name(f'tile{ctx.tile}_{chunk:03d}_dectime.log')
 
     @property
     def reference_segment(self):

@@ -1,3 +1,4 @@
+from collections import defaultdict
 
 import json
 import os
@@ -246,7 +247,8 @@ def position2trajectory(positions_list, fps=30):
             if pitch_diff > 120:
                 pitch_state -= 1
             elif pitch_diff < -120:
-                pitch_state += 1  # print(f'Frame {n}, old={old:.3f}°, new={position:.3f}°, diff={diff :.3f}°')  # Want a log?
+                pitch_state += 1
+        # print(f'Frame {frame}, old={old:.3f}°, new={position:.3f}°, diff={diff :.3f}°')  # Want a log?
 
         new_yaw = yaw + pi * yaw_state
         yaw_trajectory.append(new_yaw)
@@ -266,10 +268,12 @@ def position2trajectory(positions_list, fps=30):
 
     # Filter
     padded_yaw_velocity = [yaw_velocity.iloc[0]] + list(yaw_velocity) + [yaw_velocity.iloc[-1]]
-    yaw_velocity_filtered = [sum(padded_yaw_velocity[idx - 1:idx + 2]) / 3 for idx in range(1, len(padded_yaw_velocity) - 1)]
+    yaw_velocity_filtered = [sum(padded_yaw_velocity[idx - 1:idx + 2]) / 3
+                             for idx in range(1, len(padded_yaw_velocity) - 1)]
 
     padded_pitch_velocity = [pitch_velocity.iloc[0]] + list(pitch_velocity) + [pitch_velocity.iloc[-1]]
-    pitch_velocity_filtered = [sum(padded_pitch_velocity[idx - 1:idx + 2]) / 3 for idx in range(1, len(padded_pitch_velocity) - 1)]
+    pitch_velocity_filtered = [sum(padded_pitch_velocity[idx - 1:idx + 2]) / 3
+                               for idx in range(1, len(padded_pitch_velocity) - 1)]
 
     # Scalar velocity
     yaw_speed = np.abs(yaw_velocity_filtered)
@@ -354,7 +358,7 @@ def find_keys(data: dict, level=0, result=None):
         result[level].update([key])
 
         if isinstance(value, dict):
-            percorre(value, level + 1, result)
+            find_keys(value, level + 1, result)
         else:
             continue
 

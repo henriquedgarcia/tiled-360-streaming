@@ -29,7 +29,7 @@ if __name__ == '__main__':
     videos_file = menu(video_dict)
 
     print(f'Choose a worker:')
-    worker = menu(video_dict)
+    worker = menu(worker_dict)
 
     config.set_config(config_file, videos_file)
     worker()

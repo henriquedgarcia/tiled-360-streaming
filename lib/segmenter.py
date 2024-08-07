@@ -19,54 +19,6 @@ from .decode import Decode
 from .utils.util import tile_position
 
 
-def compress():
-    if skip_compress():
-        return
-
-    print(f'==== Compress {ctx} ====')
-    x1, y1, x2, y2 = tile_position()
-    qp_options = (':ipratio=1:pbratio=1'
-                  if config.rate_control == 'qp' else '')
-
-    cmd = 'bin/ffmpeg -hide_banner -y -psnr '
-    cmd += f'-i {paths.lossless_file.as_posix()} '
-    cmd += f'-c:v libx265 '
-    cmd += f'-{config.rate_control} {config.quality} -tune psnr '
-    cmd += f'-x265-params '
-    cmd += (f'keyint={config.gop}:min-keyint={config.gop}:'
-            f'open-gop=0:scenecut=0:info=0{qp_options} ')
-    cmd += f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
-    cmd += f'{paths.compressed_file.as_posix()}'
-
-    cmd = f'bash -c "{cmd}"'
-
-    print(cmd)
-    paths.compressed_file.parent.mkdir(parents=True, exist_ok=True)
-    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    paths.compressed_log.write_text(process.stdout)
-
-
-def segment():
-    if skip_segment(): return
-
-    print(f'==== Segment {paths.compressed_file} ====')
-    # todo: Alternative:
-    # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
-    # ime 1 -reset_timestamps 1 output%03d.mp4
-    cmd = 'bin/MP4Box '
-    cmd += '-split 1 '
-    cmd += f'{paths.compressed_file.as_posix()} '
-    cmd += f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
-    # cmd += f'2>&1 {self.segment_log.as_posix()}'
-
-    cmd = f'bash -c "{cmd} &> {paths.segment_log.as_posix()}"'
-
-    print(cmd)
-    paths.segment_log.parent.mkdir(parents=True, exist_ok=True)
-    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    paths.compressed_log.write_text(process.stdout)
-
-
 def prepare():
     if paths.lossless_file:
         logger.register.register(f'The lossless_file exist.', paths.lossless_file)
@@ -101,7 +53,55 @@ def prepare():
     paths.lossless_log.write_text(process.stdout)
 
 
-class Segment(Worker):
+def compress():
+    if skip_compress():
+        return
+
+    print(f'==== Compress {ctx} ====')
+    x1, y1, x2, y2 = tile_position()
+    qp_options = (':ipratio=1:pbratio=1'
+                  if config.rate_control == 'qp' else '')
+
+    cmd = 'bin/ffmpeg -hide_banner -y -psnr '
+    cmd += f'-i {paths.lossless_file.as_posix()} '
+    cmd += f'-c:v libx265 '
+    cmd += f'-{config.rate_control} {config.quality} -tune psnr '
+    cmd += f'-x265-params '
+    cmd += (f'keyint={config.gop}:min-keyint={config.gop}:'
+            f'open-gop=0:scenecut=0:info=0{qp_options} ')
+    cmd += f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
+    cmd += f'{paths.compressed_file.as_posix()}'
+
+    cmd = f'bash -c "{cmd}"'
+
+    print(cmd)
+    paths.compressed_file.parent.mkdir(parents=True, exist_ok=True)
+    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    paths.compressed_log.write_text(process.stdout)
+
+
+def segmenter():
+    if skip_segment(): return
+
+    print(f'==== Segment {paths.compressed_file} ====')
+    # todo: Alternative:
+    # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
+    # ime 1 -reset_timestamps 1 output%03d.mp4
+    cmd = 'bin/MP4Box '
+    cmd += '-split 1 '
+    cmd += f'{paths.compressed_file.as_posix()} '
+    cmd += f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
+    # cmd += f'2>&1 {self.segment_log.as_posix()}'
+
+    cmd = f'bash -c "{cmd} &> {paths.segmenter_log.as_posix()}"'
+
+    print(cmd)
+    paths.segmenter_log.parent.mkdir(parents=True, exist_ok=True)
+    process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    paths.compressed_log.write_text(process.stdout)
+
+
+class Segmenter(Worker):
     def main(self):
         for ctx.name in ctx.name_list:
             prepare()
@@ -111,7 +111,7 @@ class Segment(Worker):
                     for ctx.tiling in ctx.tiling_list:
                         for ctx.tile in ctx.tile_list:
                             compress()
-                            segment()
+                            segmenter()
 
 
 class GetBitrate(Worker):
@@ -594,7 +594,7 @@ class RenameAndCheck(Worker):
                 pass
 
 
-TileDecodeBenchmarkOptions = {'0': Segment,
+TileDecodeBenchmarkOptions = {'0': Segmenter,
                               '1': Decode,
                               '2': GetBitrate,
                               '3': GetDectime,
