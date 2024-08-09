@@ -1,23 +1,42 @@
 from pathlib import Path
 
-from .config import config
+from config.config import config
 from .context import ctx
 
 
 class Paths:
-    project_path = Path('../results') / config.project_folder
-    lossless_folder = project_path / 'lossless'
-    segments_folder = project_path / 'segments'
-    quality_folder = project_path / 'quality'
+    @property
+    def project_path(self):
+        return config.project_folder
 
-    graphs_folder = project_path / 'graphs'
-    viewport_folder = project_path / 'viewport'
-    siti_folder = project_path / 'siti'
+    @property
+    def lossless_folder(self):
+        return self.project_path / 'lossless'
+
+    @property
+    def segments_folder(self):
+        return self.project_path / 'segments'
+
+    @property
+    def quality_folder(self):
+        return self.project_path / 'quality'
+
+    @property
+    def graphs_folder(self):
+        return self.project_path / 'graphs'
+
+    @property
+    def viewport_folder(self):
+        return self.project_path / 'viewport'
+
+    @property
+    def siti_folder(self):
+        return self.project_path / 'siti'
 
     @property
     def basename1(self):
         return (Path(f'{ctx.name}') /
-                f'{ctx.proj}' /
+                f'{ctx.projection}' /
                 f'{config.rate_control}{ctx.quality}' /
                 f'{ctx.tiling}'
                 )
@@ -79,7 +98,37 @@ class Paths:
     @property
     def quality_result_json(self) -> Path:
         return self.segments_folder / f'quality_{ctx.name}.json'
+
     # Tiles chunk path
+
+    def ___siti_files___(self): ...
+
+    @property
+    def siti_stats(self) -> Path:
+        self.siti_folder.mkdir(exist_ok=True, parents=True)
+        return self.siti_folder / f'siti_stats.csv'
+
+    @property
+    def siti_plot(self) -> Path:
+        self.siti_folder.mkdir(exist_ok=True, parents=True)
+        return self.siti_folder / f'siti_plot.png'
+
+    @property
+    def siti_results(self) -> Path:
+        self.siti_folder.mkdir(exist_ok=True, parents=True)
+        name = f'siti_results'
+
+        if ctx.name is not None:
+            name += f'_{ctx.name}'
+        if ctx.tiling is not None:
+            name += f'_{ctx.tiling}'
+        if ctx.quality is not None:
+            name += f'_{config.rate_control}{ctx.quality}'
+        if ctx.tile is not None:
+            name += f'_tile{ctx.tile}'
+        if ctx.chunk is not None:
+            name += f'_chunk{ctx.chunk}'
+        return self.siti_folder / f'{name}.csv'
 
 
 paths = Paths()

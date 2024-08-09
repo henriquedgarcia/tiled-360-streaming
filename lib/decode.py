@@ -1,8 +1,10 @@
 from typing import Any
 
-from lib.assets import Worker, ctx, paths
-from lib.utils import decode_file
+from lib.assets.context import ctx
+from lib.assets.paths import paths
+from lib.assets.worker import Worker
 from lib.utils.decode_utils import skip_decode
+from lib.utils.util import decode_file
 
 
 def decode() -> Any:
@@ -26,4 +28,3 @@ class Decode(Worker):
                         for ctx.tile in ctx.tile_list:
                             for ctx.chunk in ctx.chunk_list:
                                 decode()
-

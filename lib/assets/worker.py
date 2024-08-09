@@ -1,12 +1,11 @@
 from contextlib import contextmanager
 from multiprocessing import Pool
 from time import time
-from pathlib import Path
 
-from .context import ctx
+from config.config import config
 from lib.assets.logger import logger
-from lib.assets.config import config
 from lib.utils.util import run_command
+from .context import ctx
 
 
 class Worker:
@@ -25,10 +24,9 @@ class Worker:
 
     def print_resume(self):
         print('=' * 70)
-        print(f'Processing {len(ctx.video_list)} videos:\n'
+        print(f'Processing {len(ctx.name_list)} videos:\n'
               f'  operation: {self.__class__.__name__}\n'
-              f'  project: {config.project}\n'
-              f'  codec: {config.codec}\n'
+              f'  project_folder: {config.project_folder}\n'
               f'  fps: {config.fps}\n'
               f'  gop: {config.gop}\n'
               f'  qualities: {ctx.quality_list}\n'

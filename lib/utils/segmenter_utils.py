@@ -1,6 +1,7 @@
-from lib import config
-from lib.assets import paths, logger, ctx
-from lib.utils import print_error, decode_file, splitx
+from lib.assets.paths import paths
+from lib.assets.logger import logger
+from lib.assets.context import ctx
+from lib.utils.util import print_error, decode_file, splitx
 
 
 def skip_compress(decode=False):
@@ -118,7 +119,7 @@ def tile_position():
     Need video, tiling and tile
     :return: x1, x2, y1, y2
     """
-    proj_h, proj_w = config.video_shape
+    proj_h, proj_w = ctx.video_shape
     tiling_w, tiling_h = splitx(ctx.tiling)
     tile_w, tile_h = int(proj_w / tiling_w), int(proj_h / tiling_h)
     tile_m, tile_n = int(ctx.tile) % tiling_w, int(ctx.tile) // tiling_w

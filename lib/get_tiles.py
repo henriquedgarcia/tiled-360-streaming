@@ -9,14 +9,14 @@ import pandas as pd
 from PIL import Image
 from skvideo.io import FFmpegReader
 
-<<<<<<< Updated upstream
-from py360tools import ProjectionBase
-=======
-from .assets import Logger, Worker, AutoDict
+from lib.assets.autodict import AutoDict
+from lib.assets.logger import Logger
 from lib.assets.paths import Paths
-from .py360tools import xyz2ea, ERP, CMP, compose
->>>>>>> Stashed changes
+from lib.assets.worker import Worker
 from lib.utils.util import load_json, save_json, lin_interpol, splitx, idx2xy
+
+from py360tools import ProjectionBase
+from py360tools import xyz2ea, ERP, CMP, compose
 
 pi = np.pi
 pi2 = np.pi * 2
@@ -494,7 +494,8 @@ class TestGetTiles(GetTiles):
         print('')
 
     def mount_chunk_frames(self, proj_shape=None, tile_shape=None,
-                           tiling_shape=None, chunk=None, seen_tiles=None):
+                           tiling_shape=None, chunk=None, seen_tiles=None
+                           ):
         proj_h, proj_w = self.projection_obj.proj_shape
         frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
         seen_tiles = self.get_user_samples()['chunks'][self.chunk]

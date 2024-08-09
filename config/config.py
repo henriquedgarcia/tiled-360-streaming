@@ -1,14 +1,12 @@
-from math import prod
 from pathlib import Path
 from typing import Union
 
-from lib.utils.util import load_json, splitx
-from .context import ctx
-from .lazyproperty import LazyProperty
+from lib.utils.util import load_json
+from lib.assets.lazyproperty import LazyProperty
 
 
 class ConfigProps:
-    config_dict: dict[str, Union[str, int, dict, list]]
+    config_dict: dict[str, Union[str, int, dict, list]] = {}
     videos_dict: dict
 
     @LazyProperty
@@ -35,10 +33,6 @@ class ConfigProps:
     @LazyProperty
     def gop(self):
         return self.config_dict['gop']
-
-    @LazyProperty
-    def scale(self):
-        return self.config_dict['scale'][ctx.projection]
 
     #####################
     @LazyProperty
@@ -99,8 +93,8 @@ class Config(ConfigProps):
         """
         self.config_dict = load_json(config_file)
         self.videos_dict = load_json(videos_file)
-        self.dataset = load_json(self.config_dict['dataset_file'])
-        self.sph_file = load_json(self.config_dict['sph_file'])
+        # self.dataset = load_json(self.config_dict['dataset_file'])
+        # self.sph_file = load_json(self.config_dict['sph_file'])
 
     @LazyProperty
     def n_frames(self) -> int:
@@ -109,31 +103,6 @@ class Config(ConfigProps):
     @LazyProperty
     def chunk_duration(self) -> int:
         return int(self.gop) // int(self.fps)
-
-    @property
-    def n_tiles(self):
-        return prod(map(int, splitx(ctx.tiling)[::-1]))
-
-    @property
-    def group(self):
-        return self.videos_dict[ctx.name]['group']
-
-    @property
-    def offset(self):
-        return self.videos_dict[ctx.name]['offset']
-
-    @property
-    def video_shape(self) -> tuple:
-        w, h = splitx(self.scale)
-        return h, w
-
-    @property
-    def video_h(self) -> tuple:
-        return self.video_shape[0]
-
-    @property
-    def video_w(self) -> tuple:
-        return self.video_shape[1]
 
     # @property
     # def cmp_face_shape(self) -> (int, int, int):

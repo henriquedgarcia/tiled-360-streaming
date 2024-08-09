@@ -1,4 +1,7 @@
-from .config import config
+from math import prod
+
+from config.config import config
+from lib.utils.util import splitx
 from .lazyproperty import LazyProperty
 
 
@@ -63,7 +66,7 @@ class Context:
 
     @property
     def tile_list(self):
-        return [str(tile) for tile in range(config.n_tiles)]
+        return [str(tile) for tile in range(ctx.n_tiles)]
 
     @LazyProperty
     def chunk_list(self):
@@ -85,6 +88,27 @@ class Context:
     @property
     def frame_list(self) -> list[str]:
         return [str(frame) for frame in range(config.n_frames)]
+
+    @property
+    def scale(self):
+        return config.config_dict['scale'][self.projection]
+
+    @property
+    def n_tiles(self):
+        return prod(map(int, splitx(self.tiling)))
+
+    @property
+    def offset(self):
+        return config.videos_dict[self.name]['offset']
+
+    @property
+    def group(self):
+        return config.videos_dict[self.name]['group']
+
+    @property
+    def video_shape(self) -> tuple:
+        video_w, video_h = splitx(ctx.scale)
+        return video_h, video_w
 
 
 ctx = Context()

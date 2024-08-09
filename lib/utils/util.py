@@ -371,13 +371,13 @@ def show_options(dict_options: dict, counter=0, level=0, keys_list=None):
     if keys_list is None:
         keys_list = []
     for k, v in dict_options.items():
-        if not isinstance(v, dict):
-            print('\t' * counter + f'{counter} - {k}')
+        if isinstance(v, dict):
+            print('\t' * level + f'{k}')
+            show_options(v, counter, level + 1, keys_list)
+        else:
+            print('\t' * (level + 1) + f'{counter} - {k}')
             keys_list.append(v)
             counter += 1
-        else:
-            print('\t' * counter + f'{k}')
-            show_options(v, counter, level + 1, keys_list)
     return keys_list
 
 
@@ -395,7 +395,7 @@ def menu(dict_options):
         chosen = get_options()
         if chosen is not None:
             break
-    return keys[chosen]
+    return keys[int(chosen)]
 
 
 def print_error(msg: str, end: str = '\n'):

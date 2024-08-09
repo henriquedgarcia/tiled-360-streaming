@@ -1,7 +1,8 @@
-from lib import config
-from lib.assets import paths, ctx
-from lib.utils import get_times
-from lib.utils.segment_utils import check_chunk_file
+from config.config import config
+from lib.assets.context import ctx
+from lib.assets.paths import paths
+from lib.utils.segmenter_utils import check_chunk_file
+from lib.utils.util import get_times
 
 
 def skip_decode():
