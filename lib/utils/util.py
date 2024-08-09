@@ -367,18 +367,20 @@ def find_keys(data: dict, level=0, result=None):
     return result2
 
 
-def show_options(dict_options: dict, counter=0, level=0, keys_list=None):
+def show_options(dict_options: dict, counter=0, level=0, keys_list=None, text='', mute=False, init_indent=0):
     if keys_list is None:
         keys_list = []
     for k, v in dict_options.items():
         if isinstance(v, dict):
-            print('\t' * level + f'{k}')
-            show_options(v, counter, level + 1, keys_list)
+            text += '\t' * level + f'{k}\n'
+            show_options(v, counter, level + 1, keys_list, text)
         else:
-            print('\t' * (level + 1) + f'{counter} - {k}')
+            text += '\t' * (level + init_indent) + f'{counter} - {k}\n'
             keys_list.append(v)
             counter += 1
-    return keys_list
+    if level == 0 and not mute:
+        print(text)
+    return keys_list, text
 
 
 def get_options():
@@ -389,9 +391,9 @@ def get_options():
     return chosen
 
 
-def menu(dict_options):
+def menu(dict_options, init_indent=0):
     while True:
-        keys = show_options(dict_options)
+        keys, text = show_options(dict_options, init_indent=init_indent)
         chosen = get_options()
         if chosen is not None:
             break
@@ -401,3 +403,21 @@ def menu(dict_options):
 def print_error(msg: str, end: str = '\n'):
     print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}',
           end=end)
+
+
+def percorrer_arvore_iterativo(dicionario):
+    folhas = []
+    pilha = [(dicionario, '')]
+
+    while pilha:
+        atual, caminho = pilha.pop()
+
+        for chave, valor in atual.items():
+            novo_caminho = f"{caminho}/{chave}" if caminho else chave
+
+            if isinstance(valor, dict):
+                pilha.append((valor, novo_caminho))
+            else:
+                folhas.append(f"{novo_caminho}: {valor}")
+
+    return folhas
