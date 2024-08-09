@@ -75,6 +75,8 @@ def skip_segmenter(decode=False):
     try:
         check_compressed_video()
     except FileNotFoundError:
+        logger.register(f'The compressed_file not exist.', paths.compressed_file)
+        print_error(f'\tCant create the segments. The compressed video not exist. Skipping.')
         return True
 
     return False
