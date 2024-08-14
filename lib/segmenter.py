@@ -2,7 +2,7 @@ from subprocess import run, STDOUT, PIPE
 
 from config.config import config
 from lib.utils.segmenter_utils import skip_compress, skip_segmenter, tile_position
-from lib.utils.util import splitx
+from lib.utils.util import splitx, print_error
 from .assets.context import ctx
 from .assets.logger import logger
 from .assets.paths import paths
@@ -25,12 +25,12 @@ class Segmenter(Worker):
 def prepare():
     print(f'==== Preparing {ctx} ====')
     if paths.lossless_file:
-        print(f'\tThe file {paths.lossless_file} exist. Skipping.')
+        print_error(f'\tThe file {paths.lossless_file} exist. Skipping.')
         return
 
     if not paths.original_file.exists():
         logger.register(f'The original_file not exist.', paths.original_file)
-        print(f'\tThe file {paths.original_file=} not exist. Skipping.')
+        print_error(f'\tThe file {paths.original_file=} not exist. Skipping.')
         return
 
     resolution_ = splitx(ctx.scale)
