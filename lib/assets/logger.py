@@ -9,9 +9,11 @@ from lib.assets.context import ctx
 
 class Logger:
     log_text: defaultdict
+    name: str
 
     @contextmanager
-    def logger_context(self):
+    def logger_context(self, cls):
+        self.name = cls.__class__.__name__
         self.log_text = defaultdict(list)
 
         try:
@@ -30,8 +32,7 @@ class Logger:
         self.log_text['path'].append(f'{filepath.absolute()}')
 
     def save_log(self):
-        cls_name = self.__class__.__name__
-        filename = f'log/log_{cls_name}_{datetime.datetime.now()}.csv'
+        filename = f'log/log_{self.name}_{datetime.datetime.now()}.csv'
         filename = filename.replace(':',
                                     '-')
         df_log_text = pd.DataFrame(self.log_text)
