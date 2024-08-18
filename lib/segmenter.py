@@ -24,7 +24,7 @@ class Segmenter(Worker):
 
 def prepare():
     print(f'==== Preparing {ctx} ====')
-    if paths.lossless_file:
+    if paths.lossless_file.exists():
         print_error(f'\tThe file {paths.lossless_file} exist. Skipping.')
         return
 
