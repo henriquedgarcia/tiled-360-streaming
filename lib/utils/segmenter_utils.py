@@ -1,30 +1,57 @@
-from lib.assets.paths import paths
-from lib.assets.logger import logger
 from lib.assets.context import ctx
+from lib.assets.logger import logger
+from lib.assets.paths import paths
 from lib.utils.util import print_error, decode_file, splitx
 
 
 def skip_compress(decode=False):
+    if not logger.get_status('compressed_ok'):
+        check_compressed()
+
+    if decode:
+        check_decode_compressed()
+
+    if (logger.get_status('compressed_decode_ok')
+            or logger.get_status('compressed_ok')):
+        return True
+
+    if not logger.get_status('lossless_ok'):
+        check_lossless_video()
+    return not logger.get_status('lossless_ok')
+
+
+def check_decode_compressed():
+    if logger.get_status('compressed_ok'):
+        print_error(f'\tDecoding Compressed Video... ', end='')
+
+        if logger.get_status('compressed_decode_ok'):
+            print_error(f'OK')
+            return
+
+        try:
+            check_decode_compressed_video()
+            logger.update_status('compressed_decode_ok', True)
+        except FileNotFoundError:
+            clean_compress()
+            logger.update_status('compressed_decode_ok', False)
+            logger.update_status('compressed_ok', False)
+
+
+def check_compressed():
     try:
         check_compressed_video()
         check_compressed_log()
-        if decode: check_decode_compressed_video()
-        return True  # all ok
-
+        logger.update_status('compressed_ok', True)
     except FileNotFoundError:
         clean_compress()
-
-    try:
-        check_lossless_video()
-    except FileNotFoundError:
-        return True
-    return False
+        logger.update_status('compressed_ok', False)
 
 
 def check_compressed_video():
     compressed_file_size = paths.compressed_file.stat().st_size
     if compressed_file_size == 0:
         print_error(f'\tcompressed_file_size == 0.')
+        logger.register_log('compressed_file_size == 0', paths.compressed_file)
         raise FileNotFoundError('compressed_file_size == 0')
 
 
@@ -32,29 +59,31 @@ def check_compressed_log():
     compressed_log_text = paths.compressed_log.read_text()
 
     if 'encoded 1800 frames' not in compressed_log_text:
-        logger.register('compressed_log is corrupt', paths.compressed_log)
+        logger.register_log('compressed_log is corrupt', paths.compressed_log)
         print_error(f'\tThe file {paths.compressed_log} is corrupt. Skipping.')
         raise FileNotFoundError('compressed_log is corrupt')
 
     if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-        logger.register('CODEC ERROR', paths.compressed_log)
+        logger.register_log('CODEC ERROR', paths.compressed_log)
         print_error(f'\tThe file {paths.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
         raise FileNotFoundError('CODEC ERROR')
 
 
 def check_lossless_video():
+    logger.update_status('lossless_ok', True)
     if not paths.lossless_file.exists():
-        logger.register(f'The lossless_file not exist.', paths.lossless_file)
+        logger.register_log(f'The lossless_file not exist.', paths.lossless_file)
         print_error(f'\tCant create the compressed video. The lossless video not exist. Skipping.')
-        raise FileNotFoundError('Decoding Compress Error')
+        logger.update_status('lossless_ok', False)
 
 
 def check_decode_compressed_video():
     stdout = decode_file(paths.compressed_file)
     if "frame= 1800" not in stdout:
-        logger.register(f'Decoding Compress Error.', paths.compressed_file)
+        logger.register_log(f'Decoding Compress Error.', paths.compressed_file)
         print_error(f'\tDecode Compressed Video Error. Cleaning.')
         raise FileNotFoundError('Decoding Compress Error')
+    return stdout
 
 
 def clean_compress():
@@ -73,9 +102,9 @@ def skip_segmenter(decode=False):
         clean_segments()
 
     try:
-        check_compressed_video()
+        check_compressed()
     except FileNotFoundError:
-        logger.register(f'The compressed_file not exist.', paths.compressed_file)
+        logger.register_log(f'The compressed_file not exist.', paths.compressed_file)
         print_error(f'\tCant create the segments. The compressed video not exist. Skipping.')
         return True
 
@@ -85,7 +114,7 @@ def skip_segmenter(decode=False):
 def check_segment_log():
     segment_log_txt = paths.segmenter_log.read_text()
     if 'file 60 done' not in segment_log_txt:
-        logger.register('Segment_log is corrupt. Cleaning', paths.segmenter_log)
+        logger.register_log('Segment_log is corrupt. Cleaning', paths.segmenter_log)
         print_error(f'\tThe file {paths.segmenter_log} is corrupt. Cleaning.')
         raise FileNotFoundError
 
@@ -95,7 +124,7 @@ def check_segment_video(decode=False):
         segment_file_size = paths.segment_file.stat().st_size
 
         if segment_file_size == 0:
-            logger.register(f'The segment_file SIZE == 0', paths.segment_file)
+            logger.register_log(f'The segment_file SIZE == 0', paths.segment_file)
             print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
             raise FileNotFoundError
 
@@ -105,8 +134,8 @@ def check_segment_video(decode=False):
 
             if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
                 print_error(f'Segment Decode Error. Cleaning..')
-                logger.register(f'Segment Decode Error.',
-                                paths.segment_file)
+                logger.register_log(f'Segment Decode Error.',
+                                    paths.segment_file)
                 raise FileNotFoundError
 
 
@@ -141,7 +170,7 @@ def check_chunk_file(decode=False):
         logger.log("segment_file not exist.", paths.segment_file)
         raise FileNotFoundError
     except AssertionError:
-        logger.register(f'The segment_file SIZE == 0', paths.segment_file)
+        logger.register_log(f'The segment_file SIZE == 0', paths.segment_file)
         print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
         raise FileNotFoundError
 
@@ -149,5 +178,5 @@ def check_chunk_file(decode=False):
         stdout = decode_file(paths.segment_file)
         if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
             print_error(f'Segment Decode Error. Cleaning..')
-            logger.register(f'Segment Decode Error.', paths.segment_file)
+            logger.register_log(f'Segment Decode Error.', paths.segment_file)
             raise FileNotFoundError

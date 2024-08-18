@@ -9,27 +9,44 @@ from .assets.paths import paths
 from .assets.worker import Worker
 
 
+def create_compress():
+    for ctx.name in ctx.name_list:
+        for ctx.projection in ctx.projection_list:
+            for ctx.quality in ctx.quality_list:
+                for ctx.tiling in ctx.tiling_list:
+                    for ctx.tile in ctx.tile_list:
+                        compress()
+                        # segmenter()
+
+
+def create_segments():
+    for ctx.name in ctx.name_list:
+        for ctx.projection in ctx.projection_list:
+            for ctx.quality in ctx.quality_list:
+                for ctx.tiling in ctx.tiling_list:
+                    for ctx.tile in ctx.tile_list:
+                        segmenter()
+
+
 class Segmenter(Worker):
     def main(self):
-        for ctx.name in ctx.name_list:
-            for ctx.projection in ctx.projection_list:
-                prepare()
-
-                for ctx.quality in ctx.quality_list:
-                    for ctx.tiling in ctx.tiling_list:
-                        for ctx.tile in ctx.tile_list:
-                            compress()
-                            segmenter()
+        ctx.quality_list = ['0'] + ctx.quality_list
+        create_compress()
+        # create_segments()
 
 
 def prepare():
+    """
+    deprecated
+    :return:
+    """
     print(f'==== Preparing {ctx} ====')
     if paths.lossless_file.exists():
         print_error(f'\tThe file {paths.lossless_file} exist. Skipping.')
         return
 
     if not paths.original_file.exists():
-        logger.register(f'The original_file not exist.', paths.original_file)
+        logger.register_log(f'The original_file not exist.', paths.original_file)
         print_error(f'\tThe file {paths.original_file=} not exist. Skipping.')
         return
 
@@ -59,24 +76,30 @@ def prepare():
 
 def compress():
     print(f'==== Compress {ctx} ====')
+
     if skip_compress():
         return
 
+    lossless_file = paths.lossless_file.as_posix()
+    compressed_file = paths.compressed_file.as_posix()
+
     x1, y1, x2, y2 = tile_position()
-    qp_options = (':ipratio=1:pbratio=1'
-                  if config.rate_control == 'qp' else '')
 
-    cmd = 'bin/ffmpeg -hide_banner -y -psnr '
-    cmd += f'-i {paths.lossless_file.as_posix()} '
-    cmd += f'-c:v libx265 '
-    cmd += f'-{config.rate_control} {ctx.quality} -tune psnr '
-    cmd += f'-x265-params '
-    cmd += (f'keyint={config.gop}:min-keyint={config.gop}:'
-            f'open-gop=0:scenecut=0:info=0{qp_options} ')
-    cmd += f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
-    cmd += f'{paths.compressed_file.as_posix()}'
+    gop_options = f'keyint={config.gop}:min-keyint={config.gop}:open-gop=0'
+    misc_options = f'scenecut=0:info=0'
+    qp_options = ':ipratio=1:pbratio=1' if config.rate_control == 'qp' else ''
+    lossless_option = ':lossless=1' if ctx.quality == '0' else ''
 
-    cmd = f'bash -c "{cmd}"'
+    cmd = ('bash -c '
+           '"'
+           'bin/ffmpeg -hide_banner -y -psnr '
+           f'-i {lossless_file} '
+           f'-{config.rate_control} {ctx.quality} -tune psnr '
+           f'-c:v libx265 '
+           f'-x265-params {gop_options}:{misc_options}{qp_options}{lossless_option} '
+           f'-vf crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1} '
+           f'{compressed_file}'
+           f'"')
 
     print(cmd)
     paths.compressed_file.parent.mkdir(parents=True, exist_ok=True)
@@ -91,13 +114,17 @@ def segmenter():
     # todo: Alternative:
     # ffmpeg -hide_banner -i {compressed_file} -c copy -f segment -segment_t
     # ime 1 -reset_timestamps 1 output%03d.mp4
-    cmd = 'bin/MP4Box '
-    cmd += '-split 1 '
-    cmd += f'{paths.compressed_file.as_posix()} '
-    cmd += f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
+    cmd = ('bash -c '
+           '"'
+           'bin/MP4Box '
+           '-split 1 '
+           f'{paths.compressed_file.as_posix()} '
+           f"-out {paths.segments_folder.as_posix()}/tile{ctx.tile}_'$'num%03d$.mp4 "
+           # f'&> {paths.segmenter_log.as_posix()}'
+           f'"')
     # cmd += f'2>&1 {self.segment_log.as_posix()}'
 
-    cmd = f'bash -c "{cmd} &> {paths.segmenter_log.as_posix()}"'
+    # cmd = f'bash -c "{cmd} &> {paths.segmenter_log.as_posix()}"'
 
     print(cmd)
     paths.segmenter_log.parent.mkdir(parents=True, exist_ok=True)

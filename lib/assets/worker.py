@@ -16,7 +16,7 @@ class Worker(ABC):
         self.print_resume()
         start = time()
 
-        with logger.logger_context(self):
+        with logger.logger_context(self.__class__.__name__):
             self.main()
         print(f"\n\tTotal time={time() - start}.")
 

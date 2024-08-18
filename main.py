@@ -6,20 +6,34 @@ import lib
 from config.config import config
 from lib.utils.util import menu
 
-config_dict = {}
-for config_file in Path('config').iterdir():
-    if 'config_' in config_file.name:
-        name = config_file.name.replace('config_', '')
-        config_dict.update({name: config_file})
+path_config = Path('config')
 
-videos_dict = {}
-for videos_file in Path('config').iterdir():
-    if 'videos' in videos_file.name:
-        name = videos_file.name.replace('videos_', '')
-        videos_dict.update({name: videos_file})
+config_dict = {'full': path_config / 'config_full.json',
+               'reversed': path_config / 'config_reversed.json',
+               'test': path_config / 'config_test.json',
+               'full_qp': path_config / 'config_full_qp.json'
+               }
 
-worker_dict = {getattr(lib, worker).__name__: getattr(lib, worker)
-               for worker in lib.__all__}
+videos_dict = {'full': path_config / 'videos_0_full.json',
+               'alambique': path_config / 'videos_alambique.json',
+               'container0': path_config / 'videos_container0.json',
+               'container1': path_config / 'videos_container1.json',
+               'fortrek': path_config / 'videos_fortrek.json',
+               'hp-elite': path_config / 'videos_hp-elite.json',
+               'lumine': path_config / 'videos_lumine.json',
+               'nas_cmp': path_config / 'videos_nas_cmp.json',
+               'nas_erp': path_config / 'videos_nas_erp.json',
+               'reversed': path_config / 'videos_reversed.json',
+               'test': path_config / 'videos_test.json',
+               }
+
+worker_dict = {'Segmenter': lib.Segmenter,
+               'Decode': lib.Decode,
+               'GetTiles': lib.GetTiles,
+               'GetBitrate': lib.GetBitrate,
+               'MakeSiti': lib.MakeSiti,
+               'GetDectime': lib.GetDectime,
+               'RenamerAndCheck': lib.RenamerAndCheck}
 
 
 def make_help_txt():
@@ -50,10 +64,11 @@ if __name__ == '__main__':
         print(f'Choose a worker:')
         worker = menu(worker_dict, init_indent=1)
     else:
-        config_id, videos_list_id, worker_id = args.r
-        config_file = config_dict[config_id]
-        videos_file = videos_dict[videos_list_id]
-        worker = worker_dict[worker_id]
+        config_id, videos_list_id, worker_id = map(int, args.r)
+
+        config_file = config_dict[list(config_dict)[config_id]]
+        videos_file = videos_dict[list(videos_dict)[videos_list_id]]
+        worker = worker_dict[list(worker_dict)[worker_id]]
 
     config.set_config(config_file, videos_file)
     worker()

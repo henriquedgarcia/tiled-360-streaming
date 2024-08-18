@@ -1,5 +1,5 @@
 class LazyProperty:
-    def __init__(self, getter, setter=None, deleter=None):
+    def __init__(self, func):
         """
         Creates a property that waits for the first use to be initialized. After this, it always returns the same
         result.
@@ -28,10 +28,8 @@ class LazyProperty:
         :param getter:
         :param setter:
         """
-        self.getter = getter
-        self.setter = setter
-        self.deleter = deleter
-        self.name = self.getter.__name__
+        self.func = func
+        self.name = func.__name__
         self.attr_name = '_' + self.name
 
     def __get__(self, instance, owner):
@@ -40,10 +38,8 @@ class LazyProperty:
 
         try:
             value = getattr(instance, self.attr_name)
-            if value is None:
-                raise AttributeError
         except AttributeError:
-            value = self.getter(instance)
+            value = self.func(instance)
             setattr(instance, self.attr_name, value)
 
         return value
@@ -52,18 +48,12 @@ class LazyProperty:
         if instance is None:
             raise AttributeError("The descriptor must be used with class instances.")
 
-        if self.setter is None:
-            raise AttributeError(f"Setter not defined for '{self.name}'")
-
         setattr(instance, self.attr_name, value)
-        self.setter(instance, value)
 
     def __delete__(self, instance):
         if instance is None:
             raise AttributeError("The descriptor must be used with class instances.")
 
-        if self.deleter is not None:
-            self.deleter(instance)
         try:
             delattr(instance, '_' + self.name)
         except AttributeError:

@@ -1,15 +1,15 @@
 {
-  "project_folder": "../results/nasrabadi_28videos_erp_cmp",
+  "project_folder": "../results/nasrabadi_28videos_cmp_qp",
   "sph_file": "datasets/sphere_655362.txt",
   "dataset_file": "datasets/nasrabadi_28videos.json",
 
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "scale": {"cmp": "3240x2160"},
+  "scale": {"erp": "4320x2160",
+            "cmp": "3240x2160"},
 
-  "rate_control": "crf",
-  "original_quality": "0",
+  "rate_control": "qp",
   "decoding_num": 5,
 
   "bins": 30,
@@ -20,6 +20,6 @@
                     "expon"],
 
   "fov": "110x90",
-  "quality_list": ["16", "22", "28", "34", "40", "46"],
+  "quality_list": ["22", "28", "34", "40", "46", "50"],
   "tiling_list": ["1x1", "3x2", "6x4", "9x6", "12x8"]
 }

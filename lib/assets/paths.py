@@ -10,12 +10,20 @@ class Paths:
         return config.project_folder
 
     @property
+    def results_folder(self):
+        return self.project_path / 'results_json'
+
+    @property
     def lossless_folder(self):
         return self.project_path / 'lossless'
 
     @property
     def segments_folder(self):
         return self.project_path / 'segments'
+
+    @property
+    def compresseds_folder(self):
+        return self.project_path / 'compresseds'
 
     @property
     def quality_folder(self):
@@ -57,7 +65,7 @@ class Paths:
 
     @property
     def compressed_file(self) -> Path:
-        return self.segments_folder / self.basename1 / f'tile{ctx.tile}.mp4'
+        return self.compresseds_folder / self.basename1 / f'tile{ctx.tile}.mp4'
 
     @property
     def compressed_log(self) -> Path:
@@ -80,24 +88,30 @@ class Paths:
     @property
     def reference_segment(self):
         qlt = ctx.quality
-        ctx.quality = config.original_quality
+        rate_control = config.rate_control
+
+        config.rate_control = 'crf'
+        ctx.quality = '0'
+
         segment_file = self.segment_file
+
         ctx.quality = qlt
+        ctx.rate_control = rate_control
         return segment_file
 
     def ___json_results_files___(self): ...
 
     @property
     def dectime_result_json(self) -> Path:
-        return self.segments_folder / f'time_{ctx.name}.json'
+        return self.results_folder / f'time_{ctx.name}.json'
 
     @property
     def bitrate_result_json(self) -> Path:
-        return self.segments_folder / f'rate_{ctx.name}.json'
+        return self.results_folder / f'rate_{ctx.name}.json'
 
     @property
     def quality_result_json(self) -> Path:
-        return self.segments_folder / f'quality_{ctx.name}.json'
+        return self.results_folder / f'quality_{ctx.name}.json'
 
     # Tiles chunk path
 

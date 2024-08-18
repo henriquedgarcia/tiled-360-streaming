@@ -40,10 +40,6 @@ class ConfigProps:
         return self.config_dict['rate_control']
 
     @LazyProperty
-    def original_quality(self):
-        return self.config_dict['original_quality']
-
-    @LazyProperty
     def decoding_num(self):
         return self.config_dict['decoding_num']
 

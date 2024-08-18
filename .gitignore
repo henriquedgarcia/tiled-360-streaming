@@ -1,4 +1,5 @@
 # Project exclude paths
+.gitignore
 __pycache__/
 .idea/
 .vs
