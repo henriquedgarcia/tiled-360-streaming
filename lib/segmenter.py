@@ -36,18 +36,19 @@ def prepare():
     resolution_ = splitx(ctx.scale)
     dar = resolution_[0] / resolution_[1]
 
-    cmd = f'bin/ffmpeg '
-    cmd += f'-hide_banner -y '
-    cmd += f'-ss {ctx.offset} '
-    cmd += f'-i {config.original_file.as_posix()} '
-    cmd += f'-crf 0 '
-    cmd += f'-t {config.duration} '
-    cmd += f'-r {config.fps} '
-    cmd += f'-map 0:v '
-    cmd += f'-vf scale={ctx.scale},setdar={dar} '
-    cmd += f'{paths.lossless_file.as_posix()}'
-
-    cmd = f'bash -c "{cmd}"'
+    cmd = (f'bash -c '
+           f'"'
+           f'bin/ffmpeg '
+           f'-hide_banner -y '
+           f'-ss {ctx.offset} '
+           f'-i {config.original_file.as_posix()} '
+           f'-crf 0 '
+           f'-t {config.duration} '
+           f'-r {config.fps} '
+           f'-map 0:v '
+           f'-vf scale={ctx.scale},setdar={dar} '
+           f'{paths.lossless_file.as_posix()}'
+           f'"')
 
     print('\t', cmd)
 
