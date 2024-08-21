@@ -6,8 +6,7 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "scale": {"erp": "4320x2160",
-            "cmp": "3240x2160"},
+  "scale": {"cmp": "3240x2160"},
 
   "rate_control": "qp",
   "decoding_num": 5,
