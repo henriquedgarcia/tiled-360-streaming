@@ -32,7 +32,7 @@ class Segmenter(Worker):
     def main(self):
         ctx.quality_list = ['0'] + ctx.quality_list
         create_compress()
-        # create_segments()
+        create_segments()
 
 
 def prepare():

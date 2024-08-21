@@ -1,39 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-from pathlib import Path
 
-import lib
 from config.config import config
 from lib.utils.util import menu
-
-path_config = Path('config')
-
-config_dict = {'full': path_config / 'config_full.json',
-               'reversed': path_config / 'config_reversed.json',
-               'test': path_config / 'config_test.json',
-               'full_qp': path_config / 'config_full_qp.json'
-               }
-
-videos_dict = {'full': path_config / 'videos_0_full.json',
-               'alambique': path_config / 'videos_alambique.json',
-               'container0': path_config / 'videos_container0.json',
-               'container1': path_config / 'videos_container1.json',
-               'fortrek': path_config / 'videos_fortrek.json',
-               'hp-elite': path_config / 'videos_hp-elite.json',
-               'lumine': path_config / 'videos_lumine.json',
-               'nas_cmp': path_config / 'videos_nas_cmp.json',
-               'nas_erp': path_config / 'videos_nas_erp.json',
-               'reversed': path_config / 'videos_reversed.json',
-               'test': path_config / 'videos_test.json',
-               }
-
-worker_dict = {'Segmenter': lib.Segmenter,
-               'Decode': lib.Decode,
-               'GetTiles': lib.GetTiles,
-               'GetBitrate': lib.GetBitrate,
-               'MakeSiti': lib.MakeSiti,
-               'GetDectime': lib.GetDectime,
-               'RenamerAndCheck': lib.RenamerAndCheck}
+from lib.utils.config_utils import config_dict, videos_dict, worker_dict
 
 
 def make_help_txt():
