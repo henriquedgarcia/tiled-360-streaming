@@ -26,7 +26,7 @@ class Logger:
 
     @property
     def status_filename(self):
-        return Path(f'log/status_{config.project_folder}_{self.cls_name}.json')
+        return Path(f'log/status_{config.project_folder.name}_{self.cls_name}.json')
 
     @contextmanager
     def logger_context(self, cls_name):
