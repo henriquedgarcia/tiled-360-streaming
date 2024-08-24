@@ -150,16 +150,21 @@ def __segment__(): ...
 
 def create_segments():
     for _ in iterate_name_projection_quality_tiling_tile():
-        check_segmenter()
+        segment()
 
-        if logger.get_status('segments_ok'):
-            continue
 
-        print(f'==== Segment {ctx} ====')
-        cmd = segmenter()
-        print('\t' + cmd)
-        run_command(cmd, paths.chunks_folder, paths.segmenter_log)
-        check_segmenter()
+def segment():
+    check_segmenter()
+
+    if (logger.get_status('segments_ok')
+            or not logger.get_status('compressed_ok')):
+        return
+
+    print(f'==== Segment {ctx} ====')
+    cmd = segmenter()
+    print('\t' + cmd)
+    run_command(cmd, paths.chunks_folder, paths.segmenter_log)
+    check_segmenter()
 
 
 def check_segmenter(decode=False):
