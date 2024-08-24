@@ -64,26 +64,30 @@ class Paths:
         return self.lossless_file.with_suffix('.log')
 
     @property
-    def compressed_file(self) -> Path:
+    def compressed_video(self) -> Path:
         return self.compresseds_folder / self.basename1 / f'tile{ctx.tile}.mp4'
 
     @property
     def compressed_log(self) -> Path:
-        return self.compressed_file.with_suffix('.log')
+        return self.compressed_video.with_suffix('.log')
 
     @property
     def segmenter_log(self) -> Path:
-        return self.compressed_file.with_name(f'tile{ctx.tile}_segmenter.log')
+        return self.segments_folder / self.basename1 / f'tile{ctx.tile}_segmenter.log'
+
+    @ property
+    def chunks_folder(self) -> Path:
+        return self.segments_folder / self.basename2
 
     @property
-    def segment_file(self) -> Path:
+    def segment_video(self) -> Path:
         chunk = int(ctx.chunk)
-        return self.segments_folder / self.basename2 / f'tile{ctx.tile}_{chunk:03d}.mp4'
+        return self.chunks_folder / f'tile{ctx.tile}_{chunk:03d}.hevc'
 
     @property
     def dectime_log(self) -> Path:
         chunk = int(str(ctx.chunk))
-        return self.segment_file.with_name(f'tile{ctx.tile}_{chunk:03d}_dectime.log')
+        return self.segment_video.with_name(f'tile{ctx.tile}_{chunk:03d}_dectime.log')
 
     @property
     def reference_segment(self):
@@ -93,7 +97,7 @@ class Paths:
         config.rate_control = 'crf'
         ctx.quality = '0'
 
-        segment_file = self.segment_file
+        segment_file = self.segment_video
 
         ctx.quality = qlt
         ctx.rate_control = rate_control

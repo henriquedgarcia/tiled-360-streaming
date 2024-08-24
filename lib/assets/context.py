@@ -5,16 +5,6 @@ from lib.utils.util import splitx
 from .lazyproperty import LazyProperty
 
 
-def get_str_prefix(item):
-    if item in ['tile', 'chunk']:
-        prefix = item
-    elif item == 'quality':
-        prefix = config.rate_control
-    else:
-        prefix = ''
-    return prefix
-
-
 class Context:
     name: str = None
     projection: str = None
@@ -39,12 +29,21 @@ class Context:
 
     def __str__(self):
         txt = []
-        for key in self.factors_list:
-            item = getattr(self, key)
-            if item is None:
+        for factor in self.factors_list:
+            value = getattr(self, factor)
+            if value is None:
                 continue
 
-            txt.append(f'[{get_str_prefix(item)}{item}]')
+            if factor == 'quality':
+                value = f'{config.rate_control}' + value
+            if factor == 'tile':
+                value = 'tile' + value
+            if factor == 'chunk':
+                value = 'chunk' + value
+            if factor == 'turn':
+                value = 'turn' + value
+
+            txt.append(f'[{value}]')
 
         return ''.join(txt)
 
@@ -70,7 +69,7 @@ class Context:
 
     @LazyProperty
     def chunk_list(self):
-        return [str(chunk) for chunk in range(1, config.duration + 1)]
+        return [str(chunk) for chunk in range(config.n_chunks)]
 
     @LazyProperty
     def group_list(self):

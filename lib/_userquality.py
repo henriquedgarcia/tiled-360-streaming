@@ -384,7 +384,7 @@ class ViewportPSNRProps(GetTilesProps):
             try:
                 is_ok, tile_frame = self.readers[self.quality][self.tile].read()
             except (AttributeError, KeyError):
-                self.readers = {self.quality: {self.tile: cv.VideoCapture(f'{self.segment_file}')}}
+                self.readers = {self.quality: {self.tile: cv.VideoCapture(f'{self.segment_video}')}}
                 is_ok, tile_frame = self.readers[self.quality][self.tile].read()
 
             m, n = idx2xy(idx=int(self.tile), shape=splitx(self.tiling)[::-1])
@@ -450,7 +450,7 @@ class ViewportPSNR(ViewportPSNRProps):
 
             tiles_reader_ref = {self.tile: FFmpegReader(f'{self.reference_segment}').nextFrame()
                                 for self.tile in seen_tiles[self.chunk]}
-            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
+            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_video}').nextFrame()
                             for self.tile in seen_tiles[self.chunk]}
 
             for frame_idx in range(30):  # 30 frames per chunk

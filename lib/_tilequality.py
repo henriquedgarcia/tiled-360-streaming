@@ -134,19 +134,19 @@ class SegmentsQualityProps(SegmentsQualityPaths, Worker, Logger):
             return False
 
         if 1 in self.chunk_quality_df['SSIM'].to_list():
-            self.logger(f'CSV SSIM has 1.', self.segment_file)
+            self.logger(f'CSV SSIM has 1.', self.segment_video)
             print_error(f'\n\t\tCSV SSIM has 0.', end='')
 
         if 0 in self.chunk_quality_df['MSE'].to_list():
-            self.logger('CSV MSE has 0.', self.segment_file)
+            self.logger('CSV MSE has 0.', self.segment_video)
             print_error(f'\n\t\tCSV MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['WS-MSE'].to_list():
-            self.logger('CSV WS-MSE has 0.', self.segment_file)
+            self.logger('CSV WS-MSE has 0.', self.segment_video)
             print_error(f'\n\t\tCSV WS-MSE has 0.', end='')
 
         if 0 in self.chunk_quality_df['S-MSE'].to_list():
-            self.logger('CSV S-MSE has 0.', self.segment_file)
+            self.logger('CSV S-MSE has 0.', self.segment_video)
             print_error(f'\n\t\tCSV S-MSE has 0.', end='')
         return True
 
@@ -272,7 +272,7 @@ class SegmentsQuality(Quality, SegmentsQualityProps):
         chunk_quality = defaultdict(list)
         start = time()
         iter_reference_segment = iter_frame(self.reference_segment)
-        iter_segment = iter_frame(self.segment_file)
+        iter_segment = iter_frame(self.segment_video)
         zip_frames = zip(iter_reference_segment, iter_segment)
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
@@ -286,8 +286,8 @@ class SegmentsQuality(Quality, SegmentsQualityProps):
 
     def skip(self):
         skip = False
-        if not self.segment_file.exists():
-            self.logger('segment_file NOTFOUND', self.segment_file)
+        if not self.segment_video.exists():
+            self.logger('segment_file NOTFOUND', self.segment_video)
             print_error(f'segment_file NOTFOUND')
             skip = True
 

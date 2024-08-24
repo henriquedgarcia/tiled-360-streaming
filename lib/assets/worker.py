@@ -1,6 +1,6 @@
+from subprocess import run, STDOUT, PIPE
 from contextlib import contextmanager
 from multiprocessing import Pool
-from time import time
 from abc import ABC, abstractmethod
 
 from config.config import config
@@ -14,11 +14,9 @@ class Worker(ABC):
 
     def __init__(self):
         self.print_resume()
-        start = time()
 
         with logger.logger_context(self.__class__.__name__):
             self.main()
-        print(f"\n\tTotal time={time() - start}.")
 
     @abstractmethod
     def main(self):
@@ -46,3 +44,4 @@ class Worker(ABC):
                 #     run_command(command)
         finally:
             pass
+

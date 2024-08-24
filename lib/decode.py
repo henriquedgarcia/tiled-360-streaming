@@ -10,9 +10,9 @@ from lib.utils.util import decode_file
 def decode() -> Any:
     if skip_decode(): return
 
-    print(f'==== Decoding {paths.segment_file} - Turn {ctx.turn + 1} ====')
+    print(f'==== Decoding {paths.segment_video} - Turn {ctx.turn + 1} ====')
 
-    stdout = decode_file(paths.segment_file, threads=1)
+    stdout = decode_file(paths.segment_video, threads=1)
     with paths.dectime_log.open('a') as f:
         f.write(f'\n==========\n{stdout}')
 

@@ -2,21 +2,7 @@
 import argparse
 
 from config.config import config
-from lib.utils.util import menu
-from lib.utils.config_utils import config_dict, videos_dict, worker_dict
-
-
-def make_help_txt():
-    text = (f'Dectime Testbed.\n'
-            f'================\n'
-            f'CONFIG_ID:\n'
-            f'{list(config_dict)}\n'
-            f'VIDEOS_LIST_ID\n'
-            f'{list(videos_dict)}\n'
-            f'WORKER_ID\n'
-            f'{list(worker_dict)}')
-    return text
-
+from lib.utils.main_utils import config_dict, videos_dict, worker_dict, make_help_txt, menu
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=make_help_txt())

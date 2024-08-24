@@ -499,7 +499,7 @@ class TestGetTiles(GetTiles):
         proj_h, proj_w = self.projection_obj.proj_shape
         frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
         seen_tiles = self.get_user_samples()['chunks'][self.chunk]
-        tiles_reader = {self.tile: FFmpegReader(f'{self.segment_file}').nextFrame()
+        tiles_reader = {self.tile: FFmpegReader(f'{self.segment_video}').nextFrame()
                         for self.tile in seen_tiles}
         # seen_tiles = projection.get_vptiles()  # by frame
 

@@ -1,3 +1,4 @@
+from time import time
 import datetime
 import json
 from collections import defaultdict
@@ -7,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from lib.assets.context import ctx
+from config.config import config
 from .autodict import AutoDict
 
 
@@ -24,19 +26,21 @@ class Logger:
 
     @property
     def status_filename(self):
-        return Path(f'log/status_{self.cls_name}.json')
+        return Path(f'log/status_{config.project_folder}_{self.cls_name}.json')
 
     @contextmanager
     def logger_context(self, cls_name):
         self.cls_name = cls_name
         self._log = defaultdict(list)
         self.load_status()
+        start = time()
 
         try:
             yield
         finally:
             self.save_log()
             self.save_status()
+            print(f"\n\tTotal time={time() - start}.")
 
     def register_log(self, error_code: str, filepath):
         self._log['name'].append(f'{ctx.name}')

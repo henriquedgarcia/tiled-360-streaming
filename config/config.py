@@ -100,6 +100,10 @@ class Config(ConfigProps):
     def chunk_duration(self) -> int:
         return int(self.gop) // int(self.fps)
 
+    @LazyProperty
+    def n_chunks(self) -> int:
+        return self.n_frames // self.gop
+
     # @property
     # def cmp_face_shape(self) -> (int, int, int):
     #     h, w, c = self.video_shape

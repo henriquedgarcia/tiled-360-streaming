@@ -3,7 +3,7 @@ import os
 import pickle
 from collections import defaultdict
 from pathlib import Path
-from subprocess import run, STDOUT, PIPE
+from subprocess import run, STDOUT, PIPE, Popen
 from time import time
 from typing import Union
 
@@ -75,7 +75,7 @@ def decode_file(filename, threads=None):
     return process.stdout
 
 
-def run_command(command: str):
+def run_command_os(command: str):
     """
     run with the shell
     :param command:
@@ -83,6 +83,36 @@ def run_command(command: str):
     """
     print(command)
     os.system(command)
+
+
+def run_command(cmd, folder=None, log_file=None, mode='w'):
+    """
+
+    :param cmd:
+    :param folder:
+    :param log_file:
+    :param mode: usad
+    :return:
+    """
+    if folder is not None:
+        folder.mkdir(parents=True, exist_ok=True)
+    stdout_lines = [cmd + '\n']
+    print('\t', end='')
+    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+
+    while True:
+        out = process.stdout.readline()
+        if not out:
+            break
+        stdout_lines.append(out)
+        print('.', end='')
+    print('')
+
+    if log_file is not None:
+        with open(log_file, mode) as f:
+            f.writelines(stdout_lines)
+    stdout = ''.join(stdout_lines)
+    return process, stdout
 
 
 def get_times(content: str):
@@ -365,39 +395,6 @@ def find_keys(data: dict, level=0, result=None):
         result2[key] = list(result[key])
 
     return result2
-
-
-def show_options(dict_options: dict, counter=0, level=0, keys_list=None, text='', mute=False, init_indent=0):
-    if keys_list is None:
-        keys_list = []
-    for k, v in dict_options.items():
-        if isinstance(v, dict):
-            text += '\t' * level + f'{k}\n'
-            show_options(v, counter, level + 1, keys_list, text)
-        else:
-            text += '\t' * (level + init_indent) + f'{counter} - {k}\n'
-            keys_list.append(v)
-            counter += 1
-    if level == 0 and not mute:
-        print(text)
-    return keys_list, text
-
-
-def get_options():
-    try:
-        chosen = int(input(f'Option: '))
-    except ValueError:
-        chosen = None
-    return chosen
-
-
-def menu(dict_options, init_indent=0):
-    while True:
-        keys, text = show_options(dict_options, init_indent=init_indent)
-        chosen = get_options()
-        if chosen is not None:
-            break
-    return keys[int(chosen)]
 
 
 def print_error(msg: str, end: str = '\n'):
