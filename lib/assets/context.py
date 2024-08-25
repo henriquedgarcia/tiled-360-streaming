@@ -41,7 +41,7 @@ class Context:
             if factor == 'chunk':
                 value = 'chunk' + value
             if factor == 'turn':
-                value = 'turn' + value
+                value = 'turn' + str(value)
 
             txt.append(f'[{value}]')
 

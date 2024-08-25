@@ -1,11 +1,9 @@
-from typing import Any
-
 from config.config import config
 from lib.assets.context import ctx
 from lib.assets.logger import logger
 from lib.assets.paths import paths
 from lib.utils.segmenter_utils import segment
-from lib.utils.util import get_times, decode_file
+from lib.utils.util import get_times, run_command, print_error
 
 
 def make_decode():
@@ -14,27 +12,22 @@ def make_decode():
             decode()
 
 
-def iter_decode():
-    for ctx.name in ctx.name_list:
-        for ctx.projection in ctx.name_list:
-            for ctx.quality in ctx.quality_list:
-                for ctx.tiling in ctx.tiling_list:
-                    for ctx.tile in ctx.tile_list:
-                        for ctx.chunk in ctx.chunk_list:
-                            yield
-
-
 def decode():
+    print(f'==== Decoding {ctx} ====')
+
     check_decode()
-    if (logger.get_status('decode_ok')
-            or not logger.get_status('segments_ok')):
+
+    print(f'\tTurn {ctx.turn}/{config.decoding_num}')
+
+    if logger.get_status('decode_ok'):
+        print('\tDectime is OK. Skipping')
+    elif not logger.get_status('segments_ok'):
+        print_error('\tChunk not exist.')
         return
 
-    print(f'==== Decoding {paths.segment_video} - Turn {ctx.turn} ====')
+    cmd = make_decode_cmd()
+    run_command(cmd, paths.dectime_log.parent, paths.dectime_log, mode='a')
 
-    stdout = decode_file(paths.segment_video, threads=1)
-    with paths.dectime_log.open('a') as f:
-        f.write(f'\n==========\n{stdout}')
     check_decode()
 
 
@@ -46,18 +39,47 @@ def check_decode():
         segment()
 
 
+def check_dectime_log():
+    ctx.turn = get_turn()
+    logger.update_status('decode_turn', ctx.turn)
+
+    if ctx.turn == 0:
+        clean_dectime_log()
+
+    if logger.get_status('decode_turn') > config.decoding_num:
+        logger.update_status('decode_ok', True)
+
+
 def clean_dectime_log():
     paths.dectime_log.unlink(missing_ok=True)
 
 
-def check_dectime_log():
+def get_turn():
+    turn = 0
+
     try:
-        dectime_log_content = paths.dectime_log.read_text(encoding='utf-8')
-        turn = len(get_times(dectime_log_content))
-        if ctx.turn < config.decoding_num:
-            logger.update_status('decode_ok', True)
-            return
+        turn = len(get_times(paths.dectime_log))
     except FileNotFoundError:
-        clean_dectime_log()
-    logger.update_status('decode_ok', True)
-    print(f'\tDecoded {ctx.turn}.')
+        pass
+    return turn
+
+
+def make_decode_cmd(threads=1):
+    cmd = (f'bin/ffmpeg -hide_banner -benchmark '
+           f'-codec hevc '
+           f'{"" if not threads else f"-threads {threads} "}'
+           f'-i {paths.segment_video.as_posix()} '
+           f'-f null -')
+    cmd = f'bash -c "{cmd}"'
+
+    return cmd
+
+
+def iter_decode():
+    for ctx.name in ctx.name_list:
+        for ctx.projection in ctx.projection_list:
+            for ctx.quality in ctx.quality_list:
+                for ctx.tiling in ctx.tiling_list:
+                    for ctx.tile in ctx.tile_list:
+                        for ctx.chunk in ctx.chunk_list:
+                            yield

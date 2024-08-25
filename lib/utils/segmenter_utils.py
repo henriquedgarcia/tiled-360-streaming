@@ -23,7 +23,8 @@ def __compress__(): ...
 def create_compress():
     check_compress()
 
-    if logger.get_status('compressed_ok'):
+    if (logger.get_status('compressed_ok')
+            or not logger.get_status('lossless_ok')):
         return
 
     print(f'==== Compress {ctx} ====')
@@ -154,16 +155,20 @@ def create_segments():
 
 
 def segment():
-    check_segmenter()
+    print(f'==== Segment {ctx} ====')
 
-    if (logger.get_status('segments_ok')
-            or not logger.get_status('compressed_ok')):
+    check_segmenter()
+    if logger.get_status('segments_ok'):
+        print('\tSegments Ok. Skipping.')
+        return
+    elif not logger.get_status('compressed_ok'):
+        print_error('\tSegments and Compressed Video no Exits. Skipping.')
         return
 
-    print(f'==== Segment {ctx} ====')
-    cmd = segmenter()
+    cmd = make_segmenter_cmd()
     print('\t' + cmd)
     run_command(cmd, paths.chunks_folder, paths.segmenter_log)
+
     check_segmenter()
 
 
@@ -192,9 +197,10 @@ def check_segment():
 
 def check_segment_log():
     segment_log_txt = paths.segmenter_log.read_text()
+    c = ctx.chunk
     ctx.chunk = f'{config.n_chunks - 1}'
     segment_video = paths.segment_video.as_posix()
-    ctx.chunk = None
+    ctx.chunk = c
 
     if f'{segment_video}' not in segment_log_txt:
         logger.register_log('Segment_log is corrupt. Cleaning', paths.segmenter_log)
@@ -203,6 +209,7 @@ def check_segment_log():
 
 
 def check_segment_video():
+    c = ctx.chunk
     for ctx.chunk in ctx.chunk_list:
         segment_file_size = paths.segment_video.stat().st_size
 
@@ -211,7 +218,7 @@ def check_segment_video():
             print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
             ctx.chunk = None
             raise FileNotFoundError
-    ctx.chunk = None
+    ctx.chunk = c
 
 
 def clean_segments():
@@ -225,6 +232,7 @@ def check_decode_segments():
     if logger.get_status('segments_decode_ok'):
         print_error(f'OK')
         return
+    c = ctx.chunk
 
     for ctx.chunk in ctx.chunk_list:
         try:
@@ -237,7 +245,7 @@ def check_decode_segments():
     else:
         logger.update_status('segments_decode_ok', True)
 
-    ctx.chunk = None
+    ctx.chunk = c
 
 
 def check_decode_segments_video():
@@ -250,7 +258,7 @@ def check_decode_segments_video():
     return stdout
 
 
-def segmenter():
+def make_segmenter_cmd():
     compressed_file = paths.compressed_video.as_posix()
     chunks_folder = paths.chunks_folder.as_posix()
     cmd = ('bash -c '
@@ -317,7 +325,6 @@ def prepare():
 
     resolution_ = splitx(ctx.scale)
     dar = resolution_[0] / resolution_[1]
-
     cmd = (f'bash -c '
            f'"'
            f'bin/ffmpeg '
@@ -328,7 +335,7 @@ def prepare():
            f'-t {config.duration} '
            f'-r {config.fps} '
            f'-map 0:v '
-           f'-vf scale={ctx.scale},setdar={dar} '
+           f'-vf scale={ctx.scale},setdar={dar},setsar=1 '
            f'{paths.lossless_file.as_posix()}'
            f'"')
 

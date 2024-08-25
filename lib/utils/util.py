@@ -85,37 +85,56 @@ def run_command_os(command: str):
     os.system(command)
 
 
+class LoadingUi:
+    @staticmethod
+    def start():
+        print('\t', end='')
+
+    @staticmethod
+    def increment():
+        print('.', end='')
+
+    @staticmethod
+    def end():
+        print('')
+
+
+ui = LoadingUi()
+
+
 def run_command(cmd, folder=None, log_file=None, mode='w'):
     """
 
     :param cmd:
     :param folder:
     :param log_file:
-    :param mode: usad
+    :param mode: like used by open()
     :return:
     """
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
-    stdout_lines = [cmd + '\n']
-    print('\t', end='')
-    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
 
+    ui.start()
+    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    stdout_lines = [cmd + '\n']
     while True:
         out = process.stdout.readline()
         if not out:
             break
         stdout_lines.append(out)
-        print('.', end='')
-    print('')
+        ui.increment()
+    ui.end()
 
     if log_file is not None:
         with open(log_file, mode) as f:
             f.writelines(stdout_lines)
     stdout = ''.join(stdout_lines)
+
     return process, stdout
 
 
-def get_times(content: str):
+def get_times(filename: Path):
+    content = filename.read_text(encoding='utf-8')
     times = []
     for line in content.splitlines():
         if 'utime' in line:
