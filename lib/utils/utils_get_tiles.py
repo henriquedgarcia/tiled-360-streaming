@@ -38,9 +38,9 @@ def iterate():
         ctx.error_flag = False
         load_results()
         try:
-            for ctx.proj in ctx.proj_list:
+            for ctx.projection in ctx.projection_list:
                 for ctx.tiling in ctx.tiling_list:
-                    ctx.projection_obj = ctx.projection_dict[ctx.projection_obj][ctx.tiling]
+                    ctx.projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
                     for ctx.user in ctx.users_list:
                         yield
         finally:
@@ -48,7 +48,7 @@ def iterate():
                 print('\n\tSaving.')
                 save_results()
             if not ctx.error_flag:
-                ctx.proj = ctx.tiling = ctx.tile = ctx.user = None
+                ctx.projection = ctx.tiling = ctx.tile = ctx.user = None
                 logger.update_status('get_tiles_ok', True)
 
 
@@ -80,8 +80,10 @@ def get_tiles_by_video():
 
 def get_tiles_seen_by_frame(user_hmd_data):
     tiles_seen_by_frame = []
-    for yaw_pitch_roll in user_hmd_data:
+    for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
+        print(f'\r\tframe {frame:04d}/{config.n_frames}', end='')
         vptiles: list[str] = ctx.projection_obj.get_vptiles(yaw_pitch_roll)
+        vptiles = list(map(str, map(int, vptiles)))
         tiles_seen_by_frame.append(vptiles)
     return tiles_seen_by_frame
 
@@ -105,11 +107,11 @@ def get_user_tiles_seen() -> AutoDict:
     :return: {'frame': list,  # 1800 elements
               'chunks': {str: list}} # 60 elements
     """
-    return ctx.results[ctx.name][ctx.proj][ctx.tiling][ctx.user]
+    return ctx.results[ctx.name][ctx.projection][ctx.tiling][ctx.user]
 
 
 def get_user_hmd_data():
-    return ctx.hmd_dataset[ctx.name][ctx.user]
+    return ctx.hmd_dataset[ctx.name + '_nas'][ctx.user]
 
 
 def load_results():
@@ -121,6 +123,7 @@ def load_results():
 
 
 def save_results():
+    paths.get_tiles_json.parent.mkdir(parents=True, exist_ok=True)
     save_json(ctx.results, paths.get_tiles_json)
     pass
 
@@ -132,12 +135,12 @@ def init():
                      'chunks': {str(i): ["0"] for i in range(1, int(config.duration) + 1)}}
 
     ctx.projection_dict = AutoDict()
-    for ctx.tiling in ctx.tiling_list:
-        if ctx.tiling == '1x1': continue
-        erp = ERP(tiling=ctx.tiling, proj_res='1080x540', vp_res='660x540', fov_res=config.fov)
-        cmp = CMP(tiling=ctx.tiling, proj_res='810x540', vp_res='660x540', fov_res=config.fov)
-        ctx.projection_dict['erp'][ctx.tiling] = erp
-        ctx.projection_dict['cmp'][ctx.tiling] = cmp
+    for tiling in ctx.tiling_list:
+        if tiling == '1x1': continue
+        erp = ERP(tiling=tiling, proj_res='1080x540', vp_res='660x540', fov_res=config.fov)
+        cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=config.fov)
+        ctx.projection_dict['erp'][tiling] = erp
+        ctx.projection_dict['cmp'][tiling] = cmp
 
 
 def heatmap():
@@ -146,7 +149,7 @@ def heatmap():
     for ctx.tiling in ctx.tiling_list:
         if ctx.tiling == '1x1': continue
 
-        filename = f'heatmap_tiling_{ctx.hmd_dataset_name}_{ctx.proj}_{ctx.name}_{ctx.tiling}_fov{config.fov}.png'
+        filename = f'heatmap_tiling_{ctx.hmd_dataset_name}_{ctx.projection}_{ctx.name}_{ctx.tiling}_fov{config.fov}.png'
         heatmap_tiling = (paths.get_tiles_folder / filename)
         if heatmap_tiling.exists(): continue
 
@@ -180,7 +183,7 @@ def count_tiles():
         tiles_counter_chunks = Counter()  # Collect tiling count
 
         for ctx.user in ctx.users_list:
-            result_chunks: dict[str, list[str]] = ctx.results[ctx.proj][ctx.name][ctx.tiling][ctx.user][
+            result_chunks: dict[str, list[str]] = ctx.results[ctx.projection][ctx.name][ctx.tiling][ctx.user][
                 'chunks']
 
             for chunk in result_chunks:
