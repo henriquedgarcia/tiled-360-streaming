@@ -13,8 +13,7 @@ from skvideo.io import FFmpegReader
 # import lib.erp as v360
 from ._tilequality import SegmentsQualityPaths
 from lib.assets.autodict import AutoDict
-from .get_tiles import GetTilesProps
-from py360tools import ERP
+from py360tools import ERP, CMP
 from py360tools import ProjectionBase
 from lib.utils.util import load_json, save_json, idx2xy, splitx
 
@@ -22,7 +21,7 @@ pi = np.pi
 pi2 = np.pi * 2
 
 
-class UserProjectionMetricsProps(GetTilesProps, SegmentsQualityPaths):
+class UserProjectionMetricsProps(SegmentsQualityPaths):
     seen_tiles_metric: AutoDict
     time_data: dict
     rate_data: dict
@@ -325,6 +324,26 @@ class ViewportPSNRProps(GetTilesProps):
         except ValueError:
             pass
         return quality_list
+
+    def make_projections(self, proj_res=('720x360', '540x360'), vp_res='440x294'):
+        projection_dict = AutoDict()
+
+        for self.tiling in self.tiling_list:
+            erp = ERP(tiling=self.tiling,
+                      proj_res=proj_res[0],
+                      vp_res=vp_res,
+                      fov_res=self.fov)
+            cmp = CMP(tiling=self.tiling,
+                      proj_res=proj_res[1],
+                      vp_res=vp_res,
+                      fov=self.fov)
+            projection_dict['erp'][self.tiling] = erp
+            projection_dict['cmp'][self.tiling] = cmp
+            return projection_dict
+
+    @property
+    def projection_obj(self) -> ProjectionBase:
+        return self.projection_dict[self.proj][self.tiling]
 
     ## Properties #############################################
     #

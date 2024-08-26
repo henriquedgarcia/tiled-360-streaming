@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pandas as pd
+
 from config.config import config
 from .context import ctx
 
@@ -28,6 +30,14 @@ class Paths:
     @property
     def quality_folder(self):
         return self.project_path / 'quality'
+
+    @property
+    def get_tiles_folder(self) -> Path:
+        return self.project_path / 'get_tiles'
+
+    @property
+    def dataset_folder(self) -> Path:
+        return Path('datasets')
 
     @property
     def graphs_folder(self):
@@ -75,7 +85,7 @@ class Paths:
     def segmenter_log(self) -> Path:
         return self.segments_folder / self.basename1 / f'tile{ctx.tile}_segmenter.log'
 
-    @ property
+    @property
     def chunks_folder(self) -> Path:
         return self.segments_folder / self.basename2
 
@@ -147,6 +157,55 @@ class Paths:
         if ctx.chunk is not None:
             name += f'_chunk{ctx.chunk}'
         return self.siti_folder / f'{name}.csv'
+
+    def ___get_tiles___(self): ...
+
+    @property
+    def get_tiles_json(self) -> Path:
+        filename = f'get_tiles_{config.dataset_file.name}_{ctx.proj}_{ctx.name}_fov{config.fov}.json'
+        return self.get_tiles_folder / filename
+
+    @property
+    def counter_tiles_json(self):
+        filename = f'counter_{config.dataset_file.name}_{ctx.proj}_{ctx.name}_fov{ctx.fov}.json'
+        folder = self.get_tiles_folder / 'counter'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / filename
+
+    @property
+    def heatmap_tiling(self):
+        filename = f'heatmap_tiling_{self.dataset_name}_{ctx.proj}_{ctx.name}_{ctx.tiling}_fov{ctx.fov}.png'
+        folder = self.get_tiles_folder / 'heatmap'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / filename
+
+    @property
+    def sph_file(self) -> Path:
+        return config.sph_file
+
+    @property
+    def dataset_json(self) -> Path:
+        return config.dataset_file
+
+    @property
+    def dataset_name(self):
+        return config.dataset_file.name
+
+    _csv_dataset_file: Path
+
+    @property
+    def csv_dataset_file(self) -> Path:
+        return self._csv_dataset_file
+
+    @csv_dataset_file.setter
+    def csv_dataset_file(self, value):
+        self._csv_dataset_file = value
+        user_nas_id, video_nas_id = self._csv_dataset_file.stem.split('_')
+        ctx.video_name = ctx.video_id_map[video_nas_id]
+        ctx.user_id = ctx.user_map[user_nas_id]
+
+        names = ['timestamp', 'Qx', 'Qy', 'Qz', 'Qw', 'Vx', 'Vy', 'Vz']
+        ctx.head_movement = pd.read_csv(self.csv_dataset_file, names=names)
 
 
 paths = Paths()
