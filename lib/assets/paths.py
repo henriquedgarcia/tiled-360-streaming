@@ -162,12 +162,12 @@ class Paths:
 
     @property
     def get_tiles_json(self) -> Path:
-        filename = f'get_tiles_{config.dataset_file.name}_{ctx.proj}_{ctx.name}_fov{config.fov}.json'
+        filename = f'get_tiles_{config.dataset_file.stem}_{ctx.projection}_{ctx.name}_fov{config.fov}.json'
         return self.get_tiles_folder / filename
 
     @property
     def counter_tiles_json(self):
-        filename = f'counter_{config.dataset_file.name}_{ctx.proj}_{ctx.name}_fov{ctx.fov}.json'
+        filename = f'counter_{config.dataset_file.stem}_{ctx.proj}_{ctx.name}_fov{ctx.fov}.json'
         folder = self.get_tiles_folder / 'counter'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / filename
@@ -189,7 +189,7 @@ class Paths:
 
     @property
     def dataset_name(self):
-        return config.dataset_file.name
+        return config.dataset_file.stem
 
     _csv_dataset_file: Path
 

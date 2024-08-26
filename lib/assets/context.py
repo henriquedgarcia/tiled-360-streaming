@@ -15,9 +15,9 @@ class Context:
     user: str = None
     metric: str = None
     turn: str = None
-
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
                     'user', 'metric', 'turn']
+    projection_obj = None
 
     def __iter__(self):
         """
@@ -85,7 +85,7 @@ class Context:
     @property
     def users_list(self):
         if self.hmd_dataset is None: return []
-        return list(self.hmd_dataset[self.name].keys())
+        return list(self.hmd_dataset[self.name + '_nas'].keys())
 
     #
     # @LazyProperty

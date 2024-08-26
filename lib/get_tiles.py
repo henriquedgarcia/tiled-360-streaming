@@ -101,7 +101,7 @@ class GetTiles(Worker):
 #
 #     def worker(self, overwrite=False):
 #         print(f'{ctx.proj}, {ctx.name}, {ctx.tiling}, {ctx.user}')
-#         yaw_pitch_roll_iter = iter(ctx.hmd_dataset[ctx.name][ctx.user])
+#         yaw_pitch_roll_iter = iter(ctx.hmd_dataset[ctx.name+'_nas'][ctx.user])
 #         ctx.frame_n = 0
 #         for ctx.chunk in ctx.chunk_list:
 #             for proj_frame in self.mount_chunk_frames():
