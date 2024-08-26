@@ -80,9 +80,17 @@ class Context:
     def metric_list(self):
         return config.metric_list
 
+    hmd_dataset: dict = None
+
     @property
-    def user_list(self):
-        return [str(user) for user in []]
+    def users_list(self):
+        if self.hmd_dataset is None: return []
+        return list(self.hmd_dataset[self.name].keys())
+
+    #
+    # @LazyProperty
+    # def sph_file_data(self) -> dict:
+    #     return load_json(paths.sph_file)
 
     @property
     def frame_list(self) -> list[str]:

@@ -18,7 +18,7 @@ class ConfigProps:
         return Path(self.config_dict['sph_file'])
 
     @LazyProperty
-    def dataset_file(self):
+    def dataset_file(self) -> Path:
         return Path(self.config_dict['dataset_file'])
 
     #####################
@@ -75,9 +75,6 @@ class ConfigProps:
 
 
 class Config(ConfigProps):
-    dataset: dict
-    sph_file: dict
-
     def set_config(self, config_file, videos_file):
         """
 
@@ -89,8 +86,6 @@ class Config(ConfigProps):
         """
         self.config_dict = load_json(config_file)
         self.videos_dict = load_json(videos_file)
-        # self.dataset = load_json(self.config_dict['dataset_file'])
-        # self.sph_file = load_json(self.config_dict['sph_file'])
 
     @LazyProperty
     def n_frames(self) -> int:

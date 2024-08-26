@@ -61,7 +61,8 @@ class Logger:
         :return:
         """
         status = self.status
-        for item in ctx:
+        for item in ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk']:
+            if status[item] is None: continue
             status = status[item]
         status[key] = value
 
