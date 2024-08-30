@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import shutil
 from subprocess import run, STDOUT, PIPE
 
@@ -20,21 +21,19 @@ def iterate_name_projection_quality_tiling_tile():
 def __compress__(): ...
 
 
-def create_compress():
-    check_compress()
-
+def compress():
     if (logger.get_status('compressed_ok')
             or not logger.get_status('lossless_ok')):
         return
 
     print(f'==== Compress {ctx} ====')
-    cmd = compress()
+    cmd = make_compress_cmd()
     print('\t' + cmd)
     run_command(cmd, paths.compressed_video.parent, paths.compressed_log)
     check_compress()
 
 
-def compress():
+def make_compress_cmd():
     lossless_file = paths.lossless_file.as_posix()
     compressed_file = paths.compressed_video.as_posix()
 
@@ -154,14 +153,31 @@ def create_segments():
         segment()
 
 
-def segment():
-    print(f'==== Segment {ctx} ====')
+def segment(decode_test=False):
+    print(f'==== Segmenter {ctx} ====')
 
-    check_segmenter()
+    if not logger.get_status('segments_ok'):
+        check_segment()
+
     if logger.get_status('segments_ok'):
+        if decode_test:
+            check_decode_segments()
         print('\tSegments Ok. Skipping.')
         return
-    elif not logger.get_status('compressed_ok'):
+
+    if not logger.get_status('compressed_ok'):
+        check_compress()
+
+    if not logger.get_status('compressed_ok'):
+        for attempt in range(2):
+            compress()
+            if logger.get_status('compressed_ok'):
+                break
+        else:
+            print_error(f'\tCant create the compressed video. Check Log.')
+            return
+
+    if not logger.get_status('compressed_ok'):
         print_error('\tSegments and Compressed Video no Exits. Skipping.')
         return
 
@@ -169,56 +185,58 @@ def segment():
     print('\t' + cmd)
     run_command(cmd, paths.chunks_folder, paths.segmenter_log)
 
-    check_segmenter()
-
-
-def check_segmenter(decode=False):
-    if not logger.get_status('segments_ok'):
-        check_segment()
-
-    if decode and logger.get_status('segments_ok'):
-        check_decode_segments()
-
-    if not logger.get_status('compressed_ok'):
-        create_compress()
-
-    return not logger.get_status('compressed_ok')
+    check_segment()
 
 
 def check_segment():
+    print(f'\tChecking segmenter.')
     try:
         check_segment_log()
         check_segment_video()
-        logger.update_status('segments_ok', True)
     except FileNotFoundError:
         clean_segments()
         logger.update_status('segments_ok', False)
+        return
+
+    logger.update_status('segments_ok', True)
+
+
+@contextmanager
+def context_chunk(value):
+    c = ctx.chunk
+    ctx.chunk = f'{value}'
+    try:
+        yield
+    finally:
+        ctx.chunk = c
 
 
 def check_segment_log():
+    """
+    Check if the last segment file is in segmenter log.
+    :return: None
+    """
+    segmenter_log = paths.segmenter_log
     segment_log_txt = paths.segmenter_log.read_text()
-    c = ctx.chunk
-    ctx.chunk = f'{config.n_chunks - 1}'
-    segment_video = paths.segment_video.as_posix()
-    ctx.chunk = c
+
+    with context_chunk(config.n_chunks - 1):
+        segment_video = paths.segment_video
 
     if f'{segment_video}' not in segment_log_txt:
-        logger.register_log('Segment_log is corrupt. Cleaning', paths.segmenter_log)
-        print_error(f'\tThe file {paths.segmenter_log} is corrupt. Cleaning.')
+        logger.register_log('Segment_log is corrupt. Cleaning', segmenter_log)
+        print_error(f'\tThe file {segmenter_log} is corrupt. Cleaning.')
         raise FileNotFoundError
 
 
 def check_segment_video():
-    c = ctx.chunk
-    for ctx.chunk in ctx.chunk_list:
-        segment_file_size = paths.segment_video.stat().st_size
+    for chunk in ctx.chunk_list:
+        with context_chunk(chunk):
+            segment_video = paths.segment_video
 
-        if segment_file_size == 0:
-            logger.register_log(f'The segment_file SIZE == 0', paths.segment_video)
-            print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
-            ctx.chunk = None
+        if segment_video.stat().st_size == 0:
+            logger.register_log(f'The segment_file SIZE == 0', segment_video)
+            print_error(f'\tSegmentlog is OK but the chunk{chunk} size == 0. Cleaning.')
             raise FileNotFoundError
-    ctx.chunk = c
 
 
 def clean_segments():
@@ -227,33 +245,35 @@ def clean_segments():
 
 
 def check_decode_segments():
-    print_error(f'\tDecoding Segment Video... ', end='')
+    print(f'\tDecode test for chunks... ', end='')
 
     if logger.get_status('segments_decode_ok'):
-        print_error(f'OK')
+        print(f'\tOK')
         return
-    c = ctx.chunk
 
-    for ctx.chunk in ctx.chunk_list:
-        try:
-            check_decode_segments_video()
-        except FileNotFoundError:
-            clean_segments()
-            logger.update_status('segments_decode_ok', False)
-            logger.update_status('segments_ok', False)
-            break
-    else:
-        logger.update_status('segments_decode_ok', True)
-
-    ctx.chunk = c
+    try:
+        decode_all_segments()
+    except FileNotFoundError:
+        print(f"\tCan't decode {paths.segment_video}. Cleaning")
+        clean_segments()
+        logger.update_status('segments_decode_ok', False)
+        logger.update_status('segments_ok', False)
 
 
-def check_decode_segments_video():
+def decode_all_segments():
+    for chunk in ctx.chunk_list:
+        with context_chunk(chunk):
+            decode_chunk()
+    logger.update_status('segments_decode_ok', True)
+    print(f'\tOK')
+
+
+def decode_chunk():
     stdout = decode_file(paths.segment_video)
     if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
-        logger.register_log(f'Segment Decode Error.',
+        logger.register_log(f'Decode Error.',
                             paths.segment_video)
-        print_error(f'Segment Decode Error. Cleaning..')
+        print_error(f'\tSegment Decode Error. Cleaning..')
         raise FileNotFoundError(f'Decoding Segment Error.')
     return stdout
 
