@@ -56,7 +56,7 @@ def count_decoding(dectime_log: Path) -> int:
     return len(['' for line in content if 'utime' in line])
 
 
-def decode_file(filename, threads=None):
+def decode_video(filename, threads=None):
     """
     Decode the filename HEVC video with "threads".
     :param filename:
