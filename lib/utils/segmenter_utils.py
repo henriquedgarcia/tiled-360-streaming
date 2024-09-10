@@ -30,7 +30,7 @@ def create_segments(decode_check=False):
 
 def segmenter(decode_check=False):
     print(f'\tChecking chunks')
-    check_chunk(decode_check=decode_check)
+    get_segment_status(decode_check=decode_check)
 
     print(f'\tChecking tiles')
     try:
@@ -40,7 +40,13 @@ def segmenter(decode_check=False):
         make_tiles(decode_check=decode_check)
 
     print(f'\tChunking Tiles ')
-    make_chunks(decode_check=decode_check)
+    make_chunks()
+
+    print(f'\tChecking chunks again.')
+    get_segment_status(decode_check=decode_check)
+    if not logger.get_status('segmenter_ok'):
+        raise AbortError('Error creating chunks. See log.')
+
 
 
 def __Make_tiles__(): ...
@@ -177,24 +183,31 @@ def clean_tile():
 def __assert_chunks__(): ...
 
 
-def check_chunk(decode_check=False):
+def get_segment_status(decode_check=False):
     try:
         assert_chunks(decode_check=decode_check)
+        logger.update_status('segmenter_ok', True)
+
+        if decode_check:
+            try:
+                assert_chunks_decode()
+            except FileNotFoundError as e:
+                clean_segmenter()
+                raise e
+
         raise AbortError('Chunks are OK.')
+
     except FileNotFoundError:
-        print(f'\tChunks not Found.')
+        print_error(f'\tChunks not Found.')
+        logger.update_status('segmenter_ok', False)
+        logger.update_status('chunks_decode_ok', False)
         pass
 
 
-def make_chunks(decode_check=False):
+def make_chunks():
     cmd = make_segmenter_cmd()
     print('\t' + cmd)
     run_command(cmd, paths.chunks_folder, paths.segmenter_log)
-
-    try:
-        assert_chunks()
-    except FileNotFoundError:
-        raise AbortError('Error creating chunks. See log.')
 
 
 def assert_chunks(decode_check=False):
@@ -202,16 +215,12 @@ def assert_chunks(decode_check=False):
         try:
             assert_segmenter_log()
             assert_chunks_video()
-            logger.update_status('segmenter_ok', True)
 
             if decode_check:
                 assert_chunks_decode()
-                logger.update_status('chunks_decode_ok', True)
 
         except FileNotFoundError as e:
             clean_segmenter()
-            logger.update_status('segmenter_ok', False)
-            logger.update_status('chunks_decode_ok', False)
             raise e
 
     return 'all ok.'
@@ -265,6 +274,7 @@ def assert_chunks_decode():
             assert_one_chunk_decode()
 
     print(f'. OK')
+    logger.update_status('chunks_decode_ok', True)
     return 'decode all ok'
 
 
