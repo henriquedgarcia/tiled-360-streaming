@@ -82,7 +82,7 @@ class Logger:
 
     def save_status(self):
         print('Saving Status.')
-        self.status_filename.write_text(json.dumps(self.status, indent=0, separators=(',', ':')))
+        self.status_filename.write_text(json.dumps(self.status, indent=None, separators=(',', ':')))
 
 
 logger = Logger()
