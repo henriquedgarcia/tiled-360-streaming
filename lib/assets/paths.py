@@ -18,12 +18,12 @@ class Paths:
         return self.project_path / 'lossless'
 
     @property
-    def segments_folder(self):
-        return self.project_path / 'segments'
+    def segmenter_folder(self):
+        return self.project_path / 'chunks'
 
     @property
-    def compresseds_folder(self):
-        return self.project_path / 'compresseds'
+    def tiles_folder(self):
+        return self.project_path / 'tiles'
 
     @property
     def quality_folder(self):
@@ -56,52 +56,52 @@ class Paths:
     def ___segments_files___(self): ...
 
     @property
-    def lossless_file(self) -> Path:
+    def lossless_video(self) -> Path:
         return self.lossless_folder / ctx.projection / f'{ctx.name}.mp4'
 
     @property
     def lossless_log(self) -> Path:
-        return self.lossless_file.with_suffix('.log')
+        return self.lossless_video.with_suffix('.log')
 
     @property
-    def compressed_video(self) -> Path:
-        return self.compresseds_folder / self.basename1 / f'tile{ctx.tile}.mp4'
+    def tile_video(self) -> Path:
+        return self.tiles_folder / self.basename1 / f'tile{ctx.tile}.mp4'
 
     @property
-    def compressed_log(self) -> Path:
-        return self.compressed_video.with_suffix('.log')
+    def tile_log(self) -> Path:
+        return self.tile_video.with_suffix('.log')
 
     @property
     def segmenter_log(self) -> Path:
-        return self.segments_folder / self.basename1 / f'tile{ctx.tile}_segmenter.log'
+        return self.segmenter_folder / self.basename1 / f'tile{ctx.tile}_segmenter.log'
 
     @ property
     def chunks_folder(self) -> Path:
-        return self.segments_folder / self.basename2
+        return self.segmenter_folder / self.basename2
 
     @property
-    def segment_video(self) -> Path:
+    def chunk_video(self) -> Path:
         chunk = int(ctx.chunk)
         return self.chunks_folder / f'tile{ctx.tile}_{chunk:03d}.hevc'
 
     @property
     def dectime_log(self) -> Path:
         chunk = int(str(ctx.chunk))
-        return self.segment_video.with_name(f'tile{ctx.tile}_{chunk:03d}_dectime.log')
+        return self.chunk_video.with_name(f'tile{ctx.tile}_{chunk:03d}_dectime.log')
 
     @property
-    def reference_segment(self):
+    def reference_chunk(self):
         qlt = ctx.quality
         rate_control = config.rate_control
 
         config.rate_control = 'crf'
         ctx.quality = '0'
 
-        segment_file = self.segment_video
+        chunk_file = self.chunk_video
 
         ctx.quality = qlt
         ctx.rate_control = rate_control
-        return segment_file
+        return chunk_file
 
     def ___json_results_files___(self): ...
 

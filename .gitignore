@@ -24,3 +24,7 @@ results
 *.csv
 *.pickle
 *.zip
+log/status_test_qp_Decode.json
+log/status_test_qp_Segmenter.json
+/log
+.gitignore

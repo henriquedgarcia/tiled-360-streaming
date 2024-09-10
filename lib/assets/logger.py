@@ -23,6 +23,7 @@ class Logger:
                                      object_hook=lambda value: AutoDict(value))
         except FileNotFoundError:
             self.status = AutoDict()
+            self.status_filename.write_text(json.dumps(self.status, indent=0, separators=(',', ':')))
 
     @property
     def status_filename(self):
@@ -73,12 +74,14 @@ class Logger:
         return status[key]
 
     def save_log(self):
+        print('Saving Log.')
         now = f'{datetime.datetime.now()}'.replace(':', '-')
         filename = f'log/log_{self.cls_name}_{now}.csv'
         df_log_text = pd.DataFrame(self._log)
         df_log_text.to_csv(filename, encoding='utf-8')
 
     def save_status(self):
+        print('Saving Status.')
         self.status_filename.write_text(json.dumps(self.status, indent=0, separators=(',', ':')))
 
 

@@ -3,9 +3,11 @@ from subprocess import run, STDOUT, PIPE
 
 from config.config import config
 from lib.assets.context import ctx
+from lib.assets.errors import AbortError
 from lib.assets.logger import logger
 from lib.assets.paths import paths
-from lib.utils.util import print_error, decode_file, splitx, run_command
+from lib.utils.context_utils import context_chunk
+from lib.utils.util import print_error, decode_video, splitx, run_command
 
 
 def iterate_name_projection_quality_tiling_tile():
@@ -17,25 +19,134 @@ def iterate_name_projection_quality_tiling_tile():
                         yield
 
 
-def __compress__(): ...
+def create_segments(decode_check=False):
+    for _ in iterate_name_projection_quality_tiling_tile():
+        print(f'==== Segmenter {ctx} ====')
+        try:
+            segmenter(decode_check=decode_check)
+        except AbortError as e:
+            print_error(f'\t{e.args[0]}')
 
 
-def create_compress():
-    check_compress()
+def segmenter(decode_check=False):
+    print(f'\tChecking chunks')
+    check_chunk(decode_check=decode_check)
 
-    if logger.get_status('compressed_ok'):
-        return
+    print(f'\tChecking tiles')
+    try:
+        check_tile(decode_check=decode_check)
+    except FileNotFoundError:
+        print(f'\tCreating Tiles ')
+        make_tiles(decode_check=decode_check)
 
-    print(f'==== Compress {ctx} ====')
-    cmd = compress()
+    print(f'\tChunking Tiles ')
+    make_chunks(decode_check=decode_check)
+
+
+def __Make_tiles__(): ...
+
+
+def check_tile(decode_check=False):
+    try:
+        assert_tiles(decode_check=decode_check)
+    except FileNotFoundError:
+        print(f'\tTiles not Found.')
+        print(f'\tChecking lossless')
+        assert_lossless()
+        raise FileNotFoundError
+
+
+def make_tiles(decode_check=False):
+    cmd = make_compress_tile_cmd()
     print('\t' + cmd)
-    run_command(cmd, paths.compressed_video.parent, paths.compressed_log)
-    check_compress()
+    run_command(cmd, paths.tiles_folder, paths.tile_log)
+
+    try:
+        assert_tiles()
+    except FileNotFoundError:
+        raise AbortError(f'Cant create Compressed video.')
 
 
-def compress():
-    lossless_file = paths.lossless_file.as_posix()
-    compressed_file = paths.compressed_video.as_posix()
+def assert_tiles(decode_check=False):
+    print(f'\tChecking tiles.')
+    if not logger.get_status('tile_ok'):
+        try:
+            assert_tile_log()
+            assert_tile_video()
+            logger.update_status('tile_ok', True)
+
+            if decode_check:
+                assert_tile_decode()
+        except FileNotFoundError as e:
+            clean_tile()
+            logger.update_status('tile_ok', False)
+            logger.update_status('tile_decode_ok', False)
+            raise e
+
+    return 'all ok'
+
+
+def assert_tile_log():
+    try:
+        compressed_log_text = paths.tile_log.read_text()
+    except FileNotFoundError:
+        raise FileNotFoundError(f'Tile log not exist.')
+
+    if 'encoded 1800 frames' not in compressed_log_text:
+        logger.register_log('Tile log is corrupt', paths.tile_log)
+        raise FileNotFoundError('Tile log is corrupt')
+
+    if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
+        logger.register_log('Codec version is different.', paths.tile_log)
+        raise FileNotFoundError('Codec version is different.')
+
+    return 'all ok'
+
+
+def assert_tile_video():
+    try:
+        compressed_file_size = paths.tile_video.stat().st_size
+    except FileNotFoundError:
+        raise FileNotFoundError(f'Tile not exist.')
+
+    if compressed_file_size == 0:
+        logger.register_log('Tile size == 0.', paths.tile_video)
+        raise FileNotFoundError('Tile size == 0.')
+    return 'all ok'
+
+
+def assert_tile_decode():
+    print(f'\tDecoding tile', end='')
+
+    if logger.get_status('tile_decode_ok'):
+        print_error(f'. OK')
+        return 'decode all ok'
+
+    assert_one_tile_decode()
+    print_error(f'. OK')
+    return 'decode all ok'
+
+
+def assert_one_tile_decode():
+    stdout = decode_video(paths.tile_video)
+    if "frame= 1800" not in stdout:
+        logger.register_log(f'Decoding Compress Error.',
+                            paths.tile_video)
+        print_error(f'\tDecode Compressed Video Error. Cleaning.')
+        raise FileNotFoundError('Decoding Compress Error')
+    return stdout
+
+
+def assert_lossless():
+    if not logger.get_status('lossless_ok'):
+        if not paths.lossless_video.exists():
+            raise AbortError(f'Need create tile but lossless_video not found.')
+        logger.update_status('lossless_ok', True)
+
+
+def make_compress_tile_cmd():
+    lossless_file = paths.lossless_video.as_posix()
+    compressed_file = paths.tile_video.as_posix()
 
     x1, y1, x2, y2 = tile_position()
 
@@ -58,200 +169,116 @@ def compress():
     return cmd
 
 
-def check_compress(decode=False):
-    if not logger.get_status('compressed_ok'):
-        check_compressed()
-
-    if decode and logger.get_status('compressed_ok'):
-        check_decode_compressed()
-
-    if logger.get_status('compressed_ok'):
-        return True
-
-    if not logger.get_status('lossless_ok'):
-        check_lossless_video()
-
-    return not logger.get_status('lossless_ok')
+def clean_tile():
+    paths.tile_log.unlink(missing_ok=True)
+    paths.tile_video.unlink(missing_ok=True)
 
 
-def check_compressed():
+def __assert_chunks__(): ...
+
+
+def check_chunk(decode_check=False):
     try:
-        check_compressed_video()
-        check_compressed_log()
-        logger.update_status('compressed_ok', True)
+        assert_chunks(decode_check=decode_check)
+        raise AbortError('Chunks are OK.')
     except FileNotFoundError:
-        clean_compress()
-        logger.update_status('compressed_ok', False)
+        print(f'\tChunks not Found.')
+        pass
 
 
-def check_decode_compressed():
-    print_error(f'\tDecoding Compressed Video... ', end='')
-
-    if logger.get_status('compressed_decode_ok'):
-        print_error(f'OK')
-        return
-
-    try:
-        check_decode_compressed_video()
-        logger.update_status('compressed_decode_ok', True)
-    except FileNotFoundError:
-        clean_compress()
-
-
-def check_compressed_video():
-    compressed_file_size = paths.compressed_video.stat().st_size
-    if compressed_file_size == 0:
-        print_error(f'\tcompressed_file_size == 0.')
-        logger.register_log('compressed_file_size == 0', paths.compressed_video)
-        raise FileNotFoundError('compressed_file_size == 0')
-
-
-def check_compressed_log():
-    compressed_log_text = paths.compressed_log.read_text()
-
-    if 'encoded 1800 frames' not in compressed_log_text:
-        logger.register_log('compressed_log is corrupt', paths.compressed_log)
-        print_error(f'\tThe file {paths.compressed_log} is corrupt. Cleaning.')
-        raise FileNotFoundError('compressed_log is corrupt')
-
-    if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-        logger.register_log('CODEC ERROR', paths.compressed_log)
-        print_error(f'\tThe file {paths.compressed_log} have codec different of Lavc59.18.100 libx265. Skipping.')
-        raise FileNotFoundError('CODEC ERROR')
-
-
-def check_lossless_video():
-    logger.update_status('lossless_ok', True)
-    if not paths.lossless_file.exists():
-        logger.register_log(f'The lossless_file not exist.', paths.lossless_file)
-        print_error(f'\tCant create the compressed video. The lossless video not exist. Skipping.')
-        logger.update_status('lossless_ok', False)
-
-
-def check_decode_compressed_video():
-    stdout = decode_file(paths.compressed_video)
-    if "frame= 1800" not in stdout:
-        logger.register_log(f'Decoding Compress Error.',
-                            paths.compressed_video)
-        print_error(f'\tDecode Compressed Video Error. Cleaning.')
-        raise FileNotFoundError('Decoding Compress Error')
-    return stdout
-
-
-def clean_compress():
-    paths.compressed_log.unlink(missing_ok=True)
-    paths.compressed_video.unlink(missing_ok=True)
-    logger.update_status('compressed_decode_ok', False)
-    logger.update_status('compressed_ok', False)
-
-
-def __segment__(): ...
-
-
-def create_segments():
-    for _ in iterate_name_projection_quality_tiling_tile():
-        segment()
-
-
-def segment():
-    check_segmenter()
-
-    if (logger.get_status('segments_ok')
-            or not logger.get_status('compressed_ok')):
-        return
-
-    print(f'==== Segment {ctx} ====')
-    cmd = segmenter()
+def make_chunks(decode_check=False):
+    cmd = make_segmenter_cmd()
     print('\t' + cmd)
     run_command(cmd, paths.chunks_folder, paths.segmenter_log)
-    check_segmenter()
 
-
-def check_segmenter(decode=False):
-    if not logger.get_status('segments_ok'):
-        check_segment()
-
-    if decode and logger.get_status('segments_ok'):
-        check_decode_segments()
-
-    if not logger.get_status('compressed_ok'):
-        create_compress()
-
-    return not logger.get_status('compressed_ok')
-
-
-def check_segment():
     try:
-        check_segment_log()
-        check_segment_video()
-        logger.update_status('segments_ok', True)
+        assert_chunks()
     except FileNotFoundError:
-        clean_segments()
-        logger.update_status('segments_ok', False)
+        raise AbortError('Error creating chunks. See log.')
 
 
-def check_segment_log():
-    segment_log_txt = paths.segmenter_log.read_text()
-    ctx.chunk = f'{config.n_chunks - 1}'
-    segment_video = paths.segment_video.as_posix()
-    ctx.chunk = None
-
-    if f'{segment_video}' not in segment_log_txt:
-        logger.register_log('Segment_log is corrupt. Cleaning', paths.segmenter_log)
-        print_error(f'\tThe file {paths.segmenter_log} is corrupt. Cleaning.')
-        raise FileNotFoundError
-
-
-def check_segment_video():
-    for ctx.chunk in ctx.chunk_list:
-        segment_file_size = paths.segment_video.stat().st_size
-
-        if segment_file_size == 0:
-            logger.register_log(f'The segment_file SIZE == 0', paths.segment_video)
-            print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
-            ctx.chunk = None
-            raise FileNotFoundError
-    ctx.chunk = None
-
-
-def clean_segments():
-    paths.segmenter_log.unlink(missing_ok=True)
-    shutil.rmtree(paths.chunks_folder, ignore_errors=True)
-
-
-def check_decode_segments():
-    print_error(f'\tDecoding Segment Video... ', end='')
-
-    if logger.get_status('segments_decode_ok'):
-        print_error(f'OK')
-        return
-
-    for ctx.chunk in ctx.chunk_list:
+def assert_chunks(decode_check=False):
+    if not logger.get_status('segmenter_ok'):
         try:
-            check_decode_segments_video()
-        except FileNotFoundError:
-            clean_segments()
-            logger.update_status('segments_decode_ok', False)
-            logger.update_status('segments_ok', False)
-            break
-    else:
-        logger.update_status('segments_decode_ok', True)
+            assert_segmenter_log()
+            assert_chunks_video()
+            logger.update_status('segmenter_ok', True)
 
-    ctx.chunk = None
+            if decode_check:
+                assert_chunks_decode()
+                logger.update_status('chunks_decode_ok', True)
+
+        except FileNotFoundError as e:
+            clean_segmenter()
+            logger.update_status('segmenter_ok', False)
+            logger.update_status('chunks_decode_ok', False)
+            raise e
+
+    return 'all ok.'
 
 
-def check_decode_segments_video():
-    stdout = decode_file(paths.segment_video)
+def assert_segmenter_log():
+    try:
+        segment_log_txt = paths.segmenter_log.read_text()
+    except FileNotFoundError:
+        raise FileNotFoundError('Segmenter log not exist.')
+
+    with context_chunk(f'{config.n_chunks - 1}'):
+        segment_video = paths.chunk_video.as_posix()
+    # gambiarra. Todos os logs do teste estão com as pastas antigas.
+    segment_video_changed = f'{segment_video}'.replace('chunks', 'segments')
+
+    if f'{segment_video}' not in segment_log_txt and f'{segment_video_changed}' not in segment_log_txt:
+        logger.register_log('Segmenter log is corrupt.', paths.segmenter_log)
+        raise FileNotFoundError('Segmenter log is corrupt.')
+
+    return 'all ok'
+
+
+def assert_chunks_video():
+    with context_chunk(None):
+        for ctx.chunk in ctx.chunk_list:
+            segment_video = paths.chunk_video
+
+            try:
+                segment_file_size = segment_video.stat().st_size
+            except FileNotFoundError:
+                raise FileNotFoundError(f'video chunk{ctx.chunk} not exist.')
+
+            if segment_file_size == 0:
+                logger.register_log(f'Chunk video size == 0', segment_video)
+                raise FileNotFoundError('Chunk video size == 0.')
+
+    return 'all ok'
+
+
+def assert_chunks_decode():
+    print(f'\tDecoding chunks', end='')
+
+    if logger.get_status('chunks_decode_ok'):
+        print(f'. OK')
+        return 'decode all ok'
+
+    with context_chunk(None):
+        for ctx.chunk in ctx.chunk_list:
+            print('.', end='')
+            assert_one_chunk_decode()
+
+    print(f'. OK')
+    return 'decode all ok'
+
+
+def assert_one_chunk_decode():
+    stdout = decode_video(paths.chunk_video)
     if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
         logger.register_log(f'Segment Decode Error.',
-                            paths.segment_video)
-        print_error(f'Segment Decode Error. Cleaning..')
-        raise FileNotFoundError(f'Decoding Segment Error.')
+                            paths.chunk_video)
+        raise FileNotFoundError(f'Chunk Decode Error.')
     return stdout
 
 
-def segmenter():
-    compressed_file = paths.compressed_video.as_posix()
+def make_segmenter_cmd():
+    compressed_file = paths.tile_video.as_posix()
     chunks_folder = paths.chunks_folder.as_posix()
     cmd = ('bash -c '
            '"'
@@ -261,6 +288,14 @@ def segmenter():
            '"')
 
     return cmd
+
+
+def clean_segmenter():
+    paths.segmenter_log.unlink(missing_ok=True)
+    shutil.rmtree(paths.chunks_folder, ignore_errors=True)
+
+
+def __others__(): ...
 
 
 def tile_position():
@@ -279,35 +314,14 @@ def tile_position():
     return x1, y1, x2, y2
 
 
-def check_chunk_file(decode=False):
-    try:
-        segment_file_size = paths.segment_video.stat().st_size
-        assert segment_file_size > 0
-    except FileNotFoundError:
-        print_error(f'The segment not exist. ')
-        logger.log("segment_file not exist.", paths.segment_video)
-        raise FileNotFoundError
-    except AssertionError:
-        logger.register_log(f'The segment_file SIZE == 0', paths.segment_video)
-        print_error(f'\tSegmentlog is OK but the file size == 0. Cleaning.')
-        raise FileNotFoundError
-
-    if decode:
-        stdout = decode_file(paths.segment_video)
-        if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
-            print_error(f'Segment Decode Error. Cleaning..')
-            logger.register_log(f'Segment Decode Error.', paths.segment_video)
-            raise FileNotFoundError
-
-
 def prepare():
     """
     deprecated
     :return:
     """
     print(f'==== Preparing {ctx} ====')
-    if paths.lossless_file.exists():
-        print_error(f'\tThe file {paths.lossless_file} exist. Skipping.')
+    if paths.lossless_video.exists():
+        print_error(f'\tThe file {paths.lossless_video} exist. Skipping.')
         return
 
     if not paths.original_file.exists():
@@ -329,11 +343,11 @@ def prepare():
            f'-r {config.fps} '
            f'-map 0:v '
            f'-vf scale={ctx.scale},setdar={dar} '
-           f'{paths.lossless_file.as_posix()}'
+           f'{paths.lossless_video.as_posix()}'
            f'"')
 
     print('\t', cmd)
 
-    paths.lossless_file.parent.mkdir(parents=True, exist_ok=True)
+    paths.lossless_video.parent.mkdir(parents=True, exist_ok=True)
     process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     paths.lossless_log.write_text(process.stdout)
