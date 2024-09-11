@@ -48,7 +48,6 @@ def segmenter(decode_check=False):
         raise AbortError('Error creating chunks. See log.')
 
 
-
 def __Make_tiles__(): ...
 
 
@@ -136,8 +135,7 @@ def assert_tile_decode():
 def assert_one_tile_decode():
     stdout = decode_video(paths.tile_video)
     if "frame= 1800" not in stdout:
-        logger.register_log(f'Decoding Compress Error.',
-                            paths.tile_video)
+        logger.register_log(f'Decoding Compress Error.', paths.tile_video)
         print_error(f'\tDecode Compressed Video Error. Cleaning.')
         raise FileNotFoundError('Decoding Compress Error')
     return stdout
@@ -281,8 +279,7 @@ def assert_chunks_decode():
 def assert_one_chunk_decode():
     stdout = decode_video(paths.chunk_video)
     if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
-        logger.register_log(f'Segment Decode Error.',
-                            paths.chunk_video)
+        logger.register_log(f'Segment Decode Error.', paths.chunk_video)
         raise FileNotFoundError(f'Chunk Decode Error.')
     return stdout
 
