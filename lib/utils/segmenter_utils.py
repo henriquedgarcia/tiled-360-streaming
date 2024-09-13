@@ -4,6 +4,7 @@ from subprocess import run, STDOUT, PIPE
 from config.config import config
 from lib.assets.context import ctx
 from lib.assets.errors import AbortError
+from lib.assets.errors import ChunksOkError
 from lib.assets.logger import logger
 from lib.assets.paths import paths
 from lib.utils.context_utils import context_chunk
@@ -182,46 +183,28 @@ def __assert_chunks__(): ...
 
 
 def get_segment_status(decode_check=False):
-    try:
-        assert_chunks(decode_check=decode_check)
+    if not logger.get_status('segmenter_ok'):
+        try:
+            assert_chunks(decode_check=decode_check)
+
+        except FileNotFoundError:
+            print_error(f'\tChunks not Found.')
+            logger.update_status('segmenter_ok', False)
+            return
+
         logger.update_status('segmenter_ok', True)
 
-        if decode_check:
-            try:
-                assert_chunks_decode()
-            except FileNotFoundError as e:
-                clean_segmenter()
-                raise e
-
-        raise AbortError('Chunks are OK.')
-
-    except FileNotFoundError:
-        print_error(f'\tChunks not Found.')
-        logger.update_status('segmenter_ok', False)
-        logger.update_status('chunks_decode_ok', False)
-        pass
-
-
-def make_chunks():
-    cmd = make_segmenter_cmd()
-    print('\t' + cmd)
-    run_command(cmd, paths.chunks_folder, paths.segmenter_log)
+    raise ChunksOkError(f'\tSegmenter is OK. Skipping.')
 
 
 def assert_chunks(decode_check=False):
-    if not logger.get_status('segmenter_ok'):
-        try:
-            assert_segmenter_log()
-            assert_chunks_video()
-
-            if decode_check:
-                assert_chunks_decode()
-
-        except FileNotFoundError as e:
-            clean_segmenter()
-            raise e
-
-    return 'all ok.'
+    try:
+        assert_segmenter_log()
+        assert_chunks_video()
+        check_chunks_decode(decode_check)
+    except FileNotFoundError as e:
+        clean_segmenter()
+        raise e
 
 
 def assert_segmenter_log():
@@ -250,6 +233,7 @@ def assert_chunks_video():
             try:
                 segment_file_size = segment_video.stat().st_size
             except FileNotFoundError:
+                logger.register_log(f'Lo chunk{ctx.chunk} not exist.', segment_video)
                 raise FileNotFoundError(f'video chunk{ctx.chunk} not exist.')
 
             if segment_file_size == 0:
@@ -259,29 +243,41 @@ def assert_chunks_video():
     return 'all ok'
 
 
+def check_chunks_decode(decode_check=False):
+    if decode_check:
+        if not logger.get_status('chunks_decode_ok'):
+            assert_chunks_decode()
+            logger.update_status('chunks_decode_ok', True)
+
+
 def assert_chunks_decode():
     print(f'\tDecoding chunks', end='')
-
-    if logger.get_status('chunks_decode_ok'):
-        print(f'. OK')
-        return 'decode all ok'
-
     with context_chunk(None):
         for ctx.chunk in ctx.chunk_list:
             print('.', end='')
             assert_one_chunk_decode()
-
-    print(f'. OK')
-    logger.update_status('chunks_decode_ok', True)
-    return 'decode all ok'
+        print(f'. OK')
+    logger.update_status('chunks_decode_ok', False)
 
 
 def assert_one_chunk_decode():
-    stdout = decode_video(paths.chunk_video)
+    chunk_video = paths.chunk_video
+    stdout = decode_video(chunk_video)
     if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
-        logger.register_log(f'Segment Decode Error.', paths.chunk_video)
+        logger.register_log(f'Segment Decode Error.', chunk_video)
         raise FileNotFoundError(f'Chunk Decode Error.')
     return stdout
+
+
+def clean_segmenter():
+    paths.segmenter_log.unlink(missing_ok=True)
+    shutil.rmtree(paths.chunks_folder, ignore_errors=True)
+
+
+def make_chunks():
+    cmd = make_segmenter_cmd()
+    print('\t' + cmd)
+    run_command(cmd, paths.chunks_folder, paths.segmenter_log)
 
 
 def make_segmenter_cmd():
@@ -293,13 +289,7 @@ def make_segmenter_cmd():
            '-c copy -f segment -segment_time 1 -reset_timestamps 1 '
            f'{chunks_folder}/tile{ctx.tile}_%03d.hevc'
            '"')
-
     return cmd
-
-
-def clean_segmenter():
-    paths.segmenter_log.unlink(missing_ok=True)
-    shutil.rmtree(paths.chunks_folder, ignore_errors=True)
 
 
 def __others__(): ...
