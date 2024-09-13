@@ -1,7 +1,7 @@
 from .segmenter_utils import assert_chunks
 from config.config import config
 from lib.assets.context import ctx
-from lib.assets.errors import AbortError
+from lib.assets.errors import AbortError, DecodeOkError
 from lib.assets.logger import logger
 from lib.assets.paths import paths
 from lib.utils.util import get_times, run_command, print_error
@@ -23,7 +23,7 @@ def decode_chunks():
             print(f'==== Decoding {ctx} ====')
             try:
                 decode()
-            except AbortError as e:
+            except (DecodeOkError,) as e:
                 print_error(f'\t{e.args[0]}')
 
 
@@ -31,33 +31,45 @@ def decode():
     print(f'\tChecking dectime')
     get_decode_status()
 
+    print(f'\tDecoding {ctx.turn}/{config.decoding_num}')
+
     print(f'\tChecking chunks')
     check_chunks()
-
-    print(f'\tTurn {ctx.turn}/{config.decoding_num}')
 
     cmd = make_decode_cmd()
     run_command(cmd, paths.dectime_log.parent, paths.dectime_log, mode='a')
 
     get_decode_status()
-    if not logger.get_status('dectime_ok'):
-        raise AbortError(f'Decode {ctx.turn} times.')
+    raise AbortError(f'Decode {ctx.turn} times.')
 
 
 def get_decode_status():
     try:
         assert_dectime()
         logger.update_status('dectime_ok', True)
-        raise AbortError(f'\tDectime is OK. Skipping.')
+        raise DecodeOkError(f'\tDectime is OK. Skipping.')
     except FileNotFoundError:
         print_error(f'\tDectime not Found.')
         logger.update_status('dectime_ok', False)
 
 
 def assert_dectime():
-    if logger.get_status('decode_ok'):
-        raise AbortError(f'\tDectime is OK. Skipping.')
+    if not logger.get_status('decode_ok'):
+        assert_dectime_log()
 
+
+def assert_dectime_log():
+    try:
+        ctx.turn = len(get_times(paths.dectime_log))
+    except FileNotFoundError as e:
+        ctx.turn = 0
+        raise e
+
+    logger.update_status('decode_turn', ctx.turn)
+    if ctx.turn == 0:
+        clean_dectime_log()
+    if logger.get_status('decode_turn') > config.decoding_num:
+        logger.update_status('decode_ok', True)
 
 
 def check_chunks():
@@ -71,29 +83,10 @@ def check_chunks():
         raise AbortError(f'Chunk not exist.')
 
 
-def assert_dectime_log():
-    ctx.turn = get_turn()
-    logger.update_status('decode_turn', ctx.turn)
-
-    if ctx.turn == 0:
-        clean_dectime_log()
-
-    if logger.get_status('decode_turn') > config.decoding_num:
-        logger.update_status('decode_ok', True)
-
-
 def clean_dectime_log():
     paths.dectime_log.unlink(missing_ok=True)
 
 
-def get_turn():
-    turn = 0
-
-    try:
-        turn = len(get_times(paths.dectime_log))
-    except FileNotFoundError:
-        pass
-    return turn
 
 
 def make_decode_cmd(threads=1):
