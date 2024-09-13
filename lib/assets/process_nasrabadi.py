@@ -5,7 +5,7 @@ import numpy as np
 from py360tools import xyz2ea
 
 from lib.assets.autodict import AutoDict
-from lib.assets.paths import paths
+from lib.assets.paths import segmenter_paths
 from lib.assets.worker import Worker
 from lib.utils.util import load_json, save_json, lin_interpol
 
@@ -21,18 +21,18 @@ class ProcessNasrabadi(Worker):
     frame_counter: int
 
     def main(self):
-        print(f'Processing dataset {paths.dataset_folder}.')
-        if paths.dataset_json.exists(): return
+        print(f'Processing dataset {segmenter_paths.dataset_folder}.')
+        if segmenter_paths.dataset_json.exists(): return
 
-        ctx.video_id_map = load_json(f'{paths.dataset_folder}/videos_map.json')
-        ctx.user_map = load_json(f'{paths.dataset_folder}/usermap.json')
+        ctx.video_id_map = load_json(f'{segmenter_paths.dataset_folder}/videos_map.json')
+        ctx.user_map = load_json(f'{segmenter_paths.dataset_folder}/usermap.json')
 
-        for self.csv_dataset_file in paths.dataset_folder.glob('*/*.csv'):
+        for self.csv_dataset_file in segmenter_paths.dataset_folder.glob('*/*.csv'):
             self.frame_counter = 0
             self.worker()
 
-        print(f'Finish. Saving as {paths.dataset_json}.')
-        save_json(self.dataset_final, paths.dataset_json)
+        print(f'Finish. Saving as {segmenter_paths.dataset_json}.')
+        save_json(self.dataset_final, segmenter_paths.dataset_json)
 
     def worker(self):
         # For each  csv_file

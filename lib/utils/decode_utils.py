@@ -1,7 +1,7 @@
 from config.config import config
 from lib.assets.context import ctx
 from lib.assets.logger import logger
-from lib.assets.paths import paths
+from lib.assets.paths import segmenter_paths
 from lib.utils.segmenter_utils import segment
 from lib.utils.util import get_times, run_command, print_error
 
@@ -26,7 +26,7 @@ def decode():
         return
 
     cmd = make_decode_cmd()
-    run_command(cmd, paths.dectime_log.parent, paths.dectime_log, mode='a')
+    run_command(cmd, segmenter_paths.dectime_log.parent, segmenter_paths.dectime_log, mode='a')
 
     check_decode()
 
@@ -51,14 +51,14 @@ def check_dectime_log():
 
 
 def clean_dectime_log():
-    paths.dectime_log.unlink(missing_ok=True)
+    segmenter_paths.dectime_log.unlink(missing_ok=True)
 
 
 def get_turn():
     turn = 0
 
     try:
-        turn = len(get_times(paths.dectime_log))
+        turn = len(get_times(segmenter_paths.dectime_log))
     except FileNotFoundError:
         pass
     return turn
@@ -68,7 +68,7 @@ def make_decode_cmd(threads=1):
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
            f'-codec hevc '
            f'{"" if not threads else f"-threads {threads} "}'
-           f'-i {paths.segment_video.as_posix()} '
+           f'-i {segmenter_paths.segment_video.as_posix()} '
            f'-f null -')
     cmd = f'bash -c "{cmd}"'
 

@@ -9,24 +9,31 @@ from config.config import config
 from lib.assets.autodict import AutoDict
 from lib.assets.context import ctx
 from lib.assets.logger import logger
-from lib.assets.paths import paths
+from lib.assets.paths.gettilespaths import get_tiles_paths
+from lib.assets.paths.segmenterpaths import segmenter_paths
 from lib.utils.util import load_json, save_json, splitx, print_error
 
 
 def start_get_tiles():
     init()
-
-    for _ in iterate():
-        print(f'==== GetTiles {ctx} ====')
-        start = time()
-        get_tiles_by_video()
-        # self.count_tiles()
-        # self.heatmap()
-        # self.plot_test()
-        print(f'\ttime =  {time() - start}')
+    for_each_video()
 
 
-def iterate():
+def init():
+    ctx.hmd_dataset = load_json(get_tiles_paths.dataset_json)
+    ctx.tiling_list.remove('1x1')
+    ctx.tiles_1x1 = {'frame': [["0"]] * config.n_frames,
+                     'chunks': {str(i): ["0"] for i in range(1, int(config.duration) + 1)}}
+
+    ctx.projection_dict = AutoDict()
+    for tiling in ctx.tiling_list:
+        erp = ERP(tiling=tiling, proj_res='1080x540', vp_res='660x540', fov_res=config.fov)
+        cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=config.fov)
+        ctx.projection_dict['erp'][tiling] = erp
+        ctx.projection_dict['cmp'][tiling] = cmp
+
+
+def for_each_video():
     for ctx.name in ctx.name_list:
         print(f'==== GetTiles {ctx.name} ====')
 
@@ -37,12 +44,10 @@ def iterate():
         ctx.changed_flag = False
         ctx.error_flag = False
         load_results()
+
         try:
-            for ctx.projection in ctx.projection_list:
-                for ctx.tiling in ctx.tiling_list:
-                    ctx.projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
-                    for ctx.user in ctx.users_list:
-                        yield
+            for_each_projection()
+
         finally:
             if ctx.changed_flag:
                 print('\n\tSaving.')
@@ -50,6 +55,27 @@ def iterate():
             if not ctx.error_flag:
                 ctx.projection = ctx.tiling = ctx.tile = ctx.user = None
                 logger.update_status('get_tiles_ok', True)
+
+
+def for_each_projection():
+    for ctx.projection in ctx.projection_list:
+        for_each_tiling()
+
+
+def for_each_tiling():
+    for ctx.tiling in ctx.tiling_list:
+        ctx.projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
+        for_each_user()
+
+
+def for_each_user():
+    print(f'==== GetTiles {ctx} ====')
+    start = time()
+    get_tiles_by_video()
+    # self.count_tiles()
+    # self.heatmap()
+    # self.plot_test()
+    print(f'\ttime =  {time() - start}')
 
 
 def get_tiles_by_video():
@@ -109,48 +135,40 @@ def get_user_tiles_seen() -> AutoDict:
     """
     return ctx.results[ctx.name][ctx.projection][ctx.tiling][ctx.user]
 
-
+class HMDDatasetError(Exception): ...
+    
 def get_user_hmd_data():
+    user_hmd_data = ctx.hmd_dataset[ctx.name + '_nas'][ctx.user]
+    if user_hmd_data == {}:
+        print_error(f'\tHead movement user samples are missing.')
+        logger.register_log(f'HMD samples is missing, user{ctx.user}')
+        ctx.error_flag = True
+        raise
     return ctx.hmd_dataset[ctx.name + '_nas'][ctx.user]
 
 
 def load_results():
     try:
-        ctx.results = load_json(paths.get_tiles_json,
+        ctx.results = load_json(segmenter_paths.get_tiles_json,
                                 object_hook=AutoDict)
     except FileNotFoundError:
         ctx.results = AutoDict()
 
 
 def save_results():
-    paths.get_tiles_json.parent.mkdir(parents=True, exist_ok=True)
-    save_json(ctx.results, paths.get_tiles_json)
+    segmenter_paths.get_tiles_json.parent.mkdir(parents=True, exist_ok=True)
+    save_json(ctx.results, segmenter_paths.get_tiles_json)
     pass
 
 
-def init():
-    ctx.hmd_dataset = load_json(paths.dataset_json)
-
-    ctx.tiles_1x1 = {'frame': [["0"]] * config.n_frames,
-                     'chunks': {str(i): ["0"] for i in range(1, int(config.duration) + 1)}}
-
-    ctx.projection_dict = AutoDict()
-    for tiling in ctx.tiling_list:
-        if tiling == '1x1': continue
-        erp = ERP(tiling=tiling, proj_res='1080x540', vp_res='660x540', fov_res=config.fov)
-        cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=config.fov)
-        ctx.projection_dict['erp'][tiling] = erp
-        ctx.projection_dict['cmp'][tiling] = cmp
-
-
 def heatmap():
-    results = load_json(paths.counter_tiles_json)
+    results = load_json(segmenter_paths.counter_tiles_json)
 
     for ctx.tiling in ctx.tiling_list:
         if ctx.tiling == '1x1': continue
 
         filename = f'heatmap_tiling_{ctx.hmd_dataset_name}_{ctx.projection}_{ctx.name}_{ctx.tiling}_fov{config.fov}.png'
-        heatmap_tiling = (paths.get_tiles_folder / filename)
+        heatmap_tiling = (segmenter_paths.get_tiles_folder / filename)
         if heatmap_tiling.exists(): continue
 
         tiling_result = results[ctx.tiling]
@@ -171,9 +189,9 @@ def heatmap():
 
 
 def count_tiles():
-    if paths.counter_tiles_json.exists(): return
+    if segmenter_paths.counter_tiles_json.exists(): return
 
-    ctx.results = load_json(paths.get_tiles_json)
+    ctx.results = load_json(segmenter_paths.get_tiles_json)
     result = {}
 
     for ctx.tiling in ctx.tiling_list:
@@ -204,4 +222,4 @@ def count_tiles():
 
         result[ctx.tiling] = dict_tiles_counter_chunks
 
-    save_json(result, paths.counter_tiles_json)
+    save_json(result, segmenter_paths.counter_tiles_json)
