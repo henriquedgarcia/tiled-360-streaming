@@ -14,6 +14,8 @@ from lib.assets.paths.segmenterpaths import segmenter_paths
 from lib.utils.util import load_json, save_json, splitx, print_error
 
 
+class HMDDatasetError(Exception): ...
+
 def start_get_tiles():
     init()
     for_each_video()
@@ -64,57 +66,58 @@ def for_each_projection():
 
 def for_each_tiling():
     for ctx.tiling in ctx.tiling_list:
-        ctx.projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
         for_each_user()
 
 
 def for_each_user():
-    print(f'==== GetTiles {ctx} ====')
-    start = time()
-    get_tiles_by_video()
-    # self.count_tiles()
-    # self.heatmap()
-    # self.plot_test()
-    print(f'\ttime =  {time() - start}')
+    for ctx.user in ctx.user_list:
+        print(f'==== GetTiles {ctx} ====')
+        try:
+            get_tiles_by_video()
+        except (HMDDatasetError,):
+
+        # self.count_tiles()
+        # self.heatmap()
+        # self.plot_test()
 
 
 def get_tiles_by_video():
+    start = time()
+
     user_hmd_data = get_user_hmd_data()
     if user_hmd_data == {}:
-        print_error(f'\tHead movement user samples are missing.')
         logger.register_log(f'HMD samples is missing, user{ctx.user}')
-        ctx.error_flag = True
-        return
-
-    tiles_seen = get_user_tiles_seen()
-    if tiles_seen != {}:
-        print_error(f'\tTiles seen is filled. Skipping.')
-        return
-
-    ctx.changed_flag = True
-
-    if ctx.tiling == '1x1':
-        tiles_seen.update(ctx.tiles_1x1)
-        return
+        raise HMDDatasetError(f'HMD samples is missing, user{ctx.user}')
 
     tiles_seen_by_frame = get_tiles_seen_by_frame(user_hmd_data)
     tiles_seen_by_chunk = get_tiles_seen_by_chunk(tiles_seen_by_frame)
 
-    tiles_seen['frames'] = tiles_seen_by_frame
-    tiles_seen['chunks'] = tiles_seen_by_chunk
+    tiles_seen = {'frames': tiles_seen_by_frame,
+                  'chunks': tiles_seen_by_chunk}
+
+    save_json(tiles_seen, get_tiles_paths.user_tiles_seen_json)
+    print(f'\ttime =  {time() - start}')
 
 
 def get_tiles_seen_by_frame(user_hmd_data):
+    if ctx.tiling == '1x1':
+        return ctx.tiles_1x1['frame']
+
     tiles_seen_by_frame = []
+    projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
+
     for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
         print(f'\r\tframe {frame:04d}/{config.n_frames}', end='')
-        vptiles: list[str] = ctx.projection_obj.get_vptiles(yaw_pitch_roll)
+        vptiles: list[str] = projection_obj.get_vptiles(yaw_pitch_roll)
         vptiles = list(map(str, map(int, vptiles)))
         tiles_seen_by_frame.append(vptiles)
     return tiles_seen_by_frame
 
 
 def get_tiles_seen_by_chunk(tiles_seen_by_frame):
+    if ctx.tiling == '1x1':
+        return ctx.tiles_1x1['chunks']
+
     tiles_seen_by_chunk = {}
     tiles_in_chunk = set()
     for frame, vptiles in enumerate(tiles_seen_by_frame):
@@ -127,16 +130,9 @@ def get_tiles_seen_by_chunk(tiles_seen_by_frame):
     return tiles_seen_by_chunk
 
 
-def get_user_tiles_seen() -> AutoDict:
-    """
 
-    :return: {'frame': list,  # 1800 elements
-              'chunks': {str: list}} # 60 elements
-    """
-    return ctx.results[ctx.name][ctx.projection][ctx.tiling][ctx.user]
 
-class HMDDatasetError(Exception): ...
-    
+
 def get_user_hmd_data():
     user_hmd_data = ctx.hmd_dataset[ctx.name + '_nas'][ctx.user]
     if user_hmd_data == {}:
