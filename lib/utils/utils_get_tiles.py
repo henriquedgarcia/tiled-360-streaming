@@ -24,8 +24,6 @@ def start_get_tiles():
 def init():
     ctx.hmd_dataset = load_json(get_tiles_paths.dataset_json)
     ctx.tiling_list.remove('1x1')
-    ctx.tiles_1x1 = {'frame': [["0"]] * config.n_frames,
-                     'chunks': {str(i): ["0"] for i in range(1, int(config.duration) + 1)}}
 
     ctx.projection_dict = AutoDict()
     for tiling in ctx.tiling_list:
@@ -37,48 +35,21 @@ def init():
 
 def for_each_video():
     for ctx.name in ctx.name_list:
-        print(f'==== GetTiles {ctx.name} ====')
-
-        if logger.get_status('get_tiles_ok'):
-            print(f'\t{ctx.name} is OK. Skipping')
-            continue
-
-        ctx.changed_flag = False
-        ctx.error_flag = False
-        load_results()
-
-        try:
-            for_each_projection()
-
-        finally:
-            if ctx.changed_flag:
-                print('\n\tSaving.')
-                save_results()
-            if not ctx.error_flag:
-                ctx.projection = ctx.tiling = ctx.tile = ctx.user = None
-                logger.update_status('get_tiles_ok', True)
-
-
-def for_each_projection():
-    for ctx.projection in ctx.projection_list:
-        for_each_tiling()
-
-
-def for_each_tiling():
-    for ctx.tiling in ctx.tiling_list:
-        for_each_user()
+        for ctx.projection in ctx.projection_list:
+            for ctx.tiling in ctx.tiling_list:
+                for ctx.user in ctx.user_list:
+                    for_each_user()
 
 
 def for_each_user():
-    for ctx.user in ctx.user_list:
-        print(f'==== GetTiles {ctx} ====')
-        try:
-            get_tiles_by_video()
-        except (HMDDatasetError,):
-
+    print(f'==== GetTiles {ctx} ====')
+    try:
+        get_tiles_by_video()
         # self.count_tiles()
         # self.heatmap()
         # self.plot_test()
+    except (HMDDatasetError,) as e:
+        print_error(f'\t{e.args[0]}')
 
 
 def get_tiles_by_video():
@@ -101,7 +72,7 @@ def get_tiles_by_video():
 
 def get_tiles_seen_by_frame(user_hmd_data):
     if ctx.tiling == '1x1':
-        return ctx.tiles_1x1['frame']
+        return [["0"]] * config.n_frames
 
     tiles_seen_by_frame = []
     projection_obj = ctx.projection_dict[ctx.projection][ctx.tiling]
@@ -116,7 +87,7 @@ def get_tiles_seen_by_frame(user_hmd_data):
 
 def get_tiles_seen_by_chunk(tiles_seen_by_frame):
     if ctx.tiling == '1x1':
-        return ctx.tiles_1x1['chunks']
+        return {str(i): ["0"] for i in range(1, int(config.duration) + 1)}
 
     tiles_seen_by_chunk = {}
     tiles_in_chunk = set()
