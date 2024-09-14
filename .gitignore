@@ -1,0 +1,9 @@
+
+/.idea
+/bin
+/datasets
+__pycache__
+/log
+/original
+/teoria
+*.png
