@@ -7,3 +7,5 @@ __pycache__
 /original
 /teoria
 *.png
+/lib/data_test
+/lib/images
