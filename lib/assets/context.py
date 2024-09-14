@@ -17,7 +17,6 @@ class Context:
     turn: str = None
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
                     'user', 'metric', 'turn']
-    projection_obj = None
 
     def __iter__(self):
         """
