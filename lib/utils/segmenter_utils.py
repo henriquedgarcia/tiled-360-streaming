@@ -228,19 +228,22 @@ def assert_segmenter_log():
 def assert_chunks_video():
     with context_chunk(None):
         for ctx.chunk in ctx.chunk_list:
-            segment_video = paths.chunk_video
-
-            try:
-                segment_file_size = segment_video.stat().st_size
-            except FileNotFoundError:
-                logger.register_log(f'Lo chunk{ctx.chunk} not exist.', segment_video)
-                raise FileNotFoundError(f'video chunk{ctx.chunk} not exist.')
-
-            if segment_file_size == 0:
-                logger.register_log(f'Chunk video size == 0', segment_video)
-                raise FileNotFoundError('Chunk video size == 0.')
+            assert_one_chunk_video()
 
     return 'all ok'
+
+
+def assert_one_chunk_video():
+    chunk_video = paths.chunk_video
+    try:
+        segment_file_size = chunk_video.stat().st_size
+    except FileNotFoundError:
+        logger.register_log(f'chunk{ctx.chunk} not exist.', chunk_video)
+        raise FileNotFoundError(f'video chunk{ctx.chunk} not exist.')
+
+    if segment_file_size == 0:
+        logger.register_log(f'Chunk video size == 0', chunk_video)
+        raise FileNotFoundError('Chunk video size == 0.')
 
 
 def check_chunks_decode(decode_check=False):
