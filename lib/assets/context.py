@@ -15,9 +15,11 @@ class Context:
     user: str = None
     metric: str = None
     turn: str = None
-    factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
-                    'user', 'metric', 'turn']
+    attempt: int = None
     projection_obj = None
+
+    factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
+                    'user', 'metric', 'attempt']
 
     def __iter__(self):
         """
@@ -42,6 +44,8 @@ class Context:
                 value = 'chunk' + value
             if factor == 'turn':
                 value = 'turn' + str(value)
+            if factor == 'attempt':
+                value = 'attempt' + str(value)
 
             txt.append(f'[{value}]')
 
@@ -83,14 +87,8 @@ class Context:
     hmd_dataset: dict = None
 
     @property
-    def users_list(self):
-        if self.hmd_dataset is None: return []
-        return list(self.hmd_dataset[self.name + '_nas'].keys())
-
-    #
-    # @LazyProperty
-    # def sph_file_data(self) -> dict:
-    #     return load_json(paths.sph_file)
+    def user_list(self):
+        return [str(user) for user in []]
 
     @property
     def frame_list(self) -> list[str]:

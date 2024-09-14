@@ -1,67 +1,113 @@
 from config.config import config
 from lib.assets.context import ctx
+from lib.assets.errors import AbortError, DecodeOkError
 from lib.assets.logger import logger
-from lib.assets.paths import segmenter_paths
-from lib.utils.segmenter_utils import segment
-from lib.utils.util import get_times, run_command, print_error
+from lib.assets.paths.segmenterpaths import segmenter_paths
+from lib.utils.util import decode_video, get_times, print_error
+from lib.utils.segmenter_utils import assert_one_chunk_video
 
 
-def make_decode():
-    for ctx.turn in range(config.decoding_num):
+def iter_decode():
+    for ctx.name in ctx.name_list:
+        for ctx.projection in ctx.projection_list:
+            for ctx.quality in ctx.quality_list:
+                for ctx.tiling in ctx.tiling_list:
+                    for ctx.tile in ctx.tile_list:
+                        for ctx.chunk in ctx.chunk_list:
+                            yield
+
+
+
+def decode_chunks():
+    for ctx.attempt in range(config.decoding_num):
         for _ in iter_decode():
-            decode()
+            print(f'==== Decoding {ctx} ====')
+            try:
+                decode()
+            except (DecodeOkError, AbortError) as e:
+                print_error(f'\t{e.args[0]}')
 
 
 def decode():
-    print(f'==== Decoding {ctx} ====')
+    print(f'\tAttempt {ctx.attempt + 1}/{config.decoding_num}')
+    print(f'\tChecking dectime')
+    check_dectime()
 
-    check_decode()
+    print(f'\tChecking chunks')
+    check_chunk()
 
-    print(f'\tTurn {ctx.turn}/{config.decoding_num}')
+    print(f'\tDecoding {ctx.turn+1}/{config.decoding_num}')
+    decode_decode()
 
-    if logger.get_status('decode_ok'):
-        print('\tDectime is OK. Skipping')
-    elif not logger.get_status('segments_ok'):
-        print_error('\tChunk not exist.')
+
+def decode_decode():
+    dectime_log = segmenter_paths.dectime_log
+    folder = dectime_log.parent
+    chunk_video = segmenter_paths.chunk_video
+
+    stdout = decode_video(chunk_video, threads=1)
+
+    if not folder.exists():
+        folder.mkdir(parents=True)
+
+    with open(dectime_log, 'a') as f:
+        f.write('\n' + stdout)
+
+    check_dectime()
+    raise AbortError(f'Decoded {ctx.turn} times.')
+
+
+def check_dectime():
+    try:
+        assert_dectime()
+    except FileNotFoundError:
+        logger.update_status('dectime_ok', False)
         return
+    finally:
+        logger.update_status('decode_turn', ctx.turn)
 
-    cmd = make_decode_cmd()
-    run_command(cmd, segmenter_paths.dectime_log.parent, segmenter_paths.dectime_log, mode='a')
-
-    check_decode()
-
-
-def check_decode():
-    if not logger.get_status('decode_ok'):
-        check_dectime_log()
-
-    if not logger.get_status('segments_ok'):
-        segment()
+    if ctx.turn >= config.decoding_num:
+        logger.update_status('dectime_ok', True)
+        raise DecodeOkError(f'Dectime is OK. Skipping.')
 
 
-def check_dectime_log():
-    ctx.turn = get_turn()
-    logger.update_status('decode_turn', ctx.turn)
+def assert_dectime():
+    if not logger.get_status('dectime_ok'):
+        assert_dectime_log()
 
-    if ctx.turn == 0:
+
+def get_turn():
+    turn = len(get_times(segmenter_paths.dectime_log))
+    if turn == 0:
         clean_dectime_log()
+    return turn
 
-    if logger.get_status('decode_turn') > config.decoding_num:
-        logger.update_status('decode_ok', True)
+
+def assert_dectime_log():
+    try:
+        ctx.turn = get_turn()
+    except FileNotFoundError:
+        ctx.turn = 0
+        raise FileNotFoundError('dectime_log not exist.')
+
+
+def check_chunk():
+    try:
+        assert_chunk()
+    except FileNotFoundError:
+        print_error(f'\tChunks not Found.')
+        logger.register_log('\tChunk not exist.', segmenter_paths.chunk_video)
+        raise AbortError(f'Chunk not exist.')
+    logger.update_status('chunk_ok', True)
+
+
+def assert_chunk():
+    if not logger.get_status('chunk_ok'):
+        assert_one_chunk_video()
 
 
 def clean_dectime_log():
     segmenter_paths.dectime_log.unlink(missing_ok=True)
-
-
-def get_turn():
-    turn = 0
-
-    try:
-        turn = len(get_times(segmenter_paths.dectime_log))
-    except FileNotFoundError:
-        pass
-    return turn
 
 
 def make_decode_cmd(threads=1):
@@ -73,13 +119,3 @@ def make_decode_cmd(threads=1):
     cmd = f'bash -c "{cmd}"'
 
     return cmd
-
-
-def iter_decode():
-    for ctx.name in ctx.name_list:
-        for ctx.projection in ctx.projection_list:
-            for ctx.quality in ctx.quality_list:
-                for ctx.tiling in ctx.tiling_list:
-                    for ctx.tile in ctx.tile_list:
-                        for ctx.chunk in ctx.chunk_list:
-                            yield
