@@ -15,9 +15,10 @@ class Context:
     user: str = None
     metric: str = None
     turn: str = None
+    attempt: int = None
 
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
-                    'user', 'metric', 'turn']
+                    'user', 'metric', 'attempt']
 
     def __iter__(self):
         """
@@ -42,6 +43,8 @@ class Context:
                 value = 'chunk' + value
             if factor == 'turn':
                 value = 'turn' + str(value)
+            if factor == 'attempt':
+                value = 'attempt' + str(value)
 
             txt.append(f'[{value}]')
 
