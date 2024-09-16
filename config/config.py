@@ -75,7 +75,7 @@ class ConfigProps:
 
 
 class Config(ConfigProps):
-    def set_config(self, config_file, videos_file):
+    def __init__(self, config_file, videos_file):
         """
 
         :param config_file: The config json file
@@ -110,4 +110,3 @@ class Config(ConfigProps):
     #     return f'{w}x{h}'
 
 
-config = Config()
