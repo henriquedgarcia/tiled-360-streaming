@@ -5,13 +5,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from py360tools import ERP, CMP, ProjectionBase
 
-from config.config import config, Config
+from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.assets.context import ctx, Context
+from lib.assets.context import Context
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
-from lib.assets.logger import logger, Logger
-from lib.assets.paths.gettilespaths import get_tiles_paths
-from lib.assets.paths.segmenterpaths import segmenter_paths
+from lib.assets.logger import Logger
+from lib.assets.paths.gettilespaths import GetTilesPaths
+from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
 from lib.utils.util import load_json, save_json, splitx, print_error
 
@@ -27,14 +27,13 @@ class GetTiles(Worker):
     config: Config
     logger: Logger
     hmd_dataset: dict
-    projection_dict: dict['str', ProjectionBase]
+    projection_dict: dict['str', dict['str', ProjectionBase]]
+    get_tiles_paths: GetTilesPaths
+    segmenter_paths: SegmenterPaths
 
     def main(self):
-        self.ctx = ctx
-        self.config = config
-        self.logger = logger
-        self.hmd_dataset = load_json(get_tiles_paths.dataset_json)
-
+        self.get_tiles_paths = GetTilesPaths(self.config, self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
         self.create_projections_obj()
         self.process()
 
@@ -45,11 +44,6 @@ class GetTiles(Worker):
             cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=self.config.fov)
             self.projection_dict['erp'][tiling] = erp
             self.projection_dict['cmp'][tiling] = cmp
-
-    def assert_getTiles(self):
-        if self.logger.get_status('get_tiles_ok'):
-            print(f'\t{self.ctx.name} is OK. Skipping')
-            raise GetTilesOkError('Get tiles is OK.')
 
     def process(self):
         for self.ctx.name in self.ctx.name_list:
@@ -69,21 +63,44 @@ class GetTiles(Worker):
             print_error(f'\t{e.args[0]}')
 
     def get_tiles_by_video(self):
+        self.check_get_tiles()
+        self.assert_user_hmd_data()
+
         start = time()
 
-        user_hmd_data = self.get_user_hmd_data()
-        if user_hmd_data == {}:
-            self.logger.register_log(f'HMD samples is missing, user{self.ctx.user}')
-            raise HMDDatasetError(f'HMD samples is missing, user{self.ctx.user}')
-
-        tiles_seen_by_frame = self.get_tiles_seen_by_frame(user_hmd_data)
+        tiles_seen_by_frame = self.get_tiles_seen_by_frame(self.user_hmd_data)
         tiles_seen_by_chunk = self.get_tiles_seen_by_chunk(tiles_seen_by_frame)
 
         tiles_seen = {'frames': tiles_seen_by_frame,
                       'chunks': tiles_seen_by_chunk}
 
-        save_json(tiles_seen, get_tiles_paths.user_tiles_seen_json)
+        save_json(tiles_seen, self.get_tiles_paths.user_tiles_seen_json)
         print(f'\ttime =  {time() - start}')
+
+    def check_get_tiles(self):
+        if self.status.get_status('user_get_tiles_ok'):
+            print(f'\t{self.ctx.name} is OK. Skipping')
+            raise GetTilesOkError('Get tiles is OK.')
+
+        try:
+            self.assert_user_tiles_seen_json()
+            self.status.update_status('user_get_tiles_ok', True)
+            raise GetTilesOkError('Get tiles is OK.')
+
+        except FileNotFoundError:
+            pass
+
+    def assert_user_tiles_seen_json(self):
+        size = self.get_tiles_paths.user_tiles_seen_json.stat().st_size
+
+        if size == 0:
+            self.get_tiles_paths.user_tiles_seen_json.unlink(missing_ok=True)
+            raise FileNotFoundError
+
+    def assert_user_hmd_data(self):
+        if self.user_hmd_data == {}:
+            self.logger.register_log(f'HMD samples is missing, user{self.ctx.user}', self.get_tiles_paths.dataset_json)
+            raise HMDDatasetError(f'HMD samples is missing, user{self.ctx.user}')
 
     def get_tiles_seen_by_frame(self, user_hmd_data):
         if self.ctx.tiling == '1x1':
@@ -114,26 +131,28 @@ class GetTiles(Worker):
                 tiles_in_chunk.clear()
         return tiles_seen_by_chunk
 
-    def get_user_hmd_data(self):
-        user_hmd_data = self.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
-        if user_hmd_data == {}:
-            print_error(f'\tHead movement user samples are missing.')
-            self.logger.register_log(f'HMD samples is missing, user{self.ctx.user}', self.ctx.name)
-            self.ctx.error_flag = True
-            raise
-        return self.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
+    user_hmd_data: dict
+
+    @property
+    def user_hmd_data(self) -> list:
+        try:
+            data = self.hmd_dataset
+        except AttributeError:
+            self.hmd_dataset = load_json(self.get_tiles_paths.dataset_json)
+            data = self.hmd_dataset
+        return data[self.ctx.name + '_nas'][self.ctx.user]
 
     results: AutoDict
 
     def heatmap(self):
-        results = load_json(segmenter_paths.counter_tiles_json)
+        results = load_json(self.get_tiles_paths.counter_tiles_json)
 
         for self.ctx.tiling in self.ctx.tiling_list:
             if self.ctx.tiling == '1x1': continue
 
-            filename = (f'heatmap_tiling_{self.config.hmd_dataset_name}_{self.ctx.projection}_{self.ctx.name}_'
+            filename = (f'heatmap_tiling_nasrabadi_28videos_{self.ctx.projection}_{self.ctx.name}_'
                         f'{self.ctx.tiling}_fov{self.config.fov}.png')
-            heatmap_tiling = (segmenter_paths.get_tiles_folder / filename)
+            heatmap_tiling = (self.get_tiles_paths.get_tiles_folder / filename)
             if heatmap_tiling.exists(): continue
 
             tiling_result = results[self.ctx.tiling]
@@ -153,9 +172,9 @@ class GetTiles(Worker):
             fig.savefig(f'{heatmap_tiling}')
 
     def count_tiles(self):
-        if segmenter_paths.counter_tiles_json.exists(): return
+        if self.get_tiles_paths.counter_tiles_json.exists(): return
 
-        self.results = load_json(segmenter_paths.get_tiles_json)
+        self.results = load_json(self.get_tiles_paths.get_tiles_json)
         result = {}
 
         for self.ctx.tiling in self.ctx.tiling_list:
@@ -186,7 +205,7 @@ class GetTiles(Worker):
 
             result[self.ctx.tiling] = dict_tiles_counter_chunks
 
-        save_json(result, segmenter_paths.counter_tiles_json)
+        save_json(result, self.get_tiles_paths.counter_tiles_json)
 
     # def plot_test(self):
     #     # ctx.results[self.vid_proj][ctx.name][ctx.tiling][ctx.user]['frame'|'chunks']: list[list[str]] | d
