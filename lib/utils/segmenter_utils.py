@@ -49,7 +49,7 @@ def segmenter(decode_check=False):
         raise AbortError('Error creating chunks. See log.')
 
 
-def __Make_tiles__(): ...
+def __make_tiles__(): ...
 
 
 def check_tile(decode_check=False):
