@@ -25,8 +25,7 @@ class LazyProperty:
 
         The value is stored in Bar._foo only once.
 
-        :param getter:
-        :param setter:
+        :param func:
         """
         self.func = func
         self.name = func.__name__
