@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from lib.assets.context import ctx
-from lib.assets.paths import base_paths
+from lib.assets.paths.basepaths import base_paths
 
 
 class SegmenterPaths:
