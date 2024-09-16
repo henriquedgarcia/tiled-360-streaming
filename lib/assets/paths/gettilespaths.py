@@ -2,53 +2,61 @@ from pathlib import Path
 
 import pandas as pd
 
-from config.config import config
-from lib.assets.context import ctx
-from lib.assets.paths.basepaths import base_paths
+from config.config import Config
+from lib.assets.context import Context
+from lib.assets.paths.basepaths import BasePaths
 
 
 class GetTilesPaths:
+    def __init__(self, config: Config, context: Context):
+        self.config = config
+        self.ctx = context
+        self.base_paths = BasePaths(config, context)
+
     @property
     def get_tiles_folder(self) -> Path:
-        return base_paths.project_path / 'get_tiles'
+        return self.base_paths.project_path / 'get_tiles'
 
     @property
     def get_tiles_json(self) -> Path:
-        filename = f'get_tiles_{config.dataset_file.stem}_{ctx.projection}_{ctx.name}_fov{config.fov}.json'
+        filename = (f'get_tiles_{self.config.dataset_file.stem}_{self.ctx.projection}_{self.ctx.name}'
+                    f'_fov{self.config.fov}.json')
         return self.get_tiles_folder / filename
 
     @property
     def user_tiles_seen_json(self) -> Path:
-        folder = self.get_tiles_folder / ctx.name / ctx.projection / ctx.tiling
+        folder = self.get_tiles_folder / self.ctx.name / self.ctx.projection / self.ctx.tiling
         folder.mkdir(exist_ok=True, parents=True)
-        filename = f'seen_tiles_user{ctx.user}.json'
+        filename = f'seen_tiles_user{self.ctx.user}.json'
         return folder / filename
 
     @property
     def counter_tiles_json(self):
-        filename = f'counter_{config.dataset_file.stem}_{ctx.proj}_{ctx.name}_fov{ctx.fov}.json'
+        filename = (f'counter_{self.config.dataset_file.stem}_{self.ctx.projection}_{self.ctx.name}'
+                    f'_fov{self.config.fov}.json')
         folder = self.get_tiles_folder / 'counter'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / filename
 
     @property
     def heatmap_tiling(self):
-        filename = f'heatmap_tiling_{self.dataset_name}_{ctx.proj}_{ctx.name}_{ctx.tiling}_fov{ctx.fov}.png'
+        filename = (f'heatmap_tiling_{self.dataset_name}_{self.ctx.projection}_{self.ctx.name}_{self.ctx.tiling}'
+                    f'_fov{self.config.fov}.png')
         folder = self.get_tiles_folder / 'heatmap'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / filename
 
     @property
     def sph_file(self) -> Path:
-        return config.sph_file
+        return self.config.sph_file
 
     @property
     def dataset_json(self) -> Path:
-        return config.dataset_file
+        return self.config.dataset_file
 
     @property
     def dataset_name(self):
-        return config.dataset_file.stem
+        return self.config.dataset_file.stem
 
     _csv_dataset_file: Path
 
@@ -56,15 +64,10 @@ class GetTilesPaths:
     def csv_dataset_file(self) -> Path:
         return self._csv_dataset_file
 
+    head_movement: pd.DataFrame
+
     @csv_dataset_file.setter
-    def csv_dataset_file(self, value):
-        self._csv_dataset_file = value
-        user_nas_id, video_nas_id = self._csv_dataset_file.stem.split('_')
-        ctx.video_name = ctx.video_id_map[video_nas_id]
-        ctx.user_id = ctx.user_map[user_nas_id]
-
-        names = ['timestamp', 'Qx', 'Qy', 'Qz', 'Qw', 'Vx', 'Vy', 'Vz']
-        ctx.head_movement = pd.read_csv(self.csv_dataset_file, names=names)
-
-
-get_tiles_paths = GetTilesPaths()
+    def csv_dataset_file(self, filename: Path) -> None:
+        self._csv_dataset_file = filename
+        self.head_movement = pd.read_csv(filename,
+                                         names=['timestamp', 'Qx', 'Qy', 'Qz', 'Qw', 'Vx', 'Vy', 'Vz'])
