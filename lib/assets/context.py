@@ -4,7 +4,6 @@ from config.config import config
 from lib.utils.util import splitx
 from .lazyproperty import LazyProperty
 
-from lib.assets.autodict import AutoDict
 
 class Context:
     name: str = None
@@ -17,7 +16,7 @@ class Context:
     metric: str = None
     turn: str = None
     attempt: int = None
-    projection_dict = AutoDict()
+    projection_dict = dict
 
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
                     'user', 'metric', 'attempt']
