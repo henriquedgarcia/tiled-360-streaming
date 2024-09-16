@@ -8,13 +8,12 @@ from py360tools import ERP, CMP
 from config.config import config
 from lib.assets.autodict import AutoDict
 from lib.assets.context import ctx
+from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.logger import logger
 from lib.assets.paths.gettilespaths import get_tiles_paths
 from lib.assets.paths.segmenterpaths import segmenter_paths
 from lib.utils.util import load_json, save_json, splitx, print_error
 
-
-class HMDDatasetError(Exception): ...
 
 def start_get_tiles():
     init()
@@ -23,14 +22,23 @@ def start_get_tiles():
 
 def init():
     ctx.hmd_dataset = load_json(get_tiles_paths.dataset_json)
-    ctx.tiling_list.remove('1x1')
+    # ctx.tiling_list.remove('1x1')
+    create_projections_obj()
 
+
+def create_projections_obj():
     ctx.projection_dict = AutoDict()
     for tiling in ctx.tiling_list:
         erp = ERP(tiling=tiling, proj_res='1080x540', vp_res='660x540', fov_res=config.fov)
         cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=config.fov)
         ctx.projection_dict['erp'][tiling] = erp
         ctx.projection_dict['cmp'][tiling] = cmp
+
+
+def assert_getTiles():
+    if logger.get_status('get_tiles_ok'):
+        print(f'\t{ctx.name} is OK. Skipping')
+        raise GetTilesOkError('Get tiles is OK.')
 
 
 def for_each_video():
@@ -99,9 +107,6 @@ def get_tiles_seen_by_chunk(tiles_seen_by_frame):
             tiles_seen_by_chunk[f'{chunk_id}'] = list(tiles_in_chunk)
             tiles_in_chunk.clear()
     return tiles_seen_by_chunk
-
-
-
 
 
 def get_user_hmd_data():
