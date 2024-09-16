@@ -1,13 +1,17 @@
 from pathlib import Path
 
-from config.config import config
-from lib.assets.context import ctx
+from config.config import Config
+from lib.assets.context import Context
 
 
 class BasePaths:
+    def __init__(self, config: Config, ctx: Context):
+        self.config = config
+        self.ctx = ctx
+
     @property
     def project_path(self):
-        return config.project_folder
+        return self.config.project_folder
 
     @property
     def results_folder(self):
@@ -47,15 +51,12 @@ class BasePaths:
 
     @property
     def basename1(self):
-        return (Path(f'{ctx.name}') /
-                f'{ctx.projection}' /
-                f'{config.rate_control}{ctx.quality}' /
-                f'{ctx.tiling}'
+        return (Path(f'{self.ctx.name}') /
+                f'{self.ctx.projection}' /
+                f'{self.config.rate_control}{self.ctx.quality}' /
+                f'{self.ctx.tiling}'
                 )
 
     @property
     def basename2(self):
-        return self.basename1 / f'tile{ctx.tile}'
-
-
-base_paths = BasePaths()
+        return self.basename1 / f'tile{self.ctx.tile}'
