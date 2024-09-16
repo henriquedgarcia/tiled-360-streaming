@@ -1,40 +1,19 @@
-from subprocess import run, STDOUT, PIPE
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from multiprocessing import Pool
-from abc import ABC, abstractmethod
 
-from config.config import config
-from lib.assets.logger import logger
+from config.config import Config
+from lib.assets.context import Context
+from lib.assets.logger import Logger
+from lib.assets.status_ctx import StatusCtx
 from lib.utils.util import run_command
-from .context import ctx
 
 
-class Worker(ABC):
+class Multi(ABC):
     command_pool: list
 
-    def __init__(self):
-        self.print_resume()
-
-        with logger.logger_context(self.__class__.__name__):
-            self.main()
-
-    @abstractmethod
-    def main(self):
-        ...
-
-    def print_resume(self):
-        print('=' * 70)
-        print(f'Processing {len(ctx.name_list)} videos:\n'
-              f'  operation: {self.__class__.__name__}\n'
-              f'  project_folder: {config.project_folder}\n'
-              f'  fps: {config.fps}\n'
-              f'  gop: {config.gop}\n'
-              f'  qualities: {ctx.quality_list}\n'
-              f'  patterns: {ctx.tiling_list}')
-        print('=' * 70)
-
     @contextmanager
-    def multi(self):
+    def pool(self):
         self.command_pool = []
         try:
             yield
@@ -45,3 +24,30 @@ class Worker(ABC):
         finally:
             pass
 
+
+class Worker(ABC):
+    def __init__(self, config: Config, ctx: Context):
+        self.config = config
+        self.ctx = ctx
+        self.print_resume()
+        self.logger = Logger(config, ctx)
+        self.status = StatusCtx(config, ctx)
+
+        with self.logger.logger_context(self.__class__.__name__):
+            with self.status.status_context(self.__class__.__name__):
+                self.main()
+
+    @abstractmethod
+    def main(self):
+        ...
+
+    def print_resume(self):
+        print('=' * 70)
+        print(f'Processing {len(self.ctx.name_list)} videos:\n'
+              f'  operation: {self.__class__.__name__}\n'
+              f'  project_folder: {self.config.project_folder}\n'
+              f'  fps: {self.config.fps}\n'
+              f'  gop: {self.config.gop}\n'
+              f'  qualities: {self.ctx.quality_list}\n'
+              f'  patterns: {self.ctx.tiling_list}')
+        print('=' * 70)
