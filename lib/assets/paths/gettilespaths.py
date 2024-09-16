@@ -4,7 +4,7 @@ import pandas as pd
 
 from config.config import config
 from lib.assets.context import ctx
-from lib.assets.paths import base_paths
+from lib.assets.paths.basepaths import base_paths
 
 
 class GetTilesPaths:
