@@ -2,7 +2,7 @@ from lib.assets.errors import AbortError, DecodeOkError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
-from lib.utils.segmenter_utils import assert_one_chunk_video
+from lib.segmenter import assert_one_chunk_video
 from lib.utils.util import decode_video, get_times, print_error
 
 
@@ -108,7 +108,9 @@ class Decode(Worker):
 
     def assert_chunk(self):
         if not self.logger.get_status('chunk_ok'):
-            assert_one_chunk_video()
+            chunk_video = self.segmenter_paths.chunk_video
+
+            assert_one_chunk_video(self.ctx, self.logger, chunk_video)
 
     def clean_dectime_log(self):
         self.dectime_paths.dectime_log.unlink(missing_ok=True)
