@@ -1,11 +1,8 @@
 from contextlib import contextmanager
 
-from config.config import config
-from lib.assets.context import ctx
-
 
 @contextmanager
-def context_chunk(value):
+def context_chunk(ctx, value):
     c = ctx.chunk
     ctx.chunk = f'{value}'
     try:
@@ -15,7 +12,7 @@ def context_chunk(value):
 
 
 @contextmanager
-def context_quality(quality='0', rate_control='crf'):
+def context_quality(ctx, config, quality='0', rate_control='crf'):
     qlt = ctx.quality
     rc = config.rate_control
 
