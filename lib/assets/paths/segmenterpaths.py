@@ -20,6 +20,11 @@ class SegmenterPaths:
         return self.lossless_video.with_suffix('.log')
 
     @property
+    def tile_folder(self) -> Path:
+        folder = self.base_paths.tiles_folder / self.base_paths.basename1
+        return folder
+
+    @property
     def tile_video(self) -> Path:
         return self.base_paths.tiles_folder / self.base_paths.basename1 / f'tile{self.ctx.tile}.mp4'
 
