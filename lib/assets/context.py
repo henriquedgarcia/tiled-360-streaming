@@ -3,7 +3,7 @@ from math import prod
 from config.config import Config
 from lib.assets.autodict import AutoDict
 from lib.assets.lazyproperty import LazyProperty
-from lib.utils.util import splitx
+from lib.utils.util import splitx, load_json
 
 
 class Context:
@@ -91,8 +91,16 @@ class Context:
     hmd_dataset: dict = None
 
     @property
-    def user_list(self):
-        return [str(user) for user in []]
+    def users_list(self):
+        try:
+            assert self.hmd_dataset is not None
+        except AssertionError:
+            self.hmd_dataset = load_json(self.config.dataset_file)
+
+        users_str = self.hmd_dataset[self.name + '_nas'].keys()
+        sorted_users_int = sorted(map(int, users_str))
+        sorted_users_str = list(map(str, sorted_users_int))
+        return sorted_users_str
 
     @property
     def frame_list(self) -> list[str]:
