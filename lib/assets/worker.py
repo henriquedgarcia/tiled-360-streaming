@@ -29,9 +29,9 @@ class Worker(ABC):
     def __init__(self, config: Config, ctx: Context):
         self.config = config
         self.ctx = ctx
-        self.print_resume()
         self.logger = Logger(config, ctx)
         self.status = StatusCtx(config, ctx)
+        self.print_resume()
 
         with self.logger.logger_context(self.__class__.__name__):
             with self.status.status_context(self.__class__.__name__):
