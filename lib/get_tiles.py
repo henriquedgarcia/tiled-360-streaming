@@ -49,7 +49,7 @@ class GetTiles(Worker):
         for self.ctx.name in self.ctx.name_list:
             for self.ctx.projection in self.ctx.projection_list:
                 for self.ctx.tiling in self.ctx.tiling_list:
-                    for self.ctx.user in self.ctx.user_list:
+                    for self.ctx.user in self.ctx.users_list:
                         self.for_each_user()
 
     def for_each_user(self):
@@ -59,7 +59,7 @@ class GetTiles(Worker):
             # self.count_tiles()
             # self.heatmap()
             # self.plot_test()
-        except (HMDDatasetError,) as e:
+        except (HMDDatasetError, GetTilesOkError) as e:
             print_error(f'\t{e.args[0]}')
 
     def get_tiles_by_video(self):
@@ -135,12 +135,7 @@ class GetTiles(Worker):
 
     @property
     def user_hmd_data(self) -> list:
-        try:
-            data = self.hmd_dataset
-        except AttributeError:
-            self.hmd_dataset = load_json(self.get_tiles_paths.dataset_json)
-            data = self.hmd_dataset
-        return data[self.ctx.name + '_nas'][self.ctx.user]
+        return self.ctx.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
 
     results: AutoDict
 
@@ -183,7 +178,7 @@ class GetTiles(Worker):
             # <editor-fold desc="Count tiles">
             tiles_counter_chunks = Counter()  # Collect tiling count
 
-            for self.ctx.user in self.ctx.user_list:
+            for self.ctx.user in self.ctx.users_list:
                 result_chunks = self.results[self.ctx.projection][self.ctx.name]
                 result_chunks = result_chunks[self.ctx.tiling][self.ctx.user]['chunks']
 
