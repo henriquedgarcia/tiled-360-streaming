@@ -4,6 +4,7 @@ from time import time
 import numpy as np
 from matplotlib import pyplot as plt
 from py360tools import ERP, CMP, ProjectionBase
+from py360tools.draw import draw
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -40,10 +41,22 @@ class GetTiles(Worker):
     def create_projections_obj(self):
         self.projection_dict = AutoDict()
         for tiling in self.ctx.tiling_list:
-            erp = ERP(tiling=tiling, proj_res='1080x540', vp_res='660x540', fov_res=self.config.fov)
-            cmp = CMP(tiling=tiling, proj_res='810x540', vp_res='660x540', fov_res=self.config.fov)
-            self.projection_dict['erp'][tiling] = erp
-            self.projection_dict['cmp'][tiling] = cmp
+            self.projection_dict['erp'][tiling] = self.build_projection(proj_name='erp', tiling=tiling,
+                                                                        proj_res='1080x540', vp_res='660x540',
+                                                                        fov_res=self.config.fov)
+            self.projection_dict['cmp'][tiling] = self.build_projection(proj_name='cmp', tiling=tiling,
+                                                                        proj_res='1080x540', vp_res='660x540',
+                                                                        fov_res=self.config.fov)
+
+    @staticmethod
+    def build_projection(proj_name, proj_res, tiling, vp_res, fov_res):
+        if proj_name == 'erp':
+            projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+        elif proj_name == 'cmp':
+            projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+        else:
+            raise TypeError(f'Unknown projection name: {proj_name}')
+        return projection
 
     def process(self):
         for self.ctx.name in self.ctx.name_list:
@@ -78,17 +91,14 @@ class GetTiles(Worker):
         print(f'\ttime =  {time() - start}')
 
     def check_get_tiles(self):
-        if self.status.get_status('user_get_tiles_ok'):
-            print(f'\t{self.ctx.name} is OK. Skipping')
-            raise GetTilesOkError('Get tiles is OK.')
+        if not self.status.get_status('user_get_tiles_ok'):
+            try:
+                self.assert_user_tiles_seen_json()
+            except FileNotFoundError:
+                return
 
-        try:
-            self.assert_user_tiles_seen_json()
             self.status.update_status('user_get_tiles_ok', True)
-            raise GetTilesOkError('Get tiles is OK.')
-
-        except FileNotFoundError:
-            pass
+        raise GetTilesOkError('Get tiles is OK.')
 
     def assert_user_tiles_seen_json(self):
         size = self.get_tiles_paths.user_tiles_seen_json.stat().st_size
@@ -270,6 +280,22 @@ class GetTiles(Worker):
     #             fig.savefig(img_name)
     #             plt.close(fig)
     #
+
+
+def print_tiles(proj: ProjectionBase, vptiles: list):
+    shape = proj.canvas.shape
+    fig_all_tiles_borders = draw.draw_all_tiles_borders(projection=proj)
+    fig_all_tiles_borders_ = np.array([fig_all_tiles_borders,
+                                      fig_all_tiles_borders,
+                                      fig_all_tiles_borders]).transpose([1,2,0])
+    fig_vp_tiles = np.zeros(shape, dtype='uint8')
+    for tile in vptiles:
+        fig_vp_tiles = fig_vp_tiles + draw.draw_tile_border(projection=proj, idx=int(tile), lum=255)
+
+    fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
+    vp = draw.draw_vp_borders(projection=proj)
+    fig_final = draw.compose(fig_final, vp, (0, 0, 255))
+    draw.show(fig_final)
 
 # class TestGetTiles(GetTiles):
 #     def init(self):
