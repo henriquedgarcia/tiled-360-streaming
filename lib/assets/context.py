@@ -13,6 +13,7 @@ class Context:
     tiling: str = None
     tile: str = None
     chunk: str = None
+    frame: str = None
     user: str = None
     metric: str = None
     turn: str = None
@@ -20,7 +21,7 @@ class Context:
     projection_dict = AutoDict
 
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
-                    'user', 'metric', 'attempt']
+                    'frame', 'user', 'metric', 'attempt']
 
     def __init__(self, config: Config):
         self.config = config
@@ -46,6 +47,10 @@ class Context:
                 value = 'tile' + value
             if factor == 'chunk':
                 value = 'chunk' + value
+            if factor == 'frame':
+                value = 'frame' + value
+            if factor == 'user':
+                value = 'user' + str(value)
             if factor == 'turn':
                 value = 'turn' + str(value)
             if factor == 'attempt':
