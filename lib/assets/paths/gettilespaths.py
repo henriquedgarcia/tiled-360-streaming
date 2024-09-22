@@ -19,7 +19,7 @@ class GetTilesPaths:
 
     @property
     def get_tiles_json(self) -> Path:
-        filename = (f'get_tiles_{self.config.dataset_file.stem}_{self.ctx.projection}_{self.ctx.name}'
+        filename = (f'get_tiles_{self.ctx.name}_{self.ctx.projection}'
                     f'_fov{self.config.fov}.json')
         return self.get_tiles_folder / filename
 
@@ -31,7 +31,7 @@ class GetTilesPaths:
 
     @property
     def counter_tiles_json(self):
-        filename = (f'counter_{self.config.dataset_file.stem}_{self.ctx.projection}_{self.ctx.name}'
+        filename = (f'counter_{self.dataset_name}_{self.ctx.projection}_{self.ctx.name}'
                     f'_fov{self.config.fov}.json')
         folder = self.get_tiles_folder / 'counter'
         return folder / filename
@@ -43,6 +43,12 @@ class GetTilesPaths:
         folder = self.get_tiles_folder / 'heatmap'
         folder.mkdir(parents=True, exist_ok=True)
         return folder / filename
+
+    @property
+    def video_test_folder(self):
+        folder = self.get_tiles_folder / 'video_test'
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
 
     @property
     def sph_file(self) -> Path:
