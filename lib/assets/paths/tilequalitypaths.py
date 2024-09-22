@@ -5,7 +5,7 @@ from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.utils.context_utils import context_quality
 
 
-class TileQualityPaths:
+class TileChunkQualityPaths:
     def __init__(self, config, ctx):
         self.config = config
         self.ctx = ctx
@@ -19,7 +19,20 @@ class TileQualityPaths:
         return chunk_video_paths
 
     @property
-    def quality_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'quality_{self.ctx.name}.json'
+    def video_quality_json(self) -> Path:
+        return self.base_paths.results_folder / f'tile_chunk_quality_{self.ctx.name}.json'
 
+    @property
+    def tile_chunk_quality_folder(self) -> Path:
+        folder = self.base_paths.quality_folder / self.base_paths.basename2
+        return folder
 
+    @property
+    def tile_chunk_quality_csv(self) -> Path:
+        filename = f'tile{self.ctx.tile}_{int(self.ctx.chunk):03d}.csv'
+        return self.tile_chunk_quality_folder / filename
+
+    @property
+    def quality_result_img(self) -> Path:
+        folder = self.base_paths.quality_folder / '_metric plots' / f'{self.ctx.name}'
+        return folder / f'{self.ctx.tiling}_crf{self.ctx.quality}.png'
