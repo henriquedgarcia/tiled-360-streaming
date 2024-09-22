@@ -2,7 +2,7 @@ from math import prod
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.assets.lazyproperty import LazyProperty
+from py360tools.utils import LazyProperty
 from lib.utils.util import splitx, load_json
 
 
