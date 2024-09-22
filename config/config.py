@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Union
 
 from lib.utils.util import load_json
-from lib.assets.lazyproperty import LazyProperty
+from py360tools.utils import LazyProperty
 
 
 class ConfigProps:
