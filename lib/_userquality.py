@@ -11,7 +11,7 @@ from skimage.metrics import structural_similarity as ssim, mean_squared_error as
 from skvideo.io import FFmpegReader
 
 # import lib.erp as v360
-from ._tilequality import SegmentsQualityPaths
+from .assets.paths.tilequalitypaths import TileChunkQualityPaths
 from lib.assets.autodict import AutoDict
 from py360tools import ERP, CMP
 from py360tools import ProjectionBase
@@ -21,7 +21,7 @@ pi = np.pi
 pi2 = np.pi * 2
 
 
-class UserProjectionMetricsProps(SegmentsQualityPaths):
+class UserProjectionMetricsProps(TileChunkQualityPaths):
     seen_tiles_metric: AutoDict
     time_data: dict
     rate_data: dict
