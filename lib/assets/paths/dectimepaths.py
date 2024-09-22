@@ -14,9 +14,13 @@ class DectimePaths:
         self.segmenter_paths = segmenter_paths
 
     @property
+    def dectime_folder(self) -> Path:
+        return self.base_paths.dectime_folder / self.base_paths.basename2
+
+    @property
     def dectime_log(self) -> Path:
-        chunk = int(str(self.ctx.chunk))
-        return self.segmenter_paths.chunk_video.with_name(f'tile{self.ctx.tile}_{chunk:03d}_dectime.log')
+        chunk = int(self.ctx.chunk)
+        return self.dectime_folder / f'tile{self.ctx.tile}_{chunk:03d}_dectime.log'
 
     @property
     def dectime_result_json(self) -> Path:
