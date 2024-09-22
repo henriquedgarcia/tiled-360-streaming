@@ -89,7 +89,7 @@ class GetTilesBase(Worker):
         self._results = data_type()
 
 
-class GetTiles(GetTilesBase):
+class GetTilesReal(GetTilesBase):
     def for_each_user(self):
         print(f'==== GetTiles {self.ctx} ====')
         try:
@@ -464,3 +464,6 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
 #         output = folder / f"user{ctx.user}_{ctx.frame_n}.png"
 #
 #         return output
+
+
+GetTiles = CreateJson
