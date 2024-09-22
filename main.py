@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 
-from config.config import config
+from config.config import Config
+from lib.assets.context import Context
+from lib.assets.worker import Worker
 from lib.utils.main_utils import config_dict, videos_dict, worker_dict, make_help_txt, menu
 
 if __name__ == '__main__':
@@ -26,7 +28,9 @@ if __name__ == '__main__':
         videos_file = videos_dict[list(videos_dict)[videos_list_id]]
         worker = worker_dict[list(worker_dict)[worker_id]]
 
-    config.set_config(config_file, videos_file)
-    worker()
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    app: Worker = worker(config, ctx)
 
     print(f'\nThe end.')

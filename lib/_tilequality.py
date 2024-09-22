@@ -8,12 +8,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 
-<<<<<<< Updated upstream
-=======
 from .assets import Logger, AutoDict, print_error, Worker
 from lib.assets.paths import Paths
-from .py360tools import ea2erp, ea2cmp_face
->>>>>>> Stashed changes
+from py360tools import ea2erp, ea2cmp_face
 from lib.utils.util import save_json, load_json, save_pickle, load_pickle, iter_frame, splitx, print_error
 
 

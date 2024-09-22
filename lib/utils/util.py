@@ -17,6 +17,14 @@ from lib.assets.ansi_colors import Bcolors
 
 
 def save_json(data: Union[dict, list], filename: Union[str, Path], separators=(',', ':'), indent=None):
+    try:
+        json_dump(data, filename, separators, indent)
+    except FileNotFoundError:
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        json_dump(data, filename, separators, indent)
+
+
+def json_dump(data, filename, separators=(',', ':'), indent=None):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, separators=separators, indent=indent)
 
