@@ -71,17 +71,17 @@ class Decode(Worker):
         try:
             self.assert_dectime()
         except FileNotFoundError:
-            self.logger.update_status('dectime_ok', False)
+            self.status.update_status('dectime_ok', False)
             return
         finally:
-            self.logger.update_status('decode_turn', self.ctx.turn)
+            self.status.update_status('decode_turn', self.ctx.turn)
 
         if self.ctx.turn >= self.config.decoding_num:
-            self.logger.update_status('dectime_ok', True)
+            self.status.update_status('dectime_ok', True)
             raise DecodeOkError(f'Dectime is OK. Skipping.')
 
     def assert_dectime(self):
-        if not self.logger.get_status('dectime_ok'):
+        if not self.status.get_status('dectime_ok'):
             self.assert_dectime_log()
 
     def get_turn(self):
@@ -104,13 +104,12 @@ class Decode(Worker):
             print_error(f'\tChunks not Found.')
             self.logger.register_log('\tChunk not exist.', self.segmenter_paths.chunk_video)
             raise AbortError(f'Chunk not exist.')
-        self.logger.update_status('chunk_ok', True)
+        self.status.update_status('chunk_ok', True)
 
     def assert_chunk(self):
-        if not self.logger.get_status('chunk_ok'):
-            chunk_video = self.segmenter_paths.chunk_video
-
-            assert_one_chunk_video(self.ctx, self.logger, chunk_video)
+        if not self.status.get_status('chunk_ok'):
+            assert_one_chunk_video(self.ctx, self.logger,
+                                   self.segmenter_paths.chunk_video)
 
     def clean_dectime_log(self):
         self.dectime_paths.dectime_log.unlink(missing_ok=True)
