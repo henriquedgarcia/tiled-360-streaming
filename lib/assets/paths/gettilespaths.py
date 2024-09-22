@@ -26,7 +26,6 @@ class GetTilesPaths:
     @property
     def user_tiles_seen_json(self) -> Path:
         folder = self.get_tiles_folder / self.ctx.name / self.ctx.projection / self.ctx.tiling
-        folder.mkdir(exist_ok=True, parents=True)
         filename = f'seen_tiles_user{self.ctx.user}.json'
         return folder / filename
 
@@ -35,7 +34,6 @@ class GetTilesPaths:
         filename = (f'counter_{self.config.dataset_file.stem}_{self.ctx.projection}_{self.ctx.name}'
                     f'_fov{self.config.fov}.json')
         folder = self.get_tiles_folder / 'counter'
-        folder.mkdir(parents=True, exist_ok=True)
         return folder / filename
 
     @property
