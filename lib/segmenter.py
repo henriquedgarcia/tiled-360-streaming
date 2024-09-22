@@ -190,7 +190,7 @@ class CheckChunks:
 
             self.status.update_status('segmenter_ok', True)
 
-        raise ChunksOkError(f'\tSegmenter is OK. Skipping.')
+        raise ChunksOkError(f'Segmenter is OK. Skipping.')
 
     def assert_chunks(self, decode_check=False):
         try:
