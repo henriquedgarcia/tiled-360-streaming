@@ -26,6 +26,10 @@ class BasePaths:
         return self.project_path / 'chunks'
 
     @property
+    def dectime_folder(self):
+        return self.project_path / 'dectime'
+
+    @property
     def tiles_folder(self):
         return self.project_path / 'tiles'
 
