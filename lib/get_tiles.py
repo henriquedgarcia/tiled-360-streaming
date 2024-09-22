@@ -1,16 +1,14 @@
 from collections import Counter
 from time import time
+from typing import Union
 
 import numpy as np
 from matplotlib import pyplot as plt
 from py360tools import ERP, CMP, ProjectionBase
 from py360tools.draw import draw
 
-from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.assets.context import Context
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
-from lib.assets.logger import Logger
 from lib.assets.paths.gettilespaths import GetTilesPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
@@ -22,41 +20,24 @@ from lib.utils.util import load_json, save_json, splitx, print_error
 # Videos 'cable_cam_nas','drop_tower_nas','wingsuit_dubai_nas','drone_chases_car_nas'
 # rotation = rotation_map[video_nas_id] if video_nas_id in [10, 17, 27, 28] else 0
 
-
-class GetTiles(Worker):
-    ctx: Context
-    config: Config
-    logger: Logger
+class GetTilesBase(Worker):
     hmd_dataset: dict
     projection_dict: dict['str', dict['str', ProjectionBase]]
-    get_tiles_paths: GetTilesPaths
     segmenter_paths: SegmenterPaths
+    get_tiles_paths: GetTilesPaths
+    user_hmd_data: dict
 
     def main(self):
-        self.get_tiles_paths = GetTilesPaths(self.config, self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
-        self.create_projections_obj()
+        self.init()
         self.process()
 
-    def create_projections_obj(self):
-        self.projection_dict = AutoDict()
-        for tiling in self.ctx.tiling_list:
-            self.projection_dict['erp'][tiling] = self.build_projection(proj_name='erp', tiling=tiling,
-                                                                        proj_res='1080x540', vp_res='660x540',
-                                                                        fov_res=self.config.fov)
-            self.projection_dict['cmp'][tiling] = self.build_projection(proj_name='cmp', tiling=tiling,
-                                                                        proj_res='1080x540', vp_res='660x540',
-                                                                        fov_res=self.config.fov)
+    def init(self):
+        self.get_tiles_paths = GetTilesPaths(self.config, self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.projection_dict = self.create_projections_dict()
 
-    @staticmethod
-    def build_projection(proj_name, proj_res, tiling, vp_res, fov_res):
-        if proj_name == 'erp':
-            projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-        elif proj_name == 'cmp':
-            projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-        else:
-            raise TypeError(f'Unknown projection name: {proj_name}')
-        return projection
+    def for_each_user(self):
+        ...
 
     def process(self):
         for self.ctx.name in self.ctx.name_list:
@@ -65,13 +46,54 @@ class GetTiles(Worker):
                     for self.ctx.user in self.ctx.users_list:
                         self.for_each_user()
 
+    def create_projections_dict(self):
+        projection_dict = AutoDict()
+        for tiling in self.ctx.tiling_list:
+            erp = build_projection(proj_name='erp', tiling=tiling,
+                                   proj_res='1080x540', vp_res='660x540',
+                                   fov_res=self.config.fov)
+            cmp = build_projection(proj_name='cmp', tiling=tiling,
+                                   proj_res='1080x540', vp_res='660x540',
+                                   fov_res=self.config.fov)
+
+            projection_dict['erp'][tiling] = erp
+            projection_dict['cmp'][tiling] = cmp
+        return projection_dict
+
+    @property
+    def user_hmd_data(self) -> list:
+        return self.ctx.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
+
+    _results: dict
+
+    @property
+    def results(self):
+        try:
+            value = self._results[self.ctx.name]
+            value = value[self.ctx.projection]
+            value = value[self.ctx.tiling]
+            value = value[self.ctx.user]
+        except KeyError:
+            value = None
+        return value
+
+    @results.setter
+    def results(self, value):
+        _results = self._results[self.ctx.name]
+        _results = _results[self.ctx.projection]
+        _results = _results[self.ctx.tiling]
+        _results = _results[self.ctx.user]
+        _results.update(value)
+
+    def reset_results(self, data_type=dict):
+        self._results = data_type()
+
+
+class GetTiles(GetTilesBase):
     def for_each_user(self):
         print(f'==== GetTiles {self.ctx} ====')
         try:
             self.get_tiles_by_video()
-            # self.count_tiles()
-            # self.heatmap()
-            # self.plot_test()
         except (HMDDatasetError, GetTilesOkError) as e:
             print_error(f'\t{e.args[0]}')
 
@@ -109,28 +131,34 @@ class GetTiles(Worker):
 
     def assert_user_hmd_data(self):
         if self.user_hmd_data == {}:
-            self.logger.register_log(f'HMD samples is missing, user{self.ctx.user}', self.get_tiles_paths.dataset_json)
-            raise HMDDatasetError(f'HMD samples is missing, user{self.ctx.user}')
+            self.logger.register_log(f'HMD samples is missing, '
+                                     f'user{self.ctx.user}',
+                                     self.get_tiles_paths.dataset_json)
+            raise HMDDatasetError(f'HMD samples is missing, '
+                                  f'user{self.ctx.user}')
 
-    def get_tiles_seen_by_frame(self, user_hmd_data):
+    def get_tiles_seen_by_frame(self, user_hmd_data) -> list[list[str]]:
         if self.ctx.tiling == '1x1':
             return [["0"]] * self.config.n_frames
 
         tiles_seen_by_frame = []
-        projection_obj = self.projection_dict[self.ctx.projection][self.ctx.tiling]
+        projection_obj = self.projection_dict[self.ctx.projection]
+        projection_obj = projection_obj[self.ctx.tiling]
 
         for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
             print(f'\r\tframe {frame:04d}/{self.config.n_frames}', end='')
-            vptiles: list[str] = projection_obj.get_vptiles(yaw_pitch_roll)
-            vptiles = list(map(str, map(int, vptiles)))
+            vptiles = projection_obj.get_vptiles(yaw_pitch_roll)
+            vptiles: list[str] = list(map(str, map(int, vptiles)))
             tiles_seen_by_frame.append(vptiles)
         return tiles_seen_by_frame
 
     def get_tiles_seen_by_chunk(self, tiles_seen_by_frame):
-        if self.ctx.tiling == '1x1':
-            return {str(i): ["0"] for i in range(1, int(self.config.duration) + 1)}
-
         tiles_seen_by_chunk = {}
+
+        if self.ctx.tiling == '1x1':
+            duration = int(self.config.duration)
+            return {str(i): ["0"] for i in range(1, duration + 1)}
+
         tiles_in_chunk = set()
         for frame, vptiles in enumerate(tiles_seen_by_frame):
             tiles_in_chunk.update(vptiles)
@@ -140,41 +168,6 @@ class GetTiles(Worker):
                 tiles_seen_by_chunk[f'{chunk_id}'] = list(tiles_in_chunk)
                 tiles_in_chunk.clear()
         return tiles_seen_by_chunk
-
-    user_hmd_data: dict
-
-    @property
-    def user_hmd_data(self) -> list:
-        return self.ctx.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
-
-    results: AutoDict
-
-    def heatmap(self):
-        results = load_json(self.get_tiles_paths.counter_tiles_json)
-
-        for self.ctx.tiling in self.ctx.tiling_list:
-            if self.ctx.tiling == '1x1': continue
-
-            filename = (f'heatmap_tiling_nasrabadi_28videos_{self.ctx.projection}_{self.ctx.name}_'
-                        f'{self.ctx.tiling}_fov{self.config.fov}.png')
-            heatmap_tiling = (self.get_tiles_paths.get_tiles_folder / filename)
-            if heatmap_tiling.exists(): continue
-
-            tiling_result = results[self.ctx.tiling]
-
-            h, w = splitx(self.ctx.tiling)[::-1]
-            grade = np.zeros((h * w,))
-
-            for item in tiling_result: grade[int(item)] = tiling_result[item]
-            grade = grade.reshape((h, w))
-
-            fig, ax = plt.subplots()
-            im = ax.imshow(grade, cmap='jet', )
-            ax.set_title(f'Tiling {self.ctx.tiling}')
-            fig.colorbar(im, ax=ax, label='chunk frequency')
-
-            # fig.show()
-            fig.savefig(f'{heatmap_tiling}')
 
     def count_tiles(self):
         if self.get_tiles_paths.counter_tiles_json.exists(): return
@@ -190,10 +183,12 @@ class GetTiles(Worker):
 
             for self.ctx.user in self.ctx.users_list:
                 result_chunks = self.results[self.ctx.projection][self.ctx.name]
-                result_chunks = result_chunks[self.ctx.tiling][self.ctx.user]['chunks']
+                result_chunks = result_chunks[self.ctx.tiling][self.ctx.user]
+                result_chunks = result_chunks['chunks']
 
                 for chunk in result_chunks:
-                    tiles_counter_chunks = tiles_counter_chunks + Counter(result_chunks[chunk])
+                    tiles_counter_chunks = (tiles_counter_chunks
+                                            + Counter(result_chunks[chunk]))
             # </editor-fold>
 
             print(tiles_counter_chunks)
@@ -212,88 +207,176 @@ class GetTiles(Worker):
 
         save_json(result, self.get_tiles_paths.counter_tiles_json)
 
-    # def plot_test(self):
-    #     # ctx.results[self.vid_proj][ctx.name][ctx.tiling][ctx.user]['frame'|'chunks']: list[list[str]] | d
-    #     ctx.results = load_json(paths.get_tiles_json)
-    #
-    #     users_list = self.seen_tiles_metric[self.vid_proj][ctx.name]['1x1']['16'].keys()
-    #
-    #     for ctx.tiling in ctx.tiling_list:
-    #         folder = self.seen_metrics_folder / f'1_{ctx.name}'
-    #         folder.mkdir(parents=True, exist_ok=True)
-    #
-    #         for ctx.user in users_list:
-    #             fig: plt.Figure
-    #             fig, ax = plt.subplots(2, 4, figsize=(12, 5), dpi=200)
-    #             ax = list(ax.flat)
-    #             ax: list[plt.Axes]
-    #
-    #             for self.quality in self.quality_list:
-    #                 result5 = defaultdict(list)    # By chunk
-    #
-    #                 for ctx.chunk in ctx.chunk_list:
-    #                     seen_tiles_metric = self.seen_tiles_metric[self.vid_proj][ctx.name][ctx.tiling]
-    #                     [self.quality][ctx.user][ctx.chunk]
-    #                     tiles_list = seen_tiles_metric['time'].keys()
-    #
-    #                     result5[f'n_tiles'].append(len(tiles_list))
-    #                     for self.metric in ['time', 'rate', 'PSNR', 'WS-PSNR', 'S-PSNR']:
-    #                         value = [seen_tiles_metric[self.metric][tile] for tile in tiles_list]
-    #                         percentile = list(np.percentile(value, [0, 25, 50, 75, 100]))
-    #                         Tempo total de um chunk (sem decodificação paralela) (soma os tempos de decodificação
-    #                         dos tiles)
-    #                         result5[f'{self.metric}_sum'].append(np.sum(value))
-    #                         tempo médio de um chunk (com decodificação paralela) (média dos tempos de decodificação
-    #                         dos tiles)
-    #                         result5[f'{self.metric}_avg'].append(np.average(value))
-    #                         result5[f'{self.metric}_std'].append(np.std(value))
-    #                         result5[f'{self.metric}_min'].append(percentile[0])
-    #                         result5[f'{self.metric}_q1'].append(percentile[1])
-    #                         result5[f'{self.metric}_median'].append(percentile[2])
-    #                         result5[f'{self.metric}_q2'].append(percentile[3])
-    #                         result5[f'{self.metric}_max'].append(percentile[4])
-    #
-    #                 ax[0].plot(result5['time_sum'], label=f'CRF{self.quality}')
-    #                 ax[1].plot(result5['time_avg'], label=f'CRF{self.quality}')
-    #                 ax[2].plot(result5['rate_sum'], label=f'CRF{self.quality}')
-    #                 ax[3].plot(result5['PSNR_avg'], label=f'CRF{self.quality}')
-    #                 ax[4].plot(result5['S-PSNR_avg'], label=f'CRF{self.quality}')
-    #                 ax[5].plot(result5['WS-PSNR_avg'], label=f'CRF{self.quality}')
-    #                 ax[6].plot(result5['n_tiles'], label=f'CRF{self.quality}')
-    #
-    #                 ax[0].set_title('time_sum')
-    #                 ax[1].set_title('time_avg')
-    #                 ax[2].set_title('rate_sum')
-    #                 ax[3].set_title('PSNR_avg')
-    #                 ax[4].set_title('S-PSNR_avg')
-    #                 ax[5].set_title('WS-PSNR_avg')
-    #                 ax[6].set_title('n_tiles')
-    #
-    #             for a in ax[:-1]:
-    #                 a.legend(loc='upper right')
-    #
-    #             fig.suptitle(f'{self.video} {ctx.tiling} - user {ctx.user}')
-    #             fig.suptitle(f'{self.video} {ctx.tiling} - user {ctx.user}')
-    #             fig.tight_layout()
-    #             # fig.show()
-    #             img_name = folder / f'{ctx.tiling}_user{ctx.user}.png'
-    #             fig.savefig(img_name)
-    #             plt.close(fig)
-    #
+
+class CreateJson(GetTilesBase):
+    def process(self):
+        for self.ctx.name in self.ctx.name_list:
+            self.reset_results(AutoDict)
+            for self.ctx.projection in self.ctx.projection_list:
+                for self.ctx.tiling in self.ctx.tiling_list:
+                    for self.ctx.user in self.ctx.users_list:
+                        self.for_each_user()
+            save_json(self.results, self.get_tiles_paths.get_tiles_json)
+
+    def for_each_user(self):
+        tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
+        self.results = tiles_seen
 
 
-def print_tiles(proj: ProjectionBase, vptiles: list):
+class HeatMap(GetTilesBase):
+    def for_each_user(self):
+        print(f'==== GetTiles {self.ctx} ====')
+        try:
+            self.heatmap()
+        except (HMDDatasetError, GetTilesOkError) as e:
+            print_error(f'\t{e.args[0]}')
+
+    def heatmap(self):
+        results = load_json(self.get_tiles_paths.counter_tiles_json)
+
+        if self.ctx.tiling == '1x1': return
+
+        filename = (f'heatmap_tiling_nasrabadi_28videos_{self.ctx.projection}_{self.ctx.name}_'
+                    f'{self.ctx.tiling}_fov{self.config.fov}.png')
+        heatmap_tiling = (self.get_tiles_paths.get_tiles_folder / filename)
+        if heatmap_tiling.exists(): return
+
+        tiling_result = results[self.ctx.tiling]
+
+        h, w = splitx(self.ctx.tiling)[::-1]
+        grade = np.zeros((h * w,))
+
+        for item in tiling_result: grade[int(item)] = tiling_result[item]
+        grade = grade.reshape((h, w))
+
+        fig, ax = plt.subplots()
+        im = ax.imshow(grade, cmap='jet', )
+        ax.set_title(f'Tiling {self.ctx.tiling}')
+        fig.colorbar(im, ax=ax, label='chunk frequency')
+
+        # fig.show()
+        fig.savefig(f'{heatmap_tiling}')
+
+
+class TestGetTiles(GetTilesBase):
+    def for_each_user(self):
+        print(f'==== GetTiles {self.ctx} ====')
+        try:
+            self.plot_stats()
+        except (HMDDatasetError, GetTilesOkError) as e:
+            print_error(f'\t{e.args[0]}')
+
+    def init(self):
+        super().init()
+        self.ctx.results = load_json(self.get_tiles_paths.get_tiles_json)
+        pass
+
+    def plot_stats(self):
+        fig: plt.Figure
+        ax: Union[np.ndarray, list]
+        fig, ax = plt.subplots(2, 4, figsize=(12, 5), dpi=200)
+        ax = list(ax.flat)
+        ax: list[plt.Axes]
+
+        for self.ctx.quality in '28':
+            from collections import defaultdict
+            result5 = defaultdict(list)  # By chunk
+
+            for self.ctx.chunk in self.ctx.chunk_list:
+                seen_tiles_metric = self.seen_tiles_metric[self.ctx.name][self.ctx.projection][self.ctx.tiling]
+                [self.quality][self.ctx.user][self.ctx.chunk]
+                tiles_list = seen_tiles_metric['time'].keys()
+
+                result5[f'n_tiles'].append(len(tiles_list))
+                for self.metric in ['time', 'rate', 'PSNR', 'WS-PSNR', 'S-PSNR']:
+                    value = [seen_tiles_metric[self.metric][tile] for tile in tiles_list]
+                    percentile = list(np.percentile(value, [0, 25, 50, 75, 100]))
+                    # Tempo
+                    # total
+                    # de
+                    # um
+                    # chunk(sem
+                    # decodificação
+                    # paralela) (soma os tempos de decodificação
+                    # dos tiles)
+                    # result5[f'{self.metric}_sum'].append(np.sum(value))
+                    # tempo
+                    # médio
+                    # de
+                    # um
+                    # chunk(com
+                    # decodificação
+                    # paralela) (média dos tempos de decodificação
+                    # dos tiles)
+                    result5[f'{self.metric}_avg'].append(np.average(value))
+                    result5[f'{self.metric}_std'].append(np.std(value))
+                    result5[f'{self.metric}_min'].append(percentile[0])
+                    result5[f'{self.metric}_q1'].append(percentile[1])
+                    result5[f'{self.metric}_median'].append(percentile[2])
+                    result5[f'{self.metric}_q2'].append(percentile[3])
+                    result5[f'{self.metric}_max'].append(percentile[4])
+
+            ax[0].plot(result5['time_sum'], label=f'CRF{self.quality}')
+            ax[1].plot(result5['time_avg'], label=f'CRF{self.quality}')
+            ax[2].plot(result5['rate_sum'], label=f'CRF{self.quality}')
+            ax[3].plot(result5['PSNR_avg'], label=f'CRF{self.quality}')
+            ax[4].plot(result5['S-PSNR_avg'], label=f'CRF{self.quality}')
+            ax[5].plot(result5['WS-PSNR_avg'], label=f'CRF{self.quality}')
+            ax[6].plot(result5['n_tiles'], label=f'CRF{self.quality}')
+
+            ax[0].set_title('time_sum')
+            ax[1].set_title('time_avg')
+            ax[2].set_title('rate_sum')
+            ax[3].set_title('PSNR_avg')
+            ax[4].set_title('S-PSNR_avg')
+            ax[5].set_title('WS-PSNR_avg')
+            ax[6].set_title('n_tiles')
+
+        for a in ax[:-1]:
+            a.legend(loc='upper right')
+
+        fig.suptitle(f'{self.video} {self.ctx.tiling} - user {self.ctx.user}')
+        fig.suptitle(f'{self.video} {self.ctx.tiling} - user {self.ctx.user}')
+        fig.tight_layout()
+        # fig.show()
+        img_name = self.folder / f'{self.ctx.tiling}_user{self.ctx.user}.png'
+        fig.savefig(img_name)
+        plt.close(fig)
+
+
+def build_projection(proj_name, proj_res, tiling, vp_res, fov_res) -> ProjectionBase:
+    if proj_name == 'erp':
+        projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+    elif proj_name == 'cmp':
+        projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+    else:
+        raise TypeError(f'Unknown projection name: {proj_name}')
+    return projection
+
+
+def print_tiles(proj: ProjectionBase, vptiles: list,
+                yaw_pitch_roll: Union[tuple, np.ndarray] = None):
+    if yaw_pitch_roll is not None:
+        proj.yaw_pitch_roll = yaw_pitch_roll
     shape = proj.canvas.shape
+
+    # convert fig_all_tiles_borders to RGB
     fig_all_tiles_borders = draw.draw_all_tiles_borders(projection=proj)
     fig_all_tiles_borders_ = np.array([fig_all_tiles_borders,
-                                      fig_all_tiles_borders,
-                                      fig_all_tiles_borders]).transpose([1,2,0])
+                                       fig_all_tiles_borders,
+                                       fig_all_tiles_borders])
+    fig_all_tiles_borders_ = fig_all_tiles_borders_.transpose([1, 2, 0])
+
+    # Get vp tiles
     fig_vp_tiles = np.zeros(shape, dtype='uint8')
     for tile in vptiles:
         fig_vp_tiles = fig_vp_tiles + draw.draw_tile_border(projection=proj, idx=int(tile), lum=255)
 
-    fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
+    # get vp
     vp = draw.draw_vp_borders(projection=proj)
+
+    # Compose
+    fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
     fig_final = draw.compose(fig_final, vp, (0, 0, 255))
     draw.show(fig_final)
 
