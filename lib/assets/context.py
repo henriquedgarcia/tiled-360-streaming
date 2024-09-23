@@ -1,8 +1,9 @@
 from math import prod
 
+from py360tools.utils import LazyProperty
+
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from py360tools.utils import LazyProperty
 from lib.utils.worker_utils import load_json, splitx
 
 
