@@ -3,7 +3,7 @@ from math import prod
 from config.config import Config
 from lib.assets.autodict import AutoDict
 from py360tools.utils import LazyProperty
-from lib.utils.util import splitx, load_json
+from lib.utils.worker_utils import load_json, splitx
 
 
 class Context:
@@ -70,7 +70,7 @@ class Context:
 
     @LazyProperty
     def quality_list(self):
-        return [str(quality) for quality in self.config.quality_list]
+        return list(map(str, self.config.quality_list))
 
     @LazyProperty
     def tiling_list(self):
