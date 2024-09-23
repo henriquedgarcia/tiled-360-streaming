@@ -6,7 +6,7 @@ from lib.assets.errors import AbortError
 from lib.assets.errors import ChunksOkError
 from lib.assets.logger import Logger
 from lib.utils.context_utils import context_chunk
-from lib.utils.util import print_error, decode_video, splitx, run_command
+from lib.utils.worker_utils import decode_video, splitx, print_error, run_command
 from lib.assets.worker import Worker
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 
