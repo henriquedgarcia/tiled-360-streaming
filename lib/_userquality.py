@@ -15,7 +15,7 @@ from .assets.paths.tilequalitypaths import TileChunkQualityPaths
 from lib.assets.autodict import AutoDict
 from py360tools import ERP, CMP
 from py360tools import ProjectionBase
-from lib.utils.util import load_json, save_json, idx2xy, splitx
+from .utils.worker_utils import save_json, load_json, splitx, idx2xy
 
 pi = np.pi
 pi2 = np.pi * 2
