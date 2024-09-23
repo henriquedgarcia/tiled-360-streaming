@@ -19,7 +19,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.worker import Worker
 from lib.assets.paths import Paths
-from lib.utils.util import load_json, save_json, save_pickle, load_pickle
+from lib.utils.worker_utils import save_json, load_json, save_pickle, load_pickle
 
 
 class DectimeGraphsPaths(Paths):
