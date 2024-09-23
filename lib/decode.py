@@ -85,9 +85,15 @@ class Decode(Worker):
             self.assert_dectime_log()
 
     def get_turn(self):
-        turn = count_decoding(self.dectime_paths.dectime_log)
-        if turn == 0:
-            self.clean_dectime_log()
+        try:
+            turn = count_decoding(self.dectime_paths.dectime_log)
+        except UnicodeDecodeError:
+            print('ERROR: UnicodeDecodeError. Cleaning.')
+            self.dectime_paths.dectime_log.unlink()
+            turn = 0
+        except FileNotFoundError:
+            print('ERROR: FileNotFoundError. Return 0.')
+            turn = 0
         return turn
 
     def assert_dectime_log(self):
