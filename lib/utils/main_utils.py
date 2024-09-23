@@ -4,9 +4,9 @@ from lib.segmenter import Segmenter
 from lib.decode import Decode
 from lib.get_tiles import GetTiles
 from lib.getbitrate import GetBitrate
-from lib.make_siti import MakeSiti
+# from lib.make_siti import MakeSiti
 from lib.getdectime import GetDectime
-from lib.tilequality import TileQuality
+from lib.tilequality import TileChunkQuality
 from lib.renamer_and_checker import RenamerAndCheck
 
 path_config = Path('config')
@@ -35,8 +35,8 @@ videos_dict = {'full': path_config / 'videos_0_full.json',              # 0
 worker_dict = {'Segmenter': Segmenter,              # 0
                'Decode': Decode,                    # 1
                'GetTiles': GetTiles,                # 2
-               'TileQuality': TileQuality,
-               'MakeSiti': MakeSiti,                # 4
+               'TileQuality': TileChunkQuality,
+               # 'MakeSiti': MakeSiti,                # 4
                'GetBitrate': GetBitrate,            # 3
                'GetDectime': GetDectime,            # 5
                'RenamerAndCheck': RenamerAndCheck}  # 6
