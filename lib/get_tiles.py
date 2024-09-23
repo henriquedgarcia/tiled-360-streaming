@@ -12,7 +12,7 @@ from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.paths.gettilespaths import GetTilesPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
-from lib.utils.util import load_json, save_json, splitx, print_error
+from lib.utils.worker_utils import save_json, load_json, splitx, print_error
 
 
 # "Videos 10,17,27,28 were rotated 265, 180,63,81 degrees to right,
