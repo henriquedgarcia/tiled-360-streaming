@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from PIL import Image
+from py360tools import ERP, CMP
+from py360tools import ProjectionBase
 from skimage.metrics import structural_similarity as ssim, mean_squared_error as mse
 from skvideo.io import FFmpegReader
 
+from lib.assets.autodict import AutoDict
 # import lib.erp as v360
 from .assets.paths.tilequalitypaths import TileChunkQualityPaths
-from lib.assets.autodict import AutoDict
-from py360tools import ERP, CMP
-from py360tools import ProjectionBase
 from .utils.worker_utils import save_json, load_json, splitx, idx2xy
 
 pi = np.pi
