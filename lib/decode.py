@@ -3,7 +3,7 @@ from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
 from lib.segmenter import assert_one_chunk_video
-from lib.utils.util import decode_video, get_times, print_error
+from lib.utils.worker_utils import decode_video, print_error, count_decoding
 
 
 class Decode(Worker):
@@ -85,7 +85,7 @@ class Decode(Worker):
             self.assert_dectime_log()
 
     def get_turn(self):
-        turn = len(get_times(self.dectime_paths.dectime_log))
+        turn = count_decoding(self.dectime_paths.dectime_log)
         if turn == 0:
             self.clean_dectime_log()
         return turn
