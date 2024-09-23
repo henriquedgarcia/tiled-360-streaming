@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 from lib.assets.worker import Worker
 from lib.utils.siti import SiTi
-from lib.utils.util import load_json
+from lib.utils.worker_utils import load_json
 
 
 class MakeSiti(Worker):
