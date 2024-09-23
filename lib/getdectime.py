@@ -2,7 +2,7 @@ from typing import Any
 
 from lib.assets.autodict import AutoDict
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, print_error, load_json, get_times
+from lib.utils.worker_utils import save_json, load_json, get_times, print_error
 
 
 class GetDectime(Worker):
