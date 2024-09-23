@@ -28,8 +28,8 @@ class TileChunkQualityPaths:
         return folder
 
     @property
-    def tile_chunk_quality_csv(self) -> Path:
-        filename = f'tile{self.ctx.tile}_{int(self.ctx.chunk):03d}.csv'
+    def tile_chunk_quality_json(self) -> Path:
+        filename = f'tile{self.ctx.tile}_{int(self.ctx.chunk):03d}.json'
         return self.tile_chunk_quality_folder / filename
 
     @property
