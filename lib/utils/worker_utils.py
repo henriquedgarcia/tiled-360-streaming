@@ -7,11 +7,9 @@ from typing import Union
 
 import numpy as np
 import skvideo.io
-from py360tools.transform import ea2nm, ea2nm_face
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
-from lib.assets.context import Context
 
 
 def __geral__(): ...
@@ -110,94 +108,6 @@ def make_tile_position_dict(video_shape, tiling_list):
 
 
 def __masks__(): ...
-
-
-def load_sph_file(ctx: Context) -> np.ndarray:
-    """
-    Load 655362 sample points (elevation, azimuth). Angles in degree.
-
-    :return:
-    """
-
-    sph_points_mask_file = Path(f'datasets/sph_points_mask.pickle')
-
-    try:
-        sph_points_mask = load_pickle(sph_points_mask_file)
-    except FileNotFoundError:
-        sph_points_mask = process_sphere_file(ctx)
-        save_pickle(sph_points_mask, sph_points_mask_file)
-    return sph_points_mask
-
-
-def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
-    sph_file = Path('datasets/sphere_655362.txt')
-    sph_file_lines = sph_file.read_text().splitlines()[1:]
-    sph_points_mask = {}
-
-    for ctx.projection in ctx.projection_list:
-        video_shape = ctx.video_shape
-        sph_points_mask[ctx.projection] = np.zeros(video_shape)
-
-        # for each line (sample), convert to cartesian system and horizontal system
-        for line in sph_file_lines:
-            el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
-
-            ea = np.array([[az], [el]])
-            proj_shape = video_shape
-
-            if ctx.projection == 'erp':
-                m, n = ea2nm(ea=ea, proj_shape=proj_shape)
-            elif ctx.projection == 'cmp':
-                (m, n), face = ea2nm_face(ea=ea, proj_shape=proj_shape)
-            else:
-                raise ValueError(f'Projection must be "erp" or "cmp".')
-
-            sph_points_mask[ctx.projection][n, m] = 1
-    return sph_points_mask
-
-
-def load_weight_ndarray(ctx: Context) -> np.ndarray:
-    """
-    Load 655362 sample points (elevation, azimuth). Angles in degree.
-
-    :return:
-    """
-
-    sph_points_mask_file = Path(f'datasets/weight_ndarray.pickle')
-
-    try:
-        sph_points_mask = load_pickle(sph_points_mask_file)
-    except FileNotFoundError:
-        sph_points_mask = process_sphere_file(ctx)
-        save_pickle(sph_points_mask, sph_points_mask_file)
-    return sph_points_mask
-
-
-def make_weight_ndarray(ctx: Context):
-    weight_array = {}
-
-    proj_h, proj_w = ctx.video_shape
-    pi_proj = np.pi / proj_h
-    proj_h_2 = 0.5 - proj_h / 2
-    r = proj_h / 4
-    r1 = 0.5 - r
-    r2 = r ** 2
-
-    def func(y, x):
-        w = np.cos((y + proj_h_2) * pi_proj)
-        return w
-
-    weight_array['erp'] = np.fromfunction(func, (proj_h, proj_w), dtype=float)
-
-    def func(y, x):
-        x = x % r
-        y = y % r
-        d = (x + r1) ** 2 + (y + r1) ** 2
-        w = (1 + d / r2) ** (-1.5)
-        return w
-
-    weight_array['cmp'] = np.fromfunction(func, (proj_h, proj_w), dtype=float)
-    return weight_array
 
 
 def __misc__(): ...
