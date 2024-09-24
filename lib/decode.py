@@ -84,24 +84,16 @@ class Decode(Worker):
         if not self.status.get_status('dectime_ok'):
             self.assert_dectime_log()
 
-    def get_turn(self):
-        try:
-            turn = count_decoding(self.dectime_paths.dectime_log)
-        except UnicodeDecodeError:
-            print('ERROR: UnicodeDecodeError. Cleaning.')
-            self.dectime_paths.dectime_log.unlink()
-            turn = 0
-        except FileNotFoundError:
-            print('ERROR: FileNotFoundError. Return 0.')
-            turn = 0
-        return turn
-
     def assert_dectime_log(self):
         try:
-            self.ctx.turn = self.get_turn()
+            self.ctx.turn = count_decoding(self.dectime_paths.dectime_log)
         except FileNotFoundError:
             self.ctx.turn = 0
             raise FileNotFoundError('dectime_log not exist.')
+        except UnicodeDecodeError:
+            self.dectime_paths.dectime_log.unlink()
+            self.ctx.turn = 0
+            raise FileNotFoundError('dectime_log UnicodeDecodeError.')
 
     def check_chunk(self):
         try:
