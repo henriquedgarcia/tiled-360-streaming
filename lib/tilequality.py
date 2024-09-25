@@ -269,6 +269,7 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
         save_json(chunk_quality, self.tile_chunk_quality_paths.tile_chunk_quality_json)
         print(f"\ttime={time() - start}.")
 
+    tile_chunk_quality_dict: dict
 
 
     def iterator(self):
@@ -421,7 +422,7 @@ class CollectQuality(TileChunkQuality):
             return
 
         # https://ffmpeg.org/ffmpeg-filters.html#psnr
-        chunk_quality_df = self.chunk_quality_df[self.metric_list]
+        chunk_quality_df = self.tile_chunk_quality_dict[self.metric_list]
         chunk_quality_dict = chunk_quality_df.to_dict(orient='list')
 
         if self.chunk_results == chunk_quality_dict:
@@ -435,7 +436,6 @@ class CollectQuality(TileChunkQuality):
 
 
 class MakePlot(CollectQuality):
-    chunk_quality_df: pd.DataFrame
     _skip: bool
     change_flag: bool
     folder: Path
