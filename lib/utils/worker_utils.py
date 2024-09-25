@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+from functools import reduce
 from pathlib import Path
 from subprocess import STDOUT, PIPE, Popen
 from typing import Union
@@ -107,9 +108,6 @@ def make_tile_position_dict(video_shape, tiling_list):
     return tile_position_dict
 
 
-def __masks__(): ...
-
-
 def __misc__(): ...
 
 
@@ -153,6 +151,16 @@ def decode_video(filename, threads=None):
 
     process, stdout = run_command(cmd)
     return stdout
+
+
+def get_nested_value(data, keys):
+    """Fetch value from nested dict using a list of keys."""
+    try:
+        return reduce(lambda d, key: d[key], keys, data)
+    except KeyError as e:
+        raise KeyError(f"Key not found: {e}")
+    except TypeError as e:
+        raise TypeError(f"Invalid structure: {e}")
 
 
 def run_command(cmd, folder=None, log_file=None, mode='w'):
