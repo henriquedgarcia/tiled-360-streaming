@@ -9,3 +9,4 @@ __pycache__
 *.png
 /lib/data_test
 /lib/images
+*.json
