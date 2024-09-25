@@ -215,6 +215,7 @@ class CreateJson(GetTilesBase):
             save_json(self.results, self.get_tiles_paths.get_tiles_json)
 
     def for_each_user(self):
+        print(f'==== CreateJson {self.ctx} ====')
         tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
         self.results = tiles_seen
 
