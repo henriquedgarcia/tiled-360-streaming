@@ -239,8 +239,9 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
 
         for _ in self.iterator():
             try:
+                print(f'==== Segmenter {self.ctx} ====')
                 self.work()
-            except AbortError as e:
+            except (AbortError, FileNotFoundError) as e:
                 print_error('\t' + e.args[0])
 
     def init(self):
