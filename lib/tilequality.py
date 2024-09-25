@@ -274,7 +274,7 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
 
     def iterator(self):
         for self.name in self.name_list:
-            for self.proj in self.projection_list:
+            for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.quality in self.quality_list:
                         for self.tile in self.tile_list:
