@@ -49,12 +49,12 @@ class TileChunkQualityProps:
         self.ctx.projection = value
 
     @property
-    def quality(self):
-        return self.ctx.quality
-
-    @property
     def quality_list(self):
         return self.ctx.quality_list
+
+    @property
+    def quality(self):
+        return self.ctx.quality
 
     @quality.setter
     def quality(self, value):
