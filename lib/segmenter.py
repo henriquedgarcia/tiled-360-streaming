@@ -181,25 +181,22 @@ class CheckChunks:
     def check_chunks(self, decode_check=False):
         if not self.status.get_status('segmenter_ok'):
             try:
-                self.assert_chunks(decode_check=decode_check)
-
+                self.assert_chunks()
+                self.status.update_status('segmenter_ok', True)
+                if decode_check:
+                    self.assert_chunks_decode()
+                    self.status.update_status('chunks_decode_ok', True)
             except FileNotFoundError:
-                print_error(f'\tChunks not Found.')
+                self.clean_segmenter()
                 self.status.update_status('segmenter_ok', False)
+                self.status.update_status('chunks_decode_ok', False)
                 return
-
-            self.status.update_status('segmenter_ok', True)
 
         raise ChunksOkError(f'Segmenter is OK. Skipping.')
 
-    def assert_chunks(self, decode_check=False):
-        try:
-            self.assert_segmenter_log()
-            self.assert_chunks_video()
-            self.check_chunks_decode(decode_check)
-        except FileNotFoundError as e:
-            self.clean_segmenter()
-            raise e
+    def assert_chunks(self):
+        self.assert_segmenter_log()
+        self.assert_chunks_video()
 
     def assert_segmenter_log(self):
         try:
@@ -222,14 +219,7 @@ class CheckChunks:
         with context_chunk(self.ctx, None):
             for self.ctx.chunk in self.ctx.chunk_list:
                 assert_one_chunk_video(self.ctx, self.logger, self.segmenter_paths.chunk_video)
-
         return 'all ok'
-
-    def check_chunks_decode(self, decode_check=False):
-        if decode_check:
-            if not self.status.get_status('chunks_decode_ok'):
-                self.assert_chunks_decode()
-                self.status.update_status('chunks_decode_ok', True)
 
     def assert_chunks_decode(self):
         print(f'\tDecoding chunks', end='')
@@ -238,7 +228,6 @@ class CheckChunks:
                 print('.', end='')
                 self.assert_one_chunk_decode()
             print(f'. OK')
-        self.status.update_status('chunks_decode_ok', False)
 
     def assert_one_chunk_decode(self):
         chunk_video = self.segmenter_paths.chunk_video
