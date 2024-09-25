@@ -269,15 +269,7 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
         save_json(chunk_quality, self.tile_chunk_quality_paths.tile_chunk_quality_json)
         print(f"\ttime={time() - start}.")
 
-    def read_video_quality_json(self):
-        try:
-            self.chunk_quality_df = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
-        except FileNotFoundError as e:
-            print(f'\n\t\tCSV_NOTFOUND_ERROR')
-            self.logger.register_log('CSV_NOTFOUND_ERROR', self.tile_chunk_quality_paths.tile_chunk_quality_json)
-            raise e
 
-        self.check_video_quality_csv()
 
     def iterator(self):
         for self.name in self.name_list:
@@ -383,6 +375,14 @@ class CollectQuality(TileChunkQuality):
                 for self.tile in self.tile_list:
                     for self.chunk in self.chunk_list:
                         yield
+
+    def read_video_quality_json(self):
+        try:
+            self.tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
+        except FileNotFoundError as e:
+            print(f'\n\t\tCSV_NOTFOUND_ERROR')
+            self.logger.register_log('CSV_NOTFOUND_ERROR', self.tile_chunk_quality_paths.tile_chunk_quality_json)
+            raise e
 
     def quality_json_exist(self, check_result=False):
         try:
