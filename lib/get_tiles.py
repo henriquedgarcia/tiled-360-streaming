@@ -12,7 +12,8 @@ from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.paths.gettilespaths import GetTilesPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
-from lib.utils.worker_utils import save_json, load_json, splitx, print_error
+from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
+                                    get_nested_value)
 
 
 # "Videos 10,17,27,28 were rotated 265, 180,63,81 degrees to right,
@@ -68,22 +69,17 @@ class GetTilesBase(Worker):
 
     @property
     def results(self):
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.tiling, self.ctx.user]
         try:
-            value = self._results[self.ctx.name]
-            value = value[self.ctx.projection]
-            value = value[self.ctx.tiling]
-            value = value[self.ctx.user]
+            value = get_nested_value(self._results, keys)
         except KeyError:
             value = None
         return value
 
     @results.setter
     def results(self, value):
-        _results = self._results[self.ctx.name]
-        _results = _results[self.ctx.projection]
-        _results = _results[self.ctx.tiling]
-        _results = _results[self.ctx.user]
-        _results.update(value)
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.tiling, self.ctx.user]
+        get_nested_value(self._results, keys).update(value)
 
     def reset_results(self, data_type=dict):
         self._results = data_type()
