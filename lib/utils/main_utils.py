@@ -35,9 +35,9 @@ videos_dict = {'full': path_config / 'videos_0_full.json',  # 0
 worker_dict = {'Segmenter': Segmenter,  # 0
                'Decode': Decode,  # 1
                'GetTiles': GetTiles,  # 2
-               'TileQuality': TileChunkQuality,
-               # 'MakeSiti': MakeSiti,                # 4
-               'GetBitrate': GetBitrate,  # 3
+               'TileQuality': TileChunkQuality,  # 3
+               # 'MakeSiti': MakeSiti,
+               'GetBitrate': GetBitrate,  # 4
                'GetDectime': GetDectime,  # 5
                'RenamerAndCheck': RenamerAndCheck}  # 6
 
