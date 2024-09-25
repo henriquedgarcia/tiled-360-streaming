@@ -247,13 +247,9 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
     def init(self):
         self.tile_chunk_quality_paths = TileChunkQualityPaths(self.config, self.ctx)
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
-        self.quality_list.remove('0')
         self.quality_metrics = QualityMetrics(self.ctx)
 
     def work(self):
-        print(f'\r{self.ctx}: ')
-        print(f'==== Segmenter {self.ctx} ====')
-
         self.check_tile_chunk_quality()
 
         chunk_quality = defaultdict(list)
