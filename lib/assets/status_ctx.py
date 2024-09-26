@@ -33,7 +33,7 @@ class StatusCtx:
 
     @property
     def status_filename(self):
-        return Path(f'log/status_{self.config.project_folder.name}_{self.cls_name}.json')
+        return Path(f'log/status_{self.cls_name}_{self.config.project_folder.name}.json')
 
     def update_status(self, key, value):
         """
