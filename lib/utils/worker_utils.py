@@ -166,20 +166,22 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w'):
+def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix=''):
     """
 
     :param cmd:
     :param folder:
     :param log_file:
     :param mode: like used by open()
+    :param ui_prefix:
+    :param ui_suffix:
     :return:
     """
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
 
     ui = LoadingUi()
-    ui.start()
+    ui.start(prefix=ui_prefix)
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     stdout_lines = [cmd + '\n']
 
@@ -189,7 +191,7 @@ def run_command(cmd, folder=None, log_file=None, mode='w'):
             break
         stdout_lines.append(out)
         ui.increment()
-    ui.end()
+    ui.end(suffix=ui_suffix)
 
     if log_file is not None:
         with open(log_file, mode) as f:
