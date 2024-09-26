@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from lib.assets.autodict import AutoDict
+from lib.utils.worker_utils import get_nested_value
 
 
 class StatusCtx:
@@ -42,19 +43,12 @@ class StatusCtx:
         :param key:
         :return:
         """
-        status = self.status
-        for item in ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk']:
-            if status[item] is None: continue
-            status = status[item]
-        status[key] = value
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.quality, self.ctx.tiling, self.ctx.tile, self.ctx.chunk]
+        get_nested_value(self.status, keys).update({key: value})
 
     def get_status(self, key=None):
-        status = self.status
-        for item in self.ctx:
-            status = status[item]
-        if key is None:
-            return status
-        return status[key]
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.quality, self.ctx.tiling, self.ctx.tile, self.ctx.chunk]
+        return get_nested_value(self.status, keys)[key]
 
     def save_status(self):
         print('Saving Status.')
