@@ -222,16 +222,16 @@ class CheckChunks:
         return 'all ok'
 
     def assert_chunks_decode(self):
-        print(f'\tDecoding chunks', end='')
+        print(f'\tDecoding chunks')
         with context_chunk(self.ctx, None):
             for self.ctx.chunk in self.ctx.chunk_list:
-                print('.', end='')
+                print(f'\r\t\tchunk{self.ctx.chunk}.', end='')
                 self.assert_one_chunk_decode()
-            print(f'. OK')
+        print('')
 
     def assert_one_chunk_decode(self):
         chunk_video = self.segmenter_paths.chunk_video
-        stdout = decode_video(chunk_video)
+        stdout = decode_video(chunk_video, ui_prefix='', ui_suffix='')
         if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
             self.logger.register_log(f'Segment Decode Error.', chunk_video)
             raise FileNotFoundError(f'Chunk Decode Error.')
@@ -246,7 +246,7 @@ class Segmenter(Worker, Others, CheckTiles, CheckChunks):
     def main(self):
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
         self.ctx.quality_list = ['0'] + self.ctx.quality_list
-        self.create_segments()
+        self.create_segments(decode_check=True)
 
     def create_segments(self, decode_check=False):
         for _ in self.iterate_name_projection_quality_tiling_tile():
