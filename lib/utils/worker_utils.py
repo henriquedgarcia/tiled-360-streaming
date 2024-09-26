@@ -134,11 +134,13 @@ def get_times(filename: Path, only_count=False):
     return times
 
 
-def decode_video(filename, threads=None):
+def decode_video(filename, threads=None, ui_prefix='', ui_suffix=''):
     """
     Decode the filename HEVC video with "threads".
     :param filename:
     :param threads:
+    :param ui_prefix:
+    :param ui_suffix:
     :return:
     """
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
@@ -149,7 +151,8 @@ def decode_video(filename, threads=None):
     if os.name == 'nt':
         cmd = f'bash -c "{cmd}"'
 
-    process, stdout = run_command(cmd)
+    process, stdout = run_command(cmd, ui_prefix=ui_prefix,
+                                  ui_suffix=ui_suffix)
     return stdout
 
 
