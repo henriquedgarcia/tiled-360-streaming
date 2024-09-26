@@ -218,13 +218,13 @@ def iter_frame(video_path, gray=True, dtype='float64'):
 
 class LoadingUi:
     @staticmethod
-    def start():
-        print('\t', end='')
+    def start(prefix='\t'):
+        print(f'{prefix}', end='')
 
     @staticmethod
     def increment():
         print('.', end='')
 
     @staticmethod
-    def end():
-        print('')
+    def end(suffix='\n'):
+        print(f'{suffix}', end='')
