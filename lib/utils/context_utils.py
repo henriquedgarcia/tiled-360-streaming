@@ -23,4 +23,4 @@ def context_quality(ctx, config, quality='0', rate_control='crf'):
         yield
     finally:
         ctx.quality = qlt
-        ctx.rate_control = rc
+        config.rate_control = rc
