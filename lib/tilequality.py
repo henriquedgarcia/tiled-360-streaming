@@ -14,11 +14,11 @@ from skimage.metrics import structural_similarity
 from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.errors import AbortError
-from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.paths.tilequalitypaths import TileChunkQualityPaths
 from lib.assets.worker import Worker
-from lib.utils.worker_utils import (make_tile_position_dict, save_json, load_json, iter_frame, print_error, load_pickle, save_pickle)
+from lib.utils.worker_utils import (make_tile_position_dict, save_json, load_json, iter_frame, print_error, load_pickle,
+                                    save_pickle, get_nested_value)
 
 
 class TileChunkQualityProps:
@@ -228,7 +228,7 @@ class QualityMetrics(TileChunkQualityProps):
         # return psnr
 
 
-class TileChunkQuality(Worker, TileChunkQualityProps):
+class TileChunkQualityOriginal(Worker, TileChunkQualityProps):
     # metric_list = ['mse', 'SSIM', 'WS-MSE', 'S-MSE']
     quality_metrics: QualityMetrics
     tile_chunk_quality_paths: TileChunkQualityPaths
@@ -249,12 +249,22 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
         self.quality_metrics = QualityMetrics(self.ctx)
 
+    def iterator(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.quality in self.quality_list:
+                    for self.tiling in self.tiling_list:
+                        for self.tile in self.tile_list:
+                            for self.chunk in self.chunk_list:
+                                yield
+
     def work(self):
         self.check_tile_chunk_quality()
+        self.assert_segments()
 
-        chunk_quality = defaultdict(list)
         start = time()
 
+        chunk_quality = defaultdict(list)
         iter_reference_segment = iter_frame(self.tile_chunk_quality_paths.reference_chunk)
         iter_segment = iter_frame(self.segmenter_paths.chunk_video)
         zip_frames = zip(iter_reference_segment, iter_segment)
@@ -269,73 +279,61 @@ class TileChunkQuality(Worker, TileChunkQualityProps):
         save_json(chunk_quality, self.tile_chunk_quality_paths.tile_chunk_quality_json)
         print(f"\ttime={time() - start}.")
 
-    tile_chunk_quality_dict: dict
+    def check_tile_chunk_quality(self):
+        if not self.status.get_status('tile_chunk_quality_json_ok'):
+            try:
+                self.assert_tile_chunk_quality_json()
+            except FileNotFoundError:
+                self.status.update_status('tile_chunk_quality_json_ok', False)
+                return
+            self.status.update_status('tile_chunk_quality_json_ok', True)
+        raise AbortError('tile_chunk_quality_json is OK.')
 
-
-    def iterator(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.quality in self.quality_list:
-                        for self.tile in self.tile_list:
-                            for self.chunk in self.chunk_list:
-                                yield
-
-    def check_video_quality_csv(self):
+    def assert_tile_chunk_quality_json(self):
         chunk_quality = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
 
         if len(chunk_quality['MSE']) != int(self.config.gop):
             self.tile_chunk_quality_paths.tile_chunk_quality_json.unlink(missing_ok=True)
-            self.logger(f'MISSING_FRAMES', self.tile_chunk_quality_paths.tile_chunk_quality_json)
+            self.logger.register_log(f'MISSING_FRAMES', self.tile_chunk_quality_paths.tile_chunk_quality_json)
             raise FileNotFoundError('Missing Frames')
 
-        msg = ''
+        msg = []
         if 1 in chunk_quality['SSIM'].to_list():
-            self.logger(f'CSV SSIM has 1.', self.segmenter_paths.chunk_video)
-            msg += f'SSIM has 1. '
+            self.logger.register_log(f'SSIM has 1.', self.segmenter_paths.chunk_video)
+            msg.append('SSIM has 1.')
 
         if 0 in chunk_quality['MSE'].to_list():
-            self.logger('CSV MSE has 0.', self.segmenter_paths.chunk_video)
-            msg += f'MSE has 0. '
+            self.logger.register_log('MSE has 0.', self.segmenter_paths.chunk_video)
+            msg.append('MSE has 0.')
 
         if 0 in chunk_quality['WS-MSE'].to_list():
-            self.logger('CSV WS-MSE has 0.', self.segmenter_paths.chunk_video)
-            msg += f'WS-MSE has 0. '
+            self.logger.register_log('WS-MSE has 0.', self.segmenter_paths.chunk_video)
+            msg.append('WS-MSE has 0.')
 
         if 0 in chunk_quality['S-MSE'].to_list():
-            self.logger('CSV S-MSE has 0.', self.segmenter_paths.chunk_video)
-            msg += f'S-MSE has 0. '
-        if msg != '':
-            raise AbortError(msg)
+            self.logger.register_log('S-MSE has 0.', self.segmenter_paths.chunk_video)
+            msg.append('S-MSE has 0.')
 
-    results: AutoDict
+        if len(msg) != 0:
+            msg = "\n\t".join(msg)
+            print_error(f'\t{msg}')
 
-    @property
-    def chunk_results(self):
-        results = self.results
-        results = results[self.projection][self.name][self.tiling]
-        results = results[self.quality][self.tile][self.chunk]
-        return results
+    def assert_segments(self):
+        self.check_segment_file()
+        self.check_reference_chunk()
 
-    def check_tile_chunk_quality(self):
-
-        try:
-            self.check_video_quality_csv()
-        except FileNotFoundError:
-            return 
-
+    def check_segment_file(self):
         if not self.segmenter_paths.chunk_video.exists():
-            self.logger('segment_file NOTFOUND', self.segmenter_paths.chunk_video)
-            print_error(f'segment_file NOTFOUND')
+            self.logger.register_log('segment_file NOTFOUND', self.segmenter_paths.chunk_video)
             raise FileNotFoundError('segment_file NOTFOUND')
 
+    def check_reference_chunk(self):
         if not self.tile_chunk_quality_paths.reference_chunk.exists():
-            self.logger('reference_segment NOTFOUND', self.tile_chunk_quality_paths.reference_chunk)
-            print_error(f'reference_segment NOTFOUND')
+            self.logger.register_log('reference_segment NOTFOUND', self.tile_chunk_quality_paths.reference_chunk)
             raise FileNotFoundError('reference_segment NOTFOUND')
 
 
-class CollectQuality(TileChunkQuality):
+class CollectQuality(TileChunkQualityOriginal):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
@@ -352,71 +350,27 @@ class CollectQuality(TileChunkQuality):
         'WS-MSE': float
         'S-MSE': float
     """
-    error: bool
+    tile_chunk_quality_dict: AutoDict
 
     def main(self):
-        # self.get_tile_image()
-
-        for self.video in self.name_list:
+        for self.name in self.name_list:
             print(f'\n{self.name}')
             if self.quality_json_exist(check_result=False): continue
 
-            self.error = False
+            for self.projection in self.projection_list:
+                for self.quality in self.quality_list:
+                    for self.tiling in self.tiling_list:
+                        for self.tile in self.tile_list:
+                            for self.chunk in self.chunk_list:
+                                self.work()
 
-            for _ in self.main_loop():
-                self.work()
-
-            if self.change_flag and not self.error:
-                print('\n\tSaving.')
-                save_json(self.results, self.tile_chunk_quality_paths.video_quality_json)
-
-    def main_loop(self):
-        for self.tiling in self.tiling_list:
-            for self.quality in self.quality_list:
-                for self.tile in self.tile_list:
-                    for self.chunk in self.chunk_list:
-                        yield
-
-    def read_video_quality_json(self):
-        try:
-            self.tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
-        except FileNotFoundError as e:
-            print(f'\n\t\tCSV_NOTFOUND_ERROR')
-            self.logger.register_log('CSV_NOTFOUND_ERROR', self.tile_chunk_quality_paths.tile_chunk_quality_json)
-            raise e
-
-    def quality_json_exist(self, check_result=False):
-        try:
-            self.results = load_json(self.tile_chunk_quality_paths.video_quality_json, AutoDict)
-        except FileNotFoundError:
-            self.change_flag = True
-            self.results = AutoDict()
-            return False
-
-        print_error(f'\tThe file quality_result_json exist.')
-
-        if check_result:
-            self.change_flag = False
-            return False
-
-        return True
-
-    def check_qlt_results(self):
-        for self.metric in self.metric_list:
-            if len(self.chunk_results[self.metric]) != 30:
-                break
-        else:
-            return
+            save_json(self.tile_chunk_quality_dict, self.tile_chunk_quality_paths.video_quality_json)
 
     def work(self):
-        print(f'\r\t{self.ctx} ', end='')
-        try:
-            self.check_qlt_results()
-        except KeyError:
-            pass
+        print(f'==== CollectQuality {self.ctx} ====')
 
         try:
-            self.read_video_quality_json()
+            self.tile_chunk_quality_dict = self.read_video_quality_json()
         except (FileNotFoundError, pd.errors.EmptyDataError):
             self.error = True
             return
@@ -433,6 +387,40 @@ class CollectQuality(TileChunkQuality):
             self.change_flag = True
 
         self.chunk_results.update(chunk_quality_dict)
+
+    def read_video_quality_json(self):
+        try:
+            tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
+        except FileNotFoundError as e:
+            self.logger.register_log('CSV_NOTFOUND_ERROR', self.tile_chunk_quality_paths.tile_chunk_quality_json)
+            raise FileNotFoundError('tile_chunk_quality_json not found.')
+        return tile_chunk_quality_dict
+
+    def quality_json_exist(self, check_result=False):
+        try:
+            self.tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.video_quality_json, AutoDict)
+        except FileNotFoundError:
+            self.change_flag = True
+            self.tile_chunk_quality_dict = AutoDict()
+            return False
+
+        print_error(f'\tThe file quality_result_json exist.')
+
+        if check_result:
+            self.change_flag = False
+            return False
+
+        return True
+
+    @property
+    def chunk_results(self):
+        keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
+        return get_nested_value(self.tile_chunk_quality_dict, keys)
+
+    @chunk_results.setter
+    def chunk_results(self, value: dict):
+        keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
+        get_nested_value(self.tile_chunk_quality_dict, keys).update(value)
 
 
 class MakePlot(CollectQuality):
@@ -468,7 +456,8 @@ class MakePlot(CollectQuality):
                         self.get_tile_image()
 
     def make_tile_image(self, iter1, iter2, quality_plot_file: Path, get_serie: Callable, nrows=1, ncols=1,
-                        figsize=(8, 5), dpi=200):
+                        figsize=(8, 5), dpi=200
+                        ):
         if quality_plot_file.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
@@ -577,7 +566,6 @@ def load_weight_ndarray(ctx: Context) -> np.ndarray:
 
 
 def make_weight_ndarray(ctx: Context):
-
     proj_h, proj_w = ctx.video_shape
     pi_proj = np.pi / proj_h
     proj_h_2 = 0.5 - proj_h / 2
@@ -599,3 +587,6 @@ def make_weight_ndarray(ctx: Context):
     weight_array = {'erp': np.fromfunction(func_erp, (proj_h, proj_w), dtype=float),
                     'cmp': np.fromfunction(func_cmp, (proj_h, proj_w), dtype=float)}
     return weight_array
+
+
+TileChunkQuality = TileChunkQualityOriginal
