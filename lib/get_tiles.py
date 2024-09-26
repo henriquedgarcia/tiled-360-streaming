@@ -113,6 +113,7 @@ class GetTilesReal(GetTilesBase):
             try:
                 self.assert_user_tiles_seen_json()
             except FileNotFoundError:
+                self.status.update_status('user_get_tiles_ok', False)
                 return
 
             self.status.update_status('user_get_tiles_ok', True)
@@ -217,7 +218,7 @@ class CreateJson(GetTilesBase):
     def for_each_user(self):
         print(f'==== CreateJson {self.ctx} ====')
         tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
-        self.results = tiles_seen
+        self.results.update(tiles_seen)
 
 
 class HeatMap(GetTilesBase):
