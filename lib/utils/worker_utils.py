@@ -144,6 +144,13 @@ def decode_video(filename, threads=None, ui_prefix='', ui_suffix=''):
     :param ui_suffix:
     :return:
     """
+    cmd = make_decode_cmd(filename=filename, threads=threads)
+    process, stdout = run_command(cmd, ui_prefix=ui_prefix,
+                                  ui_suffix=ui_suffix)
+    return stdout
+
+
+def make_decode_cmd(filename, threads=1):
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
            f'-codec hevc '
            f'{"" if not threads else f"-threads {threads} "}'
@@ -151,10 +158,7 @@ def decode_video(filename, threads=None, ui_prefix='', ui_suffix=''):
            f'-f null -')
     if os.name == 'nt':
         cmd = f'bash -c "{cmd}"'
-
-    process, stdout = run_command(cmd, ui_prefix=ui_prefix,
-                                  ui_suffix=ui_suffix)
-    return stdout
+    return cmd
 
 
 def get_nested_value(data, keys):
