@@ -27,6 +27,7 @@ class Others:
         y1 = tile_n * tile_h
         x2 = tile_m * tile_w + tile_w  # not inclusive [...)
         y2 = tile_n * tile_h + tile_h  # not inclusive [...)
+
         return x1, y1, x2, y2
 
     # def prepare(self):
@@ -246,14 +247,14 @@ class Segmenter(Worker, Others, CheckTiles, CheckChunks):
     def main(self):
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
         self.ctx.quality_list = ['0'] + self.ctx.quality_list
-        self.create_segments(decode_check=True)
+        self.create_segments(decode_check=False)
 
     def create_segments(self, decode_check=False):
         for _ in self.iterate_name_projection_quality_tiling_tile():
             print(f'==== Segmenter {self.ctx} ====')
             try:
                 self.segmenter(decode_check=decode_check)
-            except AbortError as e:
+            except (AbortError, ChunksOkError) as e:
                 print_error(f'\t{e.args[0]}')
 
     def iterate_name_projection_quality_tiling_tile(self):
