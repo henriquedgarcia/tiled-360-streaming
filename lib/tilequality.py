@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from py360tools.transform import ea2nm, ea2nm_face
-from py360tools.utils import LazyProperty
+from py360tools.utils import LazyProperty, splitx
 from skimage.metrics import mean_squared_error
 from skimage.metrics import structural_similarity
 
@@ -106,7 +106,7 @@ class TileChunkQualityProps:
 
     @property
     def metric_list(self):
-        return self.ctx.metric_list
+        return ["ssim", "mse", "s-mse", "ws-mse"]
 
     @property
     def video_shape(self):
@@ -122,6 +122,7 @@ class TileChunkQualityProps:
         tile_position_dict[resolution: str][tiling: str][tile: str]
         :return:
         """
+        print(f'\r\tMaking tile position dict')
         return make_tile_position_dict(self.video_shape, self.tiling_list)
 
     @LazyProperty
@@ -130,7 +131,8 @@ class TileChunkQualityProps:
         sph_points_mask[projection: str]
         :return:
         """
-        return load_sph_file(self.ctx)
+        print(f'\r\tMaking sphere points mask')
+        return make_sph_points_mask_dict(self.ctx)
 
     @LazyProperty
     def weight_ndarray(self):
@@ -138,7 +140,8 @@ class TileChunkQualityProps:
         weight_ndarray[projection: str]
         :return:
         """
-        return make_weight_ndarray(self.ctx)
+        print(f'\r\tMaking weight array')
+        return make_weight_ndarray_dict(self.ctx)
 
 
 class QualityMetrics(TileChunkQualityProps):
@@ -188,6 +191,8 @@ class QualityMetrics(TileChunkQualityProps):
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
         return wmse
 
+    # from PIL import Image
+    # Image.fromarray(array).show()
     def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
@@ -197,7 +202,7 @@ class QualityMetrics(TileChunkQualityProps):
         :param tile_deg: The image degraded
         :return:
         """
-        x1, y1, x2, y2 = self.tile_position_dict[self.tiling][self.tile]
+        x1, y1, x2, y2 = self.tile_position_dict[self.scale][self.tiling][self.tile]
         tile_mask = self.sph_points_mask_dict[self.projection][y1:y2, x1:x2]
 
         tile_ref_m = tile_ref * tile_mask
@@ -254,6 +259,7 @@ class TileChunkQualityOriginal(Worker, TileChunkQualityProps):
             for self.projection in self.projection_list:
                 for self.quality in self.quality_list:
                     for self.tiling in self.tiling_list:
+                        if self.tiling =='1x1': continue
                         for self.tile in self.tile_list:
                             for self.chunk in self.chunk_list:
                                 yield
@@ -271,10 +277,10 @@ class TileChunkQualityOriginal(Worker, TileChunkQualityProps):
 
         for frame, (frame1, frame2) in enumerate(zip_frames):
             print(f'\r\t{frame=}', end='')
-            chunk_quality['SSIM'].append(self.quality_metrics.ssim(frame1, frame2))
-            chunk_quality['MSE'].append(self.quality_metrics.mse(frame1, frame2))
-            chunk_quality['WS-MSE'].append(self.quality_metrics.wsmse(frame1, frame2))
-            chunk_quality['S-MSE'].append(self.quality_metrics.smse_nn(frame1, frame2))
+            chunk_quality['ssim'].append(self.quality_metrics.ssim(frame1, frame2))
+            chunk_quality['mse'].append(self.quality_metrics.mse(frame1, frame2))
+            chunk_quality['s-mse'].append(self.quality_metrics.smse_nn(frame1, frame2))
+            chunk_quality['ws-mse'].append(self.quality_metrics.wsmse(frame1, frame2))
 
         save_json(chunk_quality, self.tile_chunk_quality_paths.tile_chunk_quality_json)
         print(f"\ttime={time() - start}.")
@@ -504,7 +510,7 @@ class MakePlot(CollectQuality):
         plt.close()
 
 
-def load_sph_file(ctx: Context) -> np.ndarray:
+def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
     """
     Load 655362 sample points (elevation, azimuth). Angles in degree.
 
@@ -522,30 +528,29 @@ def load_sph_file(ctx: Context) -> np.ndarray:
 
 
 def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
+    erp_shape = splitx(ctx.config.config_dict['scale']['erp'])[::-1]
+    cmp_shape = splitx(ctx.config.config_dict['scale']['cmp'])[::-1]
+
     sph_file = Path('datasets/sphere_655362.txt')
     sph_file_lines = sph_file.read_text().splitlines()[1:]
-    sph_points_mask = {}
+    ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
+    erp_nm = ea2nm(ea=ea_array, proj_shape=erp_shape)
+    cmp_nm = ea2nm_face(ea=ea_array, proj_shape=cmp_shape)[0]
 
-    for ctx.projection in ctx.projection_list:
-        video_shape = ctx.video_shape
-        sph_points_mask[ctx.projection] = np.zeros(video_shape)
+    sph_points_mask = {'erp': np.zeros(erp_shape),
+                       'cmp': np.zeros(cmp_shape)}
+    sph_points_mask['erp'][erp_nm[0], erp_nm[1]] = 1
+    sph_points_mask['cmp'][cmp_nm[0], cmp_nm[1]] = 1
 
-        # for each line (sample), convert to cartesian system and horizontal system
-        for line in sph_file_lines:
-            el, az = list(map(np.deg2rad, map(float, line.strip().split())))  # to rad
-
-            ea = np.array([[az], [el]])
-            proj_shape = video_shape
-
-            if ctx.projection == 'erp':
-                m, n = ea2nm(ea=ea, proj_shape=proj_shape)
-            elif ctx.projection == 'cmp':
-                (m, n), face = ea2nm_face(ea=ea, proj_shape=proj_shape)
-            else:
-                raise ValueError(f'Projection must be "erp" or "cmp".')
-
-            sph_points_mask[ctx.projection][n, m] = 1
     return sph_points_mask
+
+
+def lines_2_list(line):
+    strip_line = line.strip()
+    split_line = strip_line.split()
+    map_float_line = map(float, split_line)
+    map_rad_line = map(np.deg2rad, map_float_line)
+    return list(map_rad_line)
 
 
 def load_weight_ndarray(ctx: Context) -> np.ndarray:
@@ -565,11 +570,28 @@ def load_weight_ndarray(ctx: Context) -> np.ndarray:
     return sph_points_mask
 
 
-def make_weight_ndarray(ctx: Context):
-    proj_h, proj_w = ctx.video_shape
-    pi_proj = np.pi / proj_h
-    proj_h_2 = 0.5 - proj_h / 2
-    r = proj_h / 4
+def make_weight_ndarray_dict(ctx: Context):
+    weight_ndarray_dict_file = Path(f'datasets/weight_ndarray_dict.pickle')
+
+    try:
+        weight_ndarray_dict = load_pickle(weight_ndarray_dict_file)
+    except FileNotFoundError:
+        weight_ndarray_dict = process_weight_ndarray_dict_file(ctx)
+        save_pickle(weight_ndarray_dict, weight_ndarray_dict_file)
+    return weight_ndarray_dict
+
+
+def process_weight_ndarray_dict_file(ctx: Context):
+    erp_scale = ctx.config.config_dict['scale']['erp']
+    erp_w, erp_h = splitx(erp_scale)
+
+    pi_proj = np.pi / erp_h
+    proj_h_2 = 0.5 - erp_h / 2
+
+    cmp_scale = ctx.config.config_dict['scale']['cmp']
+    cmp_w, cmp_h = splitx(cmp_scale)
+    a = cmp_h / 2
+    r = a / 2
     r1 = 0.5 - r
     r2 = r ** 2
 
@@ -578,14 +600,16 @@ def make_weight_ndarray(ctx: Context):
         return w
 
     def func_cmp(y, x):
-        x = x % r
-        y = y % r
+        x = x % a
+        y = y % a
         d = (x + r1) ** 2 + (y + r1) ** 2
         w = (1 + d / r2) ** (-1.5)
         return w
 
-    weight_array = {'erp': np.fromfunction(func_erp, (proj_h, proj_w), dtype=float),
-                    'cmp': np.fromfunction(func_cmp, (proj_h, proj_w), dtype=float)}
+    weight_array = {'erp': np.fromfunction(func_erp, (erp_h, erp_w), dtype=float),
+                    'cmp': np.fromfunction(func_cmp, (cmp_h, cmp_w), dtype=float)}
+    # plt.imshow(np.ones((cmp_h, cmp_w)) * 255 * np.fromfunction(func_cmp, (cmp_h, cmp_w), dtype=float));plt.show()
+    # plt.imshow(np.ones((erp_h, erp_w)) * 255 * np.fromfunction(func_erp, (erp_h, erp_w), dtype=float));plt.show()
     return weight_array
 
 
