@@ -160,7 +160,7 @@ class CheckTiles:
         self.segmenter_paths.tile_video.unlink(missing_ok=True)
 
 
-def assert_one_chunk_video(ctx, logger, chunk_video):
+def assert_chunk(ctx, logger, chunk_video):
     try:
         segment_file_size = chunk_video.stat().st_size
     except FileNotFoundError:
@@ -219,7 +219,7 @@ class CheckChunks:
     def assert_chunks_video(self):
         with context_chunk(self.ctx, None):
             for self.ctx.chunk in self.ctx.chunk_list:
-                assert_one_chunk_video(self.ctx, self.logger, self.segmenter_paths.chunk_video)
+                assert_chunk(self.ctx, self.logger, self.segmenter_paths.chunk_video)
         return 'all ok'
 
     def assert_chunks_decode(self):
