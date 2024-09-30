@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from lib.assets.autodict import AutoDict
-from lib.utils.worker_utils import get_nested_value
+from lib.utils.worker_utils import get_nested_value, save_json
 
 
 class StatusCtx:
@@ -22,6 +22,7 @@ class StatusCtx:
         try:
             yield
         finally:
+            print('Saving Status.')
             self.save_status()
 
     def load_status(self):
@@ -30,7 +31,7 @@ class StatusCtx:
                                      object_hook=lambda value: AutoDict(value))
         except FileNotFoundError:
             self.status = AutoDict()
-            self.status_filename.write_text(json.dumps(self.status, indent=0, separators=(',', ':')))
+            self.save_status()
 
     @property
     def status_filename(self):
@@ -51,5 +52,4 @@ class StatusCtx:
         return get_nested_value(self.status, keys)[key]
 
     def save_status(self):
-        print('Saving Status.')
-        self.status_filename.write_text(json.dumps(self.status, indent=None, separators=(',', ':')))
+        save_json(self.status, self.status_filename)
