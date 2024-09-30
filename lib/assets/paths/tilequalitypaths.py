@@ -14,7 +14,7 @@ class TileChunkQualityPaths:
 
     @property
     def reference_chunk(self):
-        with context_quality(self.ctx, self.config, '0', 'crf'):
+        with context_quality(self.ctx, self.config, '0', 'qp'):
             chunk_video_paths = self.segmenter_paths.chunk_video
         return chunk_video_paths
 

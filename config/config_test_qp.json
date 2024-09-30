@@ -6,8 +6,8 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "scale": {"erp": "1080x540",
-            "cmp": "810x540"},
+  "scale": {"erp": "720x360",
+            "cmp": "540x360"},
 
   "codec": "x265",
   "codec_params": "keyint=30:min-keyint=30:open-gop=0:scenecut=0:info=0",

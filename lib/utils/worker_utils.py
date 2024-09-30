@@ -2,6 +2,7 @@ from functools import reduce
 import json
 import os
 import pickle
+from functools import reduce
 from pathlib import Path
 from subprocess import STDOUT, PIPE, Popen
 from typing import Union
@@ -134,11 +135,13 @@ def get_times(filename: Path, only_count=False):
     return times
 
 
-def decode_video(filename, threads=None):
+def decode_video(filename, threads=None, ui_prefix='', ui_suffix=''):
     """
     Decode the filename HEVC video with "threads".
     :param filename:
     :param threads:
+    :param ui_prefix:
+    :param ui_suffix:
     :return:
     """
     cmd = (f'bin/ffmpeg -hide_banner -benchmark '
@@ -149,7 +152,8 @@ def decode_video(filename, threads=None):
     if os.name == 'nt':
         cmd = f'bash -c "{cmd}"'
 
-    process, stdout = run_command(cmd)
+    process, stdout = run_command(cmd, ui_prefix=ui_prefix,
+                                  ui_suffix=ui_suffix)
     return stdout
 
 
@@ -163,20 +167,22 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w'):
+def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix=''):
     """
 
     :param cmd:
     :param folder:
     :param log_file:
     :param mode: like used by open()
+    :param ui_prefix:
+    :param ui_suffix:
     :return:
     """
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
 
     ui = LoadingUi()
-    ui.start()
+    ui.start(prefix=ui_prefix)
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     stdout_lines = [cmd + '\n']
 
@@ -186,7 +192,7 @@ def run_command(cmd, folder=None, log_file=None, mode='w'):
             break
         stdout_lines.append(out)
         ui.increment()
-    ui.end()
+    ui.end(suffix=ui_suffix)
 
     if log_file is not None:
         with open(log_file, mode) as f:
@@ -213,13 +219,13 @@ def iter_frame(video_path, gray=True, dtype='float64'):
 
 class LoadingUi:
     @staticmethod
-    def start():
-        print('\t', end='')
+    def start(prefix='\t'):
+        print(f'{prefix}', end='')
 
     @staticmethod
     def increment():
         print('.', end='')
 
     @staticmethod
-    def end():
-        print('')
+    def end(suffix='\n'):
+        print(f'{suffix}', end='')

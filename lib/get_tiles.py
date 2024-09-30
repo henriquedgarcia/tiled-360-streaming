@@ -113,6 +113,7 @@ class GetTilesReal(GetTilesBase):
             try:
                 self.assert_user_tiles_seen_json()
             except FileNotFoundError:
+                self.status.update_status('user_get_tiles_ok', False)
                 return
 
             self.status.update_status('user_get_tiles_ok', True)

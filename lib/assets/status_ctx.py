@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from lib.assets.autodict import AutoDict
+from lib.utils.worker_utils import get_nested_value, save_json
 
 
 class StatusCtx:
@@ -21,6 +22,7 @@ class StatusCtx:
         try:
             yield
         finally:
+            print('Saving Status.')
             self.save_status()
 
     def load_status(self):
@@ -29,11 +31,11 @@ class StatusCtx:
                                      object_hook=lambda value: AutoDict(value))
         except FileNotFoundError:
             self.status = AutoDict()
-            self.status_filename.write_text(json.dumps(self.status, indent=0, separators=(',', ':')))
+            self.save_status()
 
     @property
     def status_filename(self):
-        return Path(f'log/status_{self.config.project_folder.name}_{self.cls_name}.json')
+        return Path(f'log/status_{self.cls_name}_{self.config.project_folder.name}.json')
 
     def update_status(self, key, value):
         """
@@ -42,20 +44,12 @@ class StatusCtx:
         :param key:
         :return:
         """
-        status = self.status
-        for item in ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk']:
-            if status[item] is None: continue
-            status = status[item]
-        status[key] = value
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.quality, self.ctx.tiling, self.ctx.tile, self.ctx.chunk]
+        get_nested_value(self.status, keys).update({key: value})
 
     def get_status(self, key=None):
-        status = self.status
-        for item in self.ctx:
-            status = status[item]
-        if key is None:
-            return status
-        return status[key]
+        keys = [self.ctx.name, self.ctx.projection, self.ctx.quality, self.ctx.tiling, self.ctx.tile, self.ctx.chunk]
+        return get_nested_value(self.status, keys)[key]
 
     def save_status(self):
-        print('Saving Status.')
-        self.status_filename.write_text(json.dumps(self.status, indent=None, separators=(',', ':')))
+        save_json(self.status, self.status_filename)

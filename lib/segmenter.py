@@ -27,6 +27,7 @@ class Others:
         y1 = tile_n * tile_h
         x2 = tile_m * tile_w + tile_w  # not inclusive [...)
         y2 = tile_n * tile_h + tile_h  # not inclusive [...)
+
         return x1, y1, x2, y2
 
     # def prepare(self):
@@ -181,25 +182,22 @@ class CheckChunks:
     def check_chunks(self, decode_check=False):
         if not self.status.get_status('segmenter_ok'):
             try:
-                self.assert_chunks(decode_check=decode_check)
-
+                self.assert_chunks()
+                self.status.update_status('segmenter_ok', True)
+                if decode_check:
+                    self.assert_chunks_decode()
+                    self.status.update_status('chunks_decode_ok', True)
             except FileNotFoundError:
-                print_error(f'\tChunks not Found.')
+                self.clean_segmenter()
                 self.status.update_status('segmenter_ok', False)
+                self.status.update_status('chunks_decode_ok', False)
                 return
-
-            self.status.update_status('segmenter_ok', True)
 
         raise ChunksOkError(f'Segmenter is OK. Skipping.')
 
-    def assert_chunks(self, decode_check=False):
-        try:
-            self.assert_segmenter_log()
-            self.assert_chunks_video()
-            self.check_chunks_decode(decode_check)
-        except FileNotFoundError as e:
-            self.clean_segmenter()
-            raise e
+    def assert_chunks(self):
+        self.assert_segmenter_log()
+        self.assert_chunks_video()
 
     def assert_segmenter_log(self):
         try:
@@ -222,27 +220,19 @@ class CheckChunks:
         with context_chunk(self.ctx, None):
             for self.ctx.chunk in self.ctx.chunk_list:
                 assert_one_chunk_video(self.ctx, self.logger, self.segmenter_paths.chunk_video)
-
         return 'all ok'
 
-    def check_chunks_decode(self, decode_check=False):
-        if decode_check:
-            if not self.status.get_status('chunks_decode_ok'):
-                self.assert_chunks_decode()
-                self.status.update_status('chunks_decode_ok', True)
-
     def assert_chunks_decode(self):
-        print(f'\tDecoding chunks', end='')
+        print(f'\tDecoding chunks')
         with context_chunk(self.ctx, None):
             for self.ctx.chunk in self.ctx.chunk_list:
-                print('.', end='')
+                print(f'\r\t\tchunk{self.ctx.chunk}.', end='')
                 self.assert_one_chunk_decode()
-            print(f'. OK')
-        self.status.update_status('chunks_decode_ok', False)
+        print('')
 
     def assert_one_chunk_decode(self):
         chunk_video = self.segmenter_paths.chunk_video
-        stdout = decode_video(chunk_video)
+        stdout = decode_video(chunk_video, ui_prefix='', ui_suffix='')
         if "frame=   30" not in stdout:  # specific for ffmpeg 5.0
             self.logger.register_log(f'Segment Decode Error.', chunk_video)
             raise FileNotFoundError(f'Chunk Decode Error.')
@@ -257,14 +247,14 @@ class Segmenter(Worker, Others, CheckTiles, CheckChunks):
     def main(self):
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
         self.ctx.quality_list = ['0'] + self.ctx.quality_list
-        self.create_segments(decode_check=True)
+        self.create_segments(decode_check=False)
 
     def create_segments(self, decode_check=False):
         for _ in self.iterate_name_projection_quality_tiling_tile():
             print(f'==== Segmenter {self.ctx} ====')
             try:
                 self.segmenter(decode_check=decode_check)
-            except AbortError as e:
+            except (AbortError, ChunksOkError) as e:
                 print_error(f'\t{e.args[0]}')
 
     def iterate_name_projection_quality_tiling_tile(self):
