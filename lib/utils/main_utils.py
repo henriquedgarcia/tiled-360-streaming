@@ -36,9 +36,9 @@ worker_dict = {'Segmenter': Segmenter,  # 0
                'Decode': Decode,  # 1
                'GetTiles': GetTiles,  # 2
                'TileQuality': TileChunkQuality,  # 3
-               # 'MakeSiti': MakeSiti,
                'GetBitrate': GetBitrate,  # 4
                'GetDectime': GetDectime,  # 5
+               # 'MakeSiti': MakeSiti,
                'RenamerAndCheck': RenamerAndCheck}  # 6
 
 
