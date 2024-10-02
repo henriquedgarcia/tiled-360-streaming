@@ -117,7 +117,11 @@ def count_decoding(dectime_log: Path) -> int:
     Count how many times the word "utime" appears in "log_file"
     :return:
     """
-    times = len(get_times(dectime_log, only_count=True))
+    try:
+        times = len(get_times(dectime_log, only_count=True))
+    except FileNotFoundError:
+        print('ERROR: FileNotFoundError. Return 0.')
+        times = 0
     return times
 
 
