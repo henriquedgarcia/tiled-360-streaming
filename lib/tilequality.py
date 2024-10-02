@@ -248,6 +248,9 @@ class TileChunkQualityOriginal(Worker, TileChunkQualityProps):
                 self.work()
             except (AbortError, FileNotFoundError) as e:
                 print_error('\t' + e.args[0])
+            except ValueError:
+                self.logger.register_log('Cant decode Chunk.', self.segmenter_paths.chunk_video)
+
 
     def init(self):
         self.tile_chunk_quality_paths = TileChunkQualityPaths(self.config, self.ctx)
@@ -298,25 +301,25 @@ class TileChunkQualityOriginal(Worker, TileChunkQualityProps):
     def assert_tile_chunk_quality_json(self):
         chunk_quality = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
 
-        if len(chunk_quality['MSE']) != int(self.config.gop):
+        if len(chunk_quality['mse']) != int(self.config.gop):
             self.tile_chunk_quality_paths.tile_chunk_quality_json.unlink(missing_ok=True)
             self.logger.register_log(f'MISSING_FRAMES', self.tile_chunk_quality_paths.tile_chunk_quality_json)
             raise FileNotFoundError('Missing Frames')
 
         msg = []
-        if 1 in chunk_quality['SSIM'].to_list():
+        if 1 in chunk_quality['ssim']:
             self.logger.register_log(f'SSIM has 1.', self.segmenter_paths.chunk_video)
             msg.append('SSIM has 1.')
 
-        if 0 in chunk_quality['MSE'].to_list():
+        if 0 in chunk_quality['mse']:
             self.logger.register_log('MSE has 0.', self.segmenter_paths.chunk_video)
             msg.append('MSE has 0.')
 
-        if 0 in chunk_quality['WS-MSE'].to_list():
+        if 0 in chunk_quality['ws-mse']:
             self.logger.register_log('WS-MSE has 0.', self.segmenter_paths.chunk_video)
             msg.append('WS-MSE has 0.')
 
-        if 0 in chunk_quality['S-MSE'].to_list():
+        if 0 in chunk_quality['s-mse']:
             self.logger.register_log('S-MSE has 0.', self.segmenter_paths.chunk_video)
             msg.append('S-MSE has 0.')
 
