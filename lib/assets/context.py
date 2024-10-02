@@ -52,11 +52,6 @@ class Context:
                 value = 'frame' + value
             if factor == 'user':
                 value = 'user' + str(value)
-            if factor == 'turn':
-                value = 'turn' + str(value)
-            if factor == 'attempt':
-                value = 'attempt' + str(value)
-
             txt.append(f'[{value}]')
 
         return ''.join(txt)
