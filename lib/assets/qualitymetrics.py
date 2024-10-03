@@ -203,7 +203,7 @@ def process_weight_ndarray_dict_file(ctx: Context):
                 return w
         else:
             raise ValueError(f'Unknown projection: {proj}')
-        weight_array[proj] = np.fromfunction(func, (h, w), dtype=float),
+        weight_array[proj] = np.fromfunction(func, (h, w), dtype=float)
     # plt.imshow(np.ones((cmp_h, cmp_w)) * 255 * np.fromfunction(func_cmp, (cmp_h, cmp_w), dtype=float));plt.show()
     # plt.imshow(np.ones((erp_h, erp_w)) * 255 * np.fromfunction(func_erp, (erp_h, erp_w), dtype=float));plt.show()
     return weight_array
