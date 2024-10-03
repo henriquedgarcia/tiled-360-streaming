@@ -3,6 +3,7 @@ from pathlib import Path
 from lib.decode import Decode
 from lib.get_tiles import GetTiles
 from lib.getbitrate import GetBitrate
+from lib.getquality import GetQuality
 # from lib.make_siti import MakeSiti
 from lib.getdectime import GetDectime
 from lib.renamer_and_checker import RenamerAndCheck
@@ -38,6 +39,7 @@ worker_dict = {'Segmenter': Segmenter,  # 0
                'TileQuality': TileChunkQuality,  # 3
                'GetBitrate': GetBitrate,  # 4
                'GetDectime': GetDectime,  # 5
+               'CollectQuality': GetQuality,  # 5
                # 'MakeSiti': MakeSiti,
                'RenamerAndCheck': RenamerAndCheck}  # 6
 
