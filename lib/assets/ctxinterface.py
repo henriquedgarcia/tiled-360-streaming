@@ -1,4 +1,7 @@
+from py360tools.utils import LazyProperty
+
 from lib.assets.context import Context
+from lib.utils.worker_utils import (make_tile_position_dict)
 
 
 class CtxInterface:
@@ -138,3 +141,12 @@ class CtxInterface:
                      if self.ctx.config.videos_dict[name]['group'] == group]
              for group in self.group_list}
         return b
+
+    @LazyProperty
+    def tile_position_dict(self) -> dict:
+        """
+        tile_position_dict[resolution: str][tiling: str][tile: str]
+        :return:
+        """
+        print(f'\r\tMaking tile position dict')
+        return make_tile_position_dict(self.video_shape, self.tiling_list)
