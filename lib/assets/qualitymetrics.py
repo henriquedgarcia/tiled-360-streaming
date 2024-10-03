@@ -151,7 +151,7 @@ def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
         else:
             nm = [0, 0]
         sph_points_mask[proj] = np.zeros(proj_shape)
-        sph_points_mask['erp'][nm[0], nm[1]] = 1
+        sph_points_mask[proj][nm[0], nm[1]] = 1
 
     return sph_points_mask
 
