@@ -137,19 +137,21 @@ def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
 
 
 def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
-    erp_shape = splitx(ctx.config.config_dict['scale']['erp'])[::-1]
-    cmp_shape = splitx(ctx.config.config_dict['scale']['cmp'])[::-1]
-
     sph_file = Path('datasets/sphere_655362.txt')
     sph_file_lines = sph_file.read_text().splitlines()[1:]
     ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
-    erp_nm = ea2nm(ea=ea_array, proj_shape=erp_shape)
-    cmp_nm = ea2nm_face(ea=ea_array, proj_shape=cmp_shape)[0]
 
-    sph_points_mask = {'erp': np.zeros(erp_shape),
-                       'cmp': np.zeros(cmp_shape)}
-    sph_points_mask['erp'][erp_nm[0], erp_nm[1]] = 1
-    sph_points_mask['cmp'][cmp_nm[0], cmp_nm[1]] = 1
+    sph_points_mask = {}
+    for proj in ctx.projection_list:
+        proj_shape = splitx(ctx.config.config_dict['scale'][proj])[::-1]
+        if proj == 'erp':
+            nm = ea2nm(ea=ea_array, proj_shape=proj_shape)
+        elif proj == 'cmp':
+            nm = ea2nm_face(ea=ea_array, proj_shape=proj_shape)[0]
+        else:
+            nm = [0, 0]
+        sph_points_mask[proj] = np.zeros(proj_shape)
+        sph_points_mask['erp'][nm[0], nm[1]] = 1
 
     return sph_points_mask
 
