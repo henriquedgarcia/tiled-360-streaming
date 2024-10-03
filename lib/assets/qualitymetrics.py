@@ -149,7 +149,7 @@ def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
         elif proj == 'cmp':
             nm = ea2nm_face(ea=ea_array, proj_shape=proj_shape)[0]
         else:
-            nm = [0, 0]
+            raise ValueError(f'Unknown projection: {proj}')
         sph_points_mask[proj] = np.zeros(proj_shape)
         sph_points_mask[proj][nm[0], nm[1]] = 1
 
@@ -176,33 +176,34 @@ def make_weight_ndarray_dict(ctx: Context):
 
 
 def process_weight_ndarray_dict_file(ctx: Context):
-    erp_scale = ctx.config.config_dict['scale']['erp']
-    erp_w, erp_h = splitx(erp_scale)
+    weight_array = {}
+    for proj in ctx.projection_list:
+        scale = ctx.config.config_dict['scale'][proj]
+        w, h = splitx(scale)
 
-    pi_proj = np.pi / erp_h
-    proj_h_2 = 0.5 - erp_h / 2
+        if proj == 'erp':
+            pi_proj = np.pi / h
+            proj_h_2 = 0.5 - h / 2
 
-    cmp_scale = ctx.config.config_dict['scale']['cmp']
-    cmp_w, cmp_h = splitx(cmp_scale)
-    a = cmp_h / 2
-    r = a / 2
-    r1 = 0.5 - r
-    r2 = r ** 2
+            def func(y, x):
+                w = np.cos((y + proj_h_2) * pi_proj)
+                return w
 
-    def func_erp(y, x):
-        print(x)
-        w = np.cos((y + proj_h_2) * pi_proj)
-        return w
+        elif proj == 'cmp':
+            a = h / 2
+            r = a / 2
+            r1 = 0.5 - r
+            r2 = r ** 2
 
-    def func_cmp(y, x):
-        x = x % a
-        y = y % a
-        d = (x + r1) ** 2 + (y + r1) ** 2
-        w = (1 + d / r2) ** (-1.5)
-        return w
-
-    weight_array = {'erp': np.fromfunction(func_erp, (erp_h, erp_w), dtype=float),
-                    'cmp': np.fromfunction(func_cmp, (cmp_h, cmp_w), dtype=float)}
+            def func(y, x):
+                x = x % a
+                y = y % a
+                d = (x + r1) ** 2 + (y + r1) ** 2
+                w = (1 + d / r2) ** (-1.5)
+                return w
+        else:
+            raise ValueError(f'Unknown projection: {proj}')
+        weight_array[proj] = np.fromfunction(func, (h, w), dtype=float),
     # plt.imshow(np.ones((cmp_h, cmp_w)) * 255 * np.fromfunction(func_cmp, (cmp_h, cmp_w), dtype=float));plt.show()
     # plt.imshow(np.ones((erp_h, erp_w)) * 255 * np.fromfunction(func_erp, (erp_h, erp_w), dtype=float));plt.show()
     return weight_array
