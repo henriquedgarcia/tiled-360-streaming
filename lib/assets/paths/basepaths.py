@@ -5,9 +5,9 @@ from lib.assets.context import Context
 
 
 class BasePaths:
-    def __init__(self, config: Config, ctx: Context):
-        self.config = config
+    def __init__(self, ctx: Context):
         self.ctx = ctx
+        self.config = ctx.config
 
     @property
     def project_path(self):
