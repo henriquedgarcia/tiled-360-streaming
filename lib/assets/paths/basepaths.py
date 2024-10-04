@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from config.config import Config
 from lib.assets.context import Context
 
 
