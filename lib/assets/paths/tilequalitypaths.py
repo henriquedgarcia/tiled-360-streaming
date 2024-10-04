@@ -1,14 +1,15 @@
 from pathlib import Path
 
+from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.utils.context_utils import context_quality
 
 
 class TileChunkQualityPaths:
-    def __init__(self, config, ctx):
-        self.config = config
+    def __init__(self, ctx: Context):
         self.ctx = ctx
+        self.config = ctx.config
         self.base_paths = BasePaths(self.config, self.ctx)
         self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
 
