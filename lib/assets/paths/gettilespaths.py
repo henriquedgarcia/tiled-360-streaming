@@ -2,16 +2,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from config.config import Config
 from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
 
 
 class GetTilesPaths:
-    def __init__(self, config: Config, context: Context):
-        self.config = config
+    def __init__(self, context: Context):
+        self.config = context.config
         self.ctx = context
-        self.base_paths = BasePaths(config, context)
+        self.base_paths = BasePaths(context)
 
     @property
     def get_tiles_folder(self) -> Path:
