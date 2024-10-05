@@ -17,8 +17,8 @@ class Decode(CtxInterface, Worker):
     changes: bool
 
     def main(self):
-        self.segmenter_paths = SegmenterPaths(config=self.config, context=self.ctx)
-        self.dectime_paths = DectimePaths(config=self.config, context=self.ctx, segmenter_paths=self.segmenter_paths)
+        self.segmenter_paths = SegmenterPaths(context=self.ctx)
+        self.dectime_paths = DectimePaths(context=self.ctx)
         self.decode_chunks()
 
     def decode_chunks(self):
