@@ -112,6 +112,10 @@ class Context:
         return self.config.config_dict['scale'][self.projection]
 
     @property
+    def fov(self):
+        return self.config.config_dict['fov']
+
+    @property
     def n_tiles(self):
         return prod(map(int, splitx(self.tiling)))
 
