@@ -37,6 +37,10 @@ class BasePaths:
         return self.project_path / 'quality'
 
     @property
+    def user_quality_folder(self):
+        return self.project_path / 'user_quality'
+
+    @property
     def dataset_folder(self) -> Path:
         return Path('datasets')
 
