@@ -23,7 +23,7 @@ class GetBitrate(Segmenter, CtxInterface):
     video_bitrate: AutoDict
 
     def main(self):
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.ctx)
         self.ctx.quality_list = ['0'] + self.ctx.quality_list
         self.collect_bitrate()
 
