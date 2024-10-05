@@ -12,15 +12,25 @@ def context_chunk(ctx, value):
 
 
 @contextmanager
-def context_quality(ctx, config, quality='0', rate_control='crf'):
+def context_tile(ctx, value):
+    t = ctx.tile
+    ctx.tile = f'{value}'
+    try:
+        yield
+    finally:
+        ctx.tile = t
+
+
+@contextmanager
+def context_quality(ctx, quality='0', rate_control='crf'):
     qlt = ctx.quality
-    rc = config.rate_control
+    rc = ctx.config.rate_control
 
     ctx.quality = quality
-    config.rate_control = rate_control
+    ctx.config.rate_control = rate_control
 
     try:
         yield
     finally:
         ctx.quality = qlt
-        config.rate_control = rc
+        ctx.config.rate_control = rc
