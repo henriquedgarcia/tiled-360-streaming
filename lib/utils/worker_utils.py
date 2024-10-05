@@ -1,4 +1,3 @@
-from functools import reduce
 import json
 import os
 import pickle
@@ -90,6 +89,13 @@ def lin_interpol(t: float, t_f: float, t_i: float, v_f: np.ndarray, v_i: np.ndar
 
 
 def make_tile_position_dict(video_shape, tiling_list):
+    """
+
+    :param video_shape:
+    :param video_shape:
+    :param tiling_list:
+    :return:
+    """
     proj_h, proj_w = video_shape
     resolution = f'{video_shape[1]}x{video_shape[0]}'
     tile_position_dict = AutoDict()
