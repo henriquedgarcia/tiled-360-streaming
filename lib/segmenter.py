@@ -245,7 +245,7 @@ class CheckChunks:
 
 class Segmenter(Worker, Others, CheckTiles, CheckChunks):
     def main(self):
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.ctx)
         self.ctx.quality_list = ['0'] + self.ctx.quality_list
         self.create_segments(decode_check=False)
 
