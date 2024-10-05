@@ -4,7 +4,7 @@ from time import time
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.segmenterpaths import SegmenterPaths
-from lib.assets.paths.tilequalitypaths import TileChunkQualityPaths
+from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
 from lib.utils.worker_utils import save_json, load_json, iter_frame, print_error
@@ -12,7 +12,7 @@ from lib.utils.worker_utils import save_json, load_json, iter_frame, print_error
 
 class TileChunkQuality(Worker, CtxInterface):
     quality_metrics: QualityMetrics
-    tile_chunk_quality_paths: TileChunkQualityPaths
+    tile_chunk_quality_paths: ChunkQualityPaths
     segmenter_paths: SegmenterPaths
 
     def main(self):
@@ -34,8 +34,8 @@ class TileChunkQuality(Worker, CtxInterface):
                     self.logger.register_log('Cant remove chunk_video.', self.segmenter_paths.chunk_video)
 
     def init(self):
-        self.tile_chunk_quality_paths = TileChunkQualityPaths(self.config, self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.tile_chunk_quality_paths = ChunkQualityPaths(self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.ctx)
         self.quality_metrics = QualityMetrics(self.ctx)
 
     def iterator(self):
@@ -66,7 +66,7 @@ class TileChunkQuality(Worker, CtxInterface):
             chunk_quality['s-mse'].append(self.quality_metrics.smse_nn(frame1, frame2))
             chunk_quality['ws-mse'].append(self.quality_metrics.wsmse(frame1, frame2))
 
-        save_json(chunk_quality, self.tile_chunk_quality_paths.tile_chunk_quality_json)
+        save_json(chunk_quality, self.tile_chunk_quality_paths.chunk_quality_json)
         print(f"\ttime={time() - start}.")
 
     def check_tile_chunk_quality(self):
@@ -80,11 +80,11 @@ class TileChunkQuality(Worker, CtxInterface):
         raise AbortError('tile_chunk_quality_json is OK.')
 
     def assert_tile_chunk_quality_json(self):
-        chunk_quality = load_json(self.tile_chunk_quality_paths.tile_chunk_quality_json)
+        chunk_quality = load_json(self.tile_chunk_quality_paths.chunk_quality_json)
 
         if len(chunk_quality['mse']) != int(self.config.gop):
-            self.tile_chunk_quality_paths.tile_chunk_quality_json.unlink(missing_ok=True)
-            self.logger.register_log(f'MISSING_FRAMES', self.tile_chunk_quality_paths.tile_chunk_quality_json)
+            self.tile_chunk_quality_paths.chunk_quality_json.unlink(missing_ok=True)
+            self.logger.register_log(f'MISSING_FRAMES', self.tile_chunk_quality_paths.chunk_quality_json)
             raise FileNotFoundError('Missing Frames')
 
         msg = []
