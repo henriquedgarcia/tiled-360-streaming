@@ -128,8 +128,20 @@ class CtxInterface:
         return self.ctx.scale
 
     @property
+    def fov(self):
+        return self.ctx.fov
+
+    @property
     def n_tiles(self):
         return self.ctx.n_tiles
+
+    @property
+    def config(self):
+        return self.ctx.config
+
+    @property
+    def dataset_name(self):
+        return self.config.dataset_file
 
     @property
     def video_list_by_group(self):
@@ -138,7 +150,7 @@ class CtxInterface:
         :return: a dict like {group: video_list}
         """
         b = {group: [name for name in self.name_list
-                     if self.ctx.config.videos_dict[name]['group'] == group]
+                     if self.config.videos_dict[name]['group'] == group]
              for group in self.group_list}
         return b
 
