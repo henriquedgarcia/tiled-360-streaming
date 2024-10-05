@@ -33,8 +33,8 @@ class GetTilesBase(Worker):
         self.process()
 
     def init(self):
-        self.get_tiles_paths = GetTilesPaths(self.config, self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.get_tiles_paths = GetTilesPaths(self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.ctx)
         self.projection_dict = self.create_projections_dict()
 
     def for_each_user(self):
