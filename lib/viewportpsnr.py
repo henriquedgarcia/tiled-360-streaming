@@ -280,18 +280,7 @@ class ViewportPSNRGraphs(ViewportPSNRProps):
 
 
 class CheckViewportPSNR(ViewportPSNR):
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
-
     def loop(self):
-
         self.workfolder.mkdir(parents=True, exist_ok=True)
         self.sse_frame: dict = {}
         self.frame: int = 0
