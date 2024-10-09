@@ -4,44 +4,8 @@ from lib.assets.context import Context
 from lib.utils.worker_utils import (make_tile_position_dict)
 
 
-class CtxInterface:
+class Factors:
     ctx: Context
-
-    @property
-    def name_list(self):
-        return self.ctx.name_list
-
-    @property
-    def projection_list(self):
-        return self.ctx.projection_list
-
-    @property
-    def quality_list(self):
-        return self.ctx.quality_list
-
-    @property
-    def tiling_list(self):
-        return self.ctx.tiling_list
-
-    @property
-    def tile_list(self):
-        return self.ctx.tile_list
-
-    @property
-    def chunk_list(self):
-        return self.ctx.chunk_list
-
-    @property
-    def metric_list(self):
-        return ["ssim", "mse", "s-mse", "ws-mse"]
-
-    @property
-    def users_list(self):
-        return self.ctx.users_list
-
-    @property
-    def group_list(self):
-        return self.ctx.group_list
 
     @property
     def name(self):
@@ -111,6 +75,54 @@ class CtxInterface:
     def group(self):
         return self.ctx.group
 
+    @group.setter
+    def group(self, value):
+        self.ctx.group = value
+
+
+class Lists:
+    ctx: Context
+
+    @LazyProperty
+    def name_list(self):
+        return self.ctx.name_list
+
+    @LazyProperty
+    def projection_list(self):
+        return self.ctx.projection_list
+
+    @property
+    def quality_list(self):
+        return self.ctx.quality_list
+
+    @LazyProperty
+    def tiling_list(self):
+        return self.ctx.tiling_list
+
+    @property
+    def tile_list(self):
+        return self.ctx.tile_list
+
+    @LazyProperty
+    def chunk_list(self):
+        return self.ctx.chunk_list
+
+    @LazyProperty
+    def metric_list(self):
+        return ['time', 'rate', "ssim", "mse", "s-mse", "ws-mse"]
+
+    @property
+    def users_list(self):
+        return self.ctx.users_list
+
+    @LazyProperty
+    def group_list(self):
+        return self.ctx.group_list
+
+
+class CtxInterface(Factors, Lists):
+    ctx: Context
+
     @property
     def attempt(self):
         return self.ctx.attempt
@@ -136,12 +148,32 @@ class CtxInterface:
         return self.ctx.n_tiles
 
     @property
+    def n_frames(self):
+        return self.config.n_frames
+
+    @property
     def config(self):
         return self.ctx.config
 
     @property
+    def fps(self):
+        return self.config.fps
+
+    @property
+    def gop(self):
+        return self.config.gop
+
+    @property
+    def rate_control(self):
+        return self.config.rate_control
+
+    @property
     def dataset_name(self):
         return self.config.dataset_file
+
+    @property
+    def user_hmd_data(self) -> list:
+        return self.ctx.hmd_dataset[self.name + '_nas'][self.user]
 
     @property
     def video_list_by_group(self):
@@ -160,5 +192,4 @@ class CtxInterface:
         tile_position_dict[resolution: str][tiling: str][tile: str]
         :return:
         """
-        print(f'\r\tMaking tile position dict')
         return make_tile_position_dict(self.video_shape, self.tiling_list)
