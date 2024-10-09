@@ -10,8 +10,8 @@ class Logger:
     _log: defaultdict
     cls_name: str
 
-    def __init__(self, config, ctx):
-        self.config = config
+    def __init__(self, ctx):
+        self.config = ctx.config
         self.ctx = ctx
 
     @contextmanager
