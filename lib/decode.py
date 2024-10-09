@@ -6,11 +6,11 @@ from lib.assets.autodict import AutoDict
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
-from lib.segmenter import assert_chunk
-from lib.utils.worker_utils import decode_video, print_error, count_decoding, save_json, load_json, get_nested_value, get_times
+from lib.utils.worker_utils import decode_video, print_error, count_decoding, save_json, load_json, get_nested_value, \
+    get_times
 
 
-class Decode(CtxInterface, Worker):
+class Decode(Worker):
     turn: int
     segmenter_paths: SegmenterPaths
     dectime_paths: DectimePaths
@@ -84,13 +84,14 @@ class Decode(CtxInterface, Worker):
 
     def check_chunk(self):
         try:
-            assert_chunk(self.ctx, self.logger, self.segmenter_paths.chunk_video)
+            self.check_one_chunk()
             self.status.update_status('chunk_ok', True)
         except FileNotFoundError:
             print_error(f'\tChunks not Found.')
             self.status.update_status('chunk_ok', False)
             self.logger.register_log('\tChunk not exist.', self.segmenter_paths.chunk_video)
             raise AbortError(f'Chunk not exist.')
+
 
     def decode_decode(self):
         dectime_log = self.dectime_paths.dectime_log
