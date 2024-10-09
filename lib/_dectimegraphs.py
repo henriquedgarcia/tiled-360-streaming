@@ -18,11 +18,11 @@ from fitter import Fitter
 from lib.assets.autodict import AutoDict
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.worker import Worker
-from lib.assets.paths import Paths
+from lib.assets.paths.dectimepaths import DectimePaths
 from lib.utils.worker_utils import save_json, load_json, save_pickle, load_pickle
 
 
-class DectimeGraphsPaths(Paths):
+class DectimeGraphsPaths(DectimePaths):
     error_type: str
     n_dist = 3
     bins = 30
@@ -244,15 +244,6 @@ class ByPatternProps(DectimeGraphsObj):
         for state in self.state:
             results = results[state]
         return results
-
-    @property
-    def quality_list(self) -> list[str]:
-        quality_list: list = self.config['quality_list']
-        try:
-            quality_list.remove('0')
-        except ValueError:
-            pass
-        return quality_list
 
     @property
     def fitter_pickle_file(self) -> Path:
