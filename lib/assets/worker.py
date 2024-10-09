@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from multiprocessing import Pool
 
-from config.config import Config
 from lib.assets.context import Context
+from lib.assets.ctxinterface import CtxInterface
 from lib.assets.logger import Logger
 from lib.assets.status_ctx import StatusCtx
 from lib.utils.worker_utils import run_command
@@ -25,12 +25,11 @@ class Multi(ABC):
             pass
 
 
-class Worker(ABC):
-    def __init__(self, config: Config, ctx: Context):
-        self.config = config
+class Worker(ABC, CtxInterface):
+    def __init__(self, ctx: Context):
         self.ctx = ctx
-        self.logger = Logger(config, ctx)
-        self.status = StatusCtx(config, ctx)
+        self.logger = Logger(ctx)
+        self.status = StatusCtx(ctx)
         self.print_resume()
 
         with self.logger.logger_context(self.__class__.__name__):

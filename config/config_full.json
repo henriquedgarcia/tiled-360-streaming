@@ -9,7 +9,6 @@
   "scale": {"cmp": "3240x2160"},
 
   "rate_control": "crf",
-  "original_quality": "0",
   "decoding_num": 5,
 
   "bins": 30,

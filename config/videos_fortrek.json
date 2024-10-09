@@ -1,84 +1,22 @@
 {
-  "videos_list": {
-    "pac_man_erp_nas": {
-      "original": "pac_man_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0",
-      "duration": 60,
-      "group": "MM"
-    },
-    "pac_man_cmp_nas": {
-      "original": "pac_man_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0",
-      "duration": 60,
-      "group": "MM"
-    },
-    "penthouse_erp_nas": {
-      "original": "penthouse_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:04",
-      "duration": 60,
-      "group": "RS"
-    },
-    "penthouse_cmp_nas": {
-      "original": "penthouse_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:04",
-      "duration": 60,
-      "group": "RS"
-    },
-    "petite_anse_erp_nas": {
-      "original": "petite_anse_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:45",
-      "duration": 60,
-      "group": "HN"
-    },
-    "petite_anse_cmp_nas": {
-      "original": "petite_anse_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:45",
-      "duration": 60,
-      "group": "HN"
-    },
-    "rhinos_erp_nas": {
-      "original": "rhinos_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:18",
-      "duration": 60,
-      "group": "FM"
-    },
-    "rhinos_cmp_nas": {
-      "original": "rhinos_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:18",
-      "duration": 60,
-      "group": "FM"
-    },
-    "sunset_erp_nas": {
-      "original": "sunset_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:40",
-      "duration": 60,
-      "group": "FN"
-    },
-    "sunset_cmp_nas": {
-      "original": "sunset_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:40",
-      "duration": 60,
-      "group": "FN"
-    }
+  "pac_man": {
+    "offset": "0",
+    "group": "MM"
+  },
+  "penthouse": {
+    "offset": "0:04",
+    "group": "RS"
+  },
+  "petite_anse": {
+    "offset": "0:45",
+    "group": "HN"
+  },
+  "rhinos": {
+    "offset": "0:18",
+    "group": "FM"
+  },
+  "sunset": {
+    "offset": "0:40",
+    "group": "FN"
   }
 }

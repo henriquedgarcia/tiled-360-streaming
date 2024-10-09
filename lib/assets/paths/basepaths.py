@@ -1,13 +1,12 @@
 from pathlib import Path
 
-from config.config import Config
 from lib.assets.context import Context
 
 
 class BasePaths:
-    def __init__(self, config: Config, ctx: Context):
-        self.config = config
+    def __init__(self, ctx: Context):
         self.ctx = ctx
+        self.config = ctx.config
 
     @property
     def project_path(self):
@@ -26,6 +25,10 @@ class BasePaths:
         return self.project_path / 'chunks'
 
     @property
+    def decodable_folder(self):
+        return self.project_path / 'decodable'
+
+    @property
     def dectime_folder(self):
         return self.project_path / 'dectime'
 
@@ -36,6 +39,10 @@ class BasePaths:
     @property
     def quality_folder(self):
         return self.project_path / 'quality'
+
+    @property
+    def user_quality_folder(self):
+        return self.project_path / 'user_quality'
 
     @property
     def dataset_folder(self) -> Path:

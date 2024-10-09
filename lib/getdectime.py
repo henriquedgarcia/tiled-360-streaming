@@ -1,103 +1,53 @@
-from typing import Any
+import numpy as np
 
 from lib.assets.autodict import AutoDict
-from lib.assets.worker import Worker
-from lib.utils.worker_utils import save_json, load_json, get_times, print_error
+from lib.utils.worker_utils import get_nested_value
+from lib.utils.worker_utils import save_json, get_times, print_error
+from lib.decode import Decode
 
 
-class GetDectime(Worker):
-    """
-       The result dict have a following structure:
-       results[video_name][tile_pattern][quality][tile_id][chunk_id]
-               ['times'|'rate']
-       [video_proj]    : The video projection
-       [video_name]    : The video name
-       [tile_pattern]  : The tile tiling. e.g. "6x4"
-       [quality]       : Quality. An int like in crf or qp.
-       [tile_id]           : the tile number. ex. max = 6*4
-       [chunk_id]           : the chunk number. Start with 1.
+class GetDectime(Decode):
+    def iter_decode(self):
+        for self.name in self.name_list:
+            if self.dectime_paths.dectime_result_json.exists():
+                continue
 
-       'times': list(float, float, float)
-       'rate': float
-    """
-    result_times: AutoDict
-    change_flag: bool
-    check_result = True
-    error: bool
-
-    def main(self):
-        for self.video in self.video_list:
-            if list(self.video_list).index(self.video) < 38: continue
-            self.result_times = AutoDict()
-            self.change_flag = True
-            self.error = False
-            if self.skip1(): continue
-
-            for self.tiling in self.tiling_list:
+            self.dectime = AutoDict()
+            for self.projection in self.projection_list:
                 for self.quality in self.quality_list:
-                    for self.tile in self.tile_list:
-                        for self.chunk in self.chunk_list:
-                            self.dectime()
+                    for self.tiling in self.tiling_list:
+                        for self.tile in self.tile_list:
+                            for self.chunk in self.chunk_list:
+                                yield
+            save_json(self.dectime, self.dectime_paths.dectime_result_json)
 
-            if self.change_flag and not self.error:
-                print('Saving.')
-                save_json(self.result_times,
-                          self.dectime_result_json)
+    def decode_chunks(self):
+        for _ in self.iter_decode():
+            print(f'==== Getting Dectime {self.ctx} ====')
 
-    def dectime(self) -> Any:
-        print(f'\r{self.state_str()} = ',
-              end='')
+            try:
+                times = get_times(self.dectime_paths.dectime_log)
+            except FileNotFoundError:
+                print_error('\tChunk not Found.')
+                continue
 
-        try:
-            times = self.get_dectime()
-        except FileNotFoundError:
-            self.error = True
-            self.log('DECTIME_FILE_NOT_FOUND',
-                     self.dectime_log)
-            print_error(f'\n\tThe dectime log not exist. Skipping.')
-            return
+            decoded = len(times)
+            if decoded <= self.config.decoding_num:
+                self.logger.register_log(f'Chunk is not decoded enough. {decoded} times.',
+                                         self.dectime_paths.dectime_log)
 
-        if self.check_result:
-            old_value = self.result_times[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk]
-            if old_value == times:
-                return
-            elif not self.change_flag:
-                self.change_flag = True
+            self.set_dectime({'dectime': times,
+                              'dectime_avg': np.mean(times),
+                              'dectime_std': np.std(times),
+                              'dectime_med': np.median(times),
+                              })
 
-        self.result_times[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk] = times
-        print(f'{times}',
-              end='')
+    dectime: AutoDict
 
-    def skip1(self):
-        if self.dectime_result_json.exists():
-            print(f'\n[{self.proj}][{self.video}] - The dectime_result_json exist.')
-            if self.check_result:
-                self.change_flag = False
-                self.result_times = load_json(self.dectime_result_json,
-                                              object_hook=AutoDict)
-                return False
-            return True
-        return False
+    def get_dectime(self):
+        keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
+        return get_nested_value(self.dectime, keys)
 
-    def get_dectime(self) -> Any:
-        content = self.dectime_log.read_text(encoding='utf-8')
-        times = get_times(content)
-        times = times[-self.decoding_num:]
-        times = sorted(times)
-
-        if len(times) < self.decoding_num:
-            print_error(f'\n    The dectime is lower than {self.decoding_num}: ')
-            self.log(f'DECTIME_NOT_DECODED_ENOUGH_{len(times)}',
-                     self.dectime_log)
-
-        if 0 in times:
-            print_error(f'\n    0  found: ')
-            self.log('DECTIME_ZERO_FOUND',
-                     self.dectime_log)
-
-        return times
-
-    def skip2(self):
-        if not self.dectime_log.exists():
-            return True
-        return False
+    def set_dectime(self, value: dict):
+        keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
+        get_nested_value(self.dectime, keys).update(value)

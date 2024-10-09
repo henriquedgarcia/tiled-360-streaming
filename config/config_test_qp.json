@@ -6,13 +6,9 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "scale": {"erp": "720x360",
-            "cmp": "540x360"},
+  "scale": {"cmp": "540x360"},
 
-  "codec": "x265",
-  "codec_params": "keyint=30:min-keyint=30:open-gop=0:scenecut=0:info=0",
   "rate_control": "qp",
-  "original_quality": "0",
   "decoding_num": 5,
 
   "bins": 30,

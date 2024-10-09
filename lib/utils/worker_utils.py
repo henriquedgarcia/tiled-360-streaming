@@ -1,4 +1,3 @@
-from functools import reduce
 import json
 import os
 import pickle
@@ -90,6 +89,13 @@ def lin_interpol(t: float, t_f: float, t_i: float, v_f: np.ndarray, v_i: np.ndar
 
 
 def make_tile_position_dict(video_shape, tiling_list):
+    """
+
+    :param video_shape:
+    :param video_shape:
+    :param tiling_list:
+    :return:
+    """
     proj_h, proj_w = video_shape
     resolution = f'{video_shape[1]}x{video_shape[0]}'
     tile_position_dict = AutoDict()
@@ -117,7 +123,11 @@ def count_decoding(dectime_log: Path) -> int:
     Count how many times the word "utime" appears in "log_file"
     :return:
     """
-    times = len(get_times(dectime_log, only_count=True))
+    try:
+        times = len(get_times(dectime_log, only_count=True))
+    except FileNotFoundError:
+        print('ERROR: FileNotFoundError. Return 0.')
+        times = 0
     return times
 
 
@@ -171,7 +181,7 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix=''):
+def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix='\n'):
     """
 
     :param cmd:
@@ -191,11 +201,11 @@ def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suff
     stdout_lines = [cmd + '\n']
 
     while True:
+        ui.increment()
         out = process.stdout.readline()
         if not out:
             break
         stdout_lines.append(out)
-        ui.increment()
     ui.end(suffix=ui_suffix)
 
     if log_file is not None:

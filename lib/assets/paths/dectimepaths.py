@@ -1,17 +1,14 @@
 from pathlib import Path
 
-from config.config import Config
 from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
-from lib.assets.paths.segmenterpaths import SegmenterPaths
 
 
 class DectimePaths:
-    def __init__(self, config: Config, context: Context, segmenter_paths: SegmenterPaths):
-        self.config = config
+    def __init__(self, context: Context):
+        self.config = context.config
         self.ctx = context
-        self.base_paths = BasePaths(config, context)
-        self.segmenter_paths = segmenter_paths
+        self.base_paths = BasePaths(context)
 
     @property
     def dectime_folder(self) -> Path:

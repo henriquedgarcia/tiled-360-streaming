@@ -8,6 +8,7 @@ from py360tools import ERP, CMP, ProjectionBase
 from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
+from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.paths.gettilespaths import GetTilesPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
@@ -21,49 +22,44 @@ from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
 # Videos 'cable_cam_nas','drop_tower_nas','wingsuit_dubai_nas','drone_chases_car_nas'
 # rotation = rotation_map[video_nas_id] if video_nas_id in [10, 17, 27, 28] else 0
 
-class GetTilesBase(Worker):
-    hmd_dataset: dict
+
+class GetTilesBase(Worker, CtxInterface):
     projection_dict: dict['str', dict['str', ProjectionBase]]
     segmenter_paths: SegmenterPaths
     get_tiles_paths: GetTilesPaths
-    user_hmd_data: dict
 
     def main(self):
         self.init()
         self.process()
 
     def init(self):
-        self.get_tiles_paths = GetTilesPaths(self.config, self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.config, self.ctx)
+        self.get_tiles_paths = GetTilesPaths(self.ctx)
+        self.segmenter_paths = SegmenterPaths(self.ctx)
         self.projection_dict = self.create_projections_dict()
 
     def for_each_user(self):
         ...
 
     def process(self):
-        for self.ctx.name in self.ctx.name_list:
-            for self.ctx.projection in self.ctx.projection_list:
-                for self.ctx.tiling in self.ctx.tiling_list:
-                    for self.ctx.user in self.ctx.users_list:
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list:
                         self.for_each_user()
 
     def create_projections_dict(self):
         projection_dict = AutoDict()
-        for tiling in self.ctx.tiling_list:
+        for tiling in self.tiling_list:
             erp = build_projection(proj_name='erp', tiling=tiling,
                                    proj_res='1080x540', vp_res='660x540',
-                                   fov_res=self.config.fov)
+                                   fov_res=self.fov)
             cmp = build_projection(proj_name='cmp', tiling=tiling,
                                    proj_res='1080x540', vp_res='660x540',
-                                   fov_res=self.config.fov)
+                                   fov_res=self.fov)
 
             projection_dict['erp'][tiling] = erp
             projection_dict['cmp'][tiling] = cmp
         return projection_dict
-
-    @property
-    def user_hmd_data(self) -> list:
-        return self.ctx.hmd_dataset[self.ctx.name + '_nas'][self.ctx.user]
 
     _results: dict
 
@@ -129,21 +125,21 @@ class GetTilesReal(GetTilesBase):
     def assert_user_hmd_data(self):
         if self.user_hmd_data == {}:
             self.logger.register_log(f'HMD samples is missing, '
-                                     f'user{self.ctx.user}',
-                                     self.get_tiles_paths.dataset_json)
+                                     f'user{self.user}',
+                                     self.config.dataset_file)
             raise HMDDatasetError(f'HMD samples is missing, '
-                                  f'user{self.ctx.user}')
+                                  f'user{self.user}')
 
     def get_tiles_seen_by_frame(self, user_hmd_data) -> list[list[str]]:
-        if self.ctx.tiling == '1x1':
-            return [["0"]] * self.config.n_frames
+        if self.tiling == '1x1':
+            return [["0"]] * self.n_frames
 
         tiles_seen_by_frame = []
-        projection_obj = self.projection_dict[self.ctx.projection]
-        projection_obj = projection_obj[self.ctx.tiling]
+        projection_obj = self.projection_dict[self.projection]
+        projection_obj = projection_obj[self.tiling]
 
         for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
-            print(f'\r\tframe {frame:04d}/{self.config.n_frames}', end='')
+            print(f'\r\tframe {frame:04d}/{self.n_frames}', end='')
             vptiles = projection_obj.get_vptiles(yaw_pitch_roll)
             vptiles: list[str] = list(map(str, map(int, vptiles)))
             tiles_seen_by_frame.append(vptiles)
@@ -152,7 +148,7 @@ class GetTilesReal(GetTilesBase):
     def get_tiles_seen_by_chunk(self, tiles_seen_by_frame):
         tiles_seen_by_chunk = {}
 
-        if self.ctx.tiling == '1x1':
+        if self.tiling == '1x1':
             duration = int(self.config.duration)
             return {str(i): ["0"] for i in range(1, duration + 1)}
 
@@ -172,15 +168,15 @@ class GetTilesReal(GetTilesBase):
         self.results = load_json(self.get_tiles_paths.get_tiles_json)
         result = {}
 
-        for self.ctx.tiling in self.ctx.tiling_list:
-            if self.ctx.tiling == '1x1': continue
+        for self.tiling in self.tiling_list:
+            if self.tiling == '1x1': continue
 
             # <editor-fold desc="Count tiles">
             tiles_counter_chunks = Counter()  # Collect tiling count
 
-            for self.ctx.user in self.ctx.users_list:
-                result_chunks = self.results[self.ctx.projection][self.ctx.name]
-                result_chunks = result_chunks[self.ctx.tiling][self.ctx.user]
+            for self.user in self.users_list:
+                result_chunks = self.results[self.projection][self.name]
+                result_chunks = result_chunks[self.tiling][self.user]
                 result_chunks = result_chunks['chunks']
 
                 for chunk in result_chunks:
@@ -193,25 +189,25 @@ class GetTilesReal(GetTilesBase):
 
             # <editor-fold desc="Normalize Counter">
             nb_chunks = sum(dict_tiles_counter_chunks.values())
-            for self.ctx.tile in self.ctx.tile_list:
+            for self.tile in self.tile_list:
                 try:
-                    dict_tiles_counter_chunks[self.ctx.tile] /= nb_chunks
+                    dict_tiles_counter_chunks[self.tile] /= nb_chunks
                 except KeyError:
-                    dict_tiles_counter_chunks[self.ctx.tile] = 0
+                    dict_tiles_counter_chunks[self.tile] = 0
             # </editor-fold>
 
-            result[self.ctx.tiling] = dict_tiles_counter_chunks
+            result[self.tiling] = dict_tiles_counter_chunks
 
         save_json(result, self.get_tiles_paths.counter_tiles_json)
 
 
 class CreateJson(GetTilesBase):
     def process(self):
-        for self.ctx.name in self.ctx.name_list:
+        for self.name in self.name_list:
             self.reset_results(AutoDict)
-            for self.ctx.projection in self.ctx.projection_list:
-                for self.ctx.tiling in self.ctx.tiling_list:
-                    for self.ctx.user in self.ctx.users_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list:
                         self.for_each_user()
             save_json(self.results, self.get_tiles_paths.get_tiles_json)
 
@@ -232,16 +228,16 @@ class HeatMap(GetTilesBase):
     def heatmap(self):
         results = load_json(self.get_tiles_paths.counter_tiles_json)
 
-        if self.ctx.tiling == '1x1': return
+        if self.tiling == '1x1': return
 
-        filename = (f'heatmap_tiling_nasrabadi_28videos_{self.ctx.projection}_{self.ctx.name}_'
-                    f'{self.ctx.tiling}_fov{self.config.fov}.png')
+        filename = (f'heatmap_tiling_nasrabadi_28videos_{self.projection}_{self.name}_'
+                    f'{self.tiling}_fov{self.config.fov}.png')
         heatmap_tiling = (self.get_tiles_paths.get_tiles_folder / filename)
         if heatmap_tiling.exists(): return
 
-        tiling_result = results[self.ctx.tiling]
+        tiling_result = results[self.tiling]
 
-        h, w = splitx(self.ctx.tiling)[::-1]
+        h, w = splitx(self.tiling)[::-1]
         grade = np.zeros((h * w,))
 
         for item in tiling_result: grade[int(item)] = tiling_result[item]
@@ -249,14 +245,14 @@ class HeatMap(GetTilesBase):
 
         fig, ax = plt.subplots()
         im = ax.imshow(grade, cmap='jet', )
-        ax.set_title(f'Tiling {self.ctx.tiling}')
+        ax.set_title(f'Tiling {self.tiling}')
         fig.colorbar(im, ax=ax, label='chunk frequency')
 
         # fig.show()
         fig.savefig(f'{heatmap_tiling}')
 
 
-class TestGetTiles(GetTilesBase):
+class TestGetTiles(GetTilesReal):
     def for_each_user(self):
         print(f'==== GetTiles {self.ctx} ====')
         try:
@@ -266,8 +262,10 @@ class TestGetTiles(GetTilesBase):
 
     def init(self):
         super().init()
-        self.ctx.results = load_json(self.get_tiles_paths.get_tiles_json)
+        self.results = load_json(self.get_tiles_paths.get_tiles_json)
         pass
+
+    seen_tiles_metric: dict
 
     def plot_stats(self):
         fig: plt.Figure
@@ -276,13 +274,12 @@ class TestGetTiles(GetTilesBase):
         ax = list(ax.flat)
         ax: list[plt.Axes]
 
-        for self.ctx.quality in '28':
+        for self.quality in '28':
             from collections import defaultdict
             result5 = defaultdict(list)  # By chunk
-
-            for self.ctx.chunk in self.ctx.chunk_list:
-                seen_tiles_metric = self.seen_tiles_metric[self.ctx.name][self.ctx.projection][self.ctx.tiling]
-                [self.quality][self.ctx.user][self.ctx.chunk]
+            self.seen_tiles_metric = {}
+            for self.chunk in self.chunk_list:
+                seen_tiles_metric = self.seen_tiles_metric[self.name][self.projection][self.tiling][self.quality][self.user][self.chunk]
                 tiles_list = seen_tiles_metric['time'].keys()
 
                 result5[f'n_tiles'].append(len(tiles_list))
@@ -333,11 +330,10 @@ class TestGetTiles(GetTilesBase):
         for a in ax[:-1]:
             a.legend(loc='upper right')
 
-        fig.suptitle(f'{self.video} {self.ctx.tiling} - user {self.ctx.user}')
-        fig.suptitle(f'{self.video} {self.ctx.tiling} - user {self.ctx.user}')
+        fig.suptitle(f'{self.name} {self.projection} {self.tiling} - user {self.user}')
         fig.tight_layout()
         # fig.show()
-        img_name = self.folder / f'{self.ctx.tiling}_user{self.ctx.user}.png'
+        img_name = self.get_tiles_paths.get_tiles_folder / f'{self.tiling}_user{self.user}.png'
         fig.savefig(img_name)
         plt.close(fig)
 
@@ -377,6 +373,7 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
     fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
     fig_final = draw.compose(fig_final, vp, (0, 0, 255))
     draw.show(fig_final)
+
 
 # class TestGetTiles(GetTiles):
 #     def init(self):
