@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from multiprocessing import Pool
 
-from config.config import Config
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.logger import Logger
