@@ -243,5 +243,3 @@ class LoadingUi:
     @staticmethod
     def end(suffix='\n'):
         print(f'{suffix}', end='')
-
-
