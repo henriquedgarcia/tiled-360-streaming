@@ -157,7 +157,7 @@ class Segmenter(Worker, CtxInterface):
             self.logger.register_log(f'Chunk Decode Error.', chunk_video)
             raise FileNotFoundError(f'Chunk Decode Error.')
 
-    def create_mp4(self,decode_check):
+    def create_mp4(self, decode_check):
         print(f'\tCreating mp4 chunks.')
         for self.chunk in self.chunk_list:
             if self.decodable_is_ok(decode_check):
