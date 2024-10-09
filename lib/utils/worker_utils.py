@@ -181,7 +181,7 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix=''):
+def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix='\n'):
     """
 
     :param cmd:
@@ -201,11 +201,11 @@ def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suff
     stdout_lines = [cmd + '\n']
 
     while True:
+        ui.increment()
         out = process.stdout.readline()
         if not out:
             break
         stdout_lines.append(out)
-        ui.increment()
     ui.end(suffix=ui_suffix)
 
     if log_file is not None:
@@ -243,3 +243,5 @@ class LoadingUi:
     @staticmethod
     def end(suffix='\n'):
         print(f'{suffix}', end='')
+
+
