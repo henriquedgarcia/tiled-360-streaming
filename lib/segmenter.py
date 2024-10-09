@@ -80,25 +80,121 @@ class Segmenter(Worker, CtxInterface):
         decode_check = False
         for _ in self.iterate_name_projection_quality_tiling_tile():
             with task(self):
+                if not self.tile_is_ok(decode_check):
+                    self.create_tile()
                 if not self.skip_dash():
                     self.create_dash()
                 self.create_mp4(decode_check)
+
+    def create_tile(self):
+        print(f'\tCreating Tiles ')
+        cmd = self.make_tile_cmd()
+        run_command(cmd, self.segmenter_paths.tile_folder, self.segmenter_paths.tile_log, ui_prefix='\t')
+
+    def make_tile_cmd(self):
+        lossless_file = self.segmenter_paths.lossless_video.as_posix()
+        compressed_file = self.segmenter_paths.tile_video.as_posix()
+
+        x1, y1, x2, y2 = self.tile_position_dict[self.scale][self.tiling][self.tile]
+
+        gop_options = f'keyint={self.gop}:min-keyint={self.gop}:open-gop=0'
+        misc_options = f'scenecut=0:info=0'
+        qp_options = ':ipratio=1:pbratio=1' if self.rate_control == 'qp' else ''
+        lossless_option = ':lossless=1' if self.quality == '0' else ''
+        codec_params = f'-x265-params {gop_options}:{misc_options}{qp_options}{lossless_option}'
+        codec = f'-c:v libx265'
+        crop_params = f'crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1}'
+        output_options = f'-{self.rate_control} {self.quality} -tune psnr'
+
+        cmd = ('bash -c '
+               '"'
+               'bin/ffmpeg -hide_banner -y -psnr '
+               f'-i {lossless_file} '
+               f'{output_options} '
+               f'{codec} {codec_params} '
+               f'-vf {crop_params} '
+               f'{compressed_file}'
+               f'"')
+
+        return cmd
+
+    def clean_tile(self):
+        self.segmenter_paths.tile_log.unlink(missing_ok=True)
+        self.segmenter_paths.tile_video.unlink(missing_ok=True)
+
+    def tile_is_ok(self, decode_check):
+        print(f'\tChecking tiles')
+        if not (self.tile_log_is_ok() and self.tile_video_is_ok(decode_check)):
+            self.clean_tile()
+            return False
+        return True
+
+    def lossless_is_ok(self):
+        print(f'\tChecking lossless')
+        if not self.segmenter_paths.lossless_video.exists():
+            self.logger.register_log('lossless_video not found.', self.segmenter_paths.lossless_video)
+            raise AbortError(f'lossless_video not found.')
+
+    def tile_video_is_ok(self, decode_check):
+        try:
+            compressed_file_size = self.segmenter_paths.tile_video.stat().st_size
+        except FileNotFoundError:
+            return False
+
+        if compressed_file_size == 0:
+            return False
+
+        if decode_check:
+            print(f'\r\t\tDecoding check tile{self.tile}.', end='')
+            self.decode_check()
+        return True
+
+    def decode_check(self):
+        if self.status.get_status('decode_check'):
+            print_error(f'. OK')
+            return
+
+        stdout = decode_video(self.segmenter_paths.tile_video)
+        if "frame= 1800" not in stdout:
+            self.logger.register_log(f'Decode tile error.', self.segmenter_paths.tile_video)
+            raise FileNotFoundError('Decoding Compress Error')
+        self.status.update_status('decode_check', True)
+        print_error(f'. OK')
+
+    def tile_log_is_ok(self):
+        try:
+            compressed_log_text = self.segmenter_paths.tile_log.read_text()
+        except FileNotFoundError:
+            return False
+
+        if 'encoded 1800 frames' not in compressed_log_text:
+            self.logger.register_log('Tile log is corrupt', self.segmenter_paths.tile_log)
+            self.segmenter_paths.tile_log.unlink()
+            return False
+
+        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
+            self.logger.register_log('Codec version is different.', self.segmenter_paths.tile_log)
+            self.segmenter_paths.tile_log.unlink(missing_ok=True)
+            return False
+        return True
 
     def skip_dash(self):
         print(f'\tChecking dash.')
         try:
             segment_log_txt = self.segmenter_paths.segmenter_log.read_text()
             if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
+                shutil.rmtree(self.segmenter_paths.mpd_folder, ignore_errors=True)
+                self.segmenter_paths.segmenter_log.unlink()
                 self.logger.register_log('Segmenter log is corrupt.', self.segmenter_paths.segmenter_log)
-                raise FileExistsError
+                raise FileNotFoundError
             return True
         except FileNotFoundError:
             shutil.rmtree(self.segmenter_paths.mpd_folder, ignore_errors=True)
             self.segmenter_paths.segmenter_log.unlink(missing_ok=True)
 
-        print(f'\tChunks not found. Checking tile.')
         if not self.segmenter_paths.tile_video.exists():
             raise AbortError(f'Tile video not found. Aborting.')
+        return False
 
     def create_dash(self):
         print(f'\tTile ok. Creating chunks.')
@@ -140,14 +236,11 @@ class Segmenter(Worker, CtxInterface):
                 print(f'\r\t\tDecoding check chunk{self.chunk}.', end='')
                 self.check_one_chunk_decode()
         except FileNotFoundError:
-            shutil.rmtree(self.segmenter_paths.decodable_folder, ignore_errors=True)
             return False
-
         if chunk_size == 0:
             self.logger.register_log('Chunk size is 0.', self.segmenter_paths.decodable_chunk)
             self.segmenter_paths.decodable_chunk.unlink()
             return False
-
         return True
 
     def check_one_chunk_decode(self):
@@ -164,7 +257,7 @@ class Segmenter(Worker, CtxInterface):
                 return
             self.cat_chunk()
         self.chunk = None
-        print('')
+        print('\t')
 
     def make_segmenter_cmd(self):
         compressed_file = self.segmenter_paths.tile_video.as_posix()
