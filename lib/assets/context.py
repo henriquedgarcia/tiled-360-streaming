@@ -19,6 +19,7 @@ class Context:
     metric: str = None
     turn: str = None
     attempt: int = None
+    iterations: int = 0
     projection_dict = AutoDict
 
     factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
@@ -64,11 +65,11 @@ class Context:
     def projection_list(self):
         return list(self.config.config_dict['scale'])
 
-    @LazyProperty
+    @property
     def quality_list(self):
-        return list(map(str, self.config.quality_list))
+        return self.config.quality_list
 
-    @LazyProperty
+    @property
     def tiling_list(self):
         return [str(tiling) for tiling in self.config.tiling_list]
 
@@ -78,7 +79,7 @@ class Context:
 
     @LazyProperty
     def chunk_list(self):
-        return [str(chunk) for chunk in range(self.config.n_chunks)]
+        return [str(chunk) for chunk in range(1, self.config.n_chunks + 1)]
 
     @LazyProperty
     def group_list(self):
@@ -89,15 +90,12 @@ class Context:
     def metric_list(self):
         return self.config.metric_list
 
-    hmd_dataset: dict = None
+    @LazyProperty
+    def hmd_dataset(self):
+        return load_json(self.config.dataset_file)
 
     @property
     def users_list(self):
-        try:
-            assert self.hmd_dataset is not None
-        except AssertionError:
-            self.hmd_dataset = load_json(self.config.dataset_file)
-
         users_str = self.hmd_dataset[self.name + '_nas'].keys()
         sorted_users_int = sorted(map(int, users_str))
         sorted_users_str = list(map(str, sorted_users_int))
@@ -123,9 +121,21 @@ class Context:
     def offset(self):
         return self.config.videos_dict[self.name]['offset']
 
+    _group = None
+
     @property
     def group(self):
-        return self.config.videos_dict[self.name]['group']
+        if self._group is None:
+            return self.config.videos_dict[self.name]['group']
+        return self._group
+
+    @group.setter
+    def group(self, value):
+        self._group = value
+
+    @group.deleter
+    def group(self):
+        self._group = None
 
     @property
     def video_shape(self) -> tuple:
