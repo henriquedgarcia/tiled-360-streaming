@@ -1,0 +1,22 @@
+{
+  "three_peaks": {
+    "offset": "0:00",
+    "group": "MN"
+  },
+  "video_04": {
+    "offset": "0",
+    "group": "FS"
+  },
+  "video_19": {
+    "offset": "0",
+    "group": "RN"
+  },
+  "video_20": {
+    "offset": "0",
+    "group": "RN"
+  },
+  "video_22": {
+    "offset": "0",
+    "group": "RS"
+  }
+}
