@@ -25,6 +25,10 @@ class BasePaths:
         return self.project_path / 'chunks'
 
     @property
+    def decodable_folder(self):
+        return self.project_path / 'decodable'
+
+    @property
     def dectime_folder(self):
         return self.project_path / 'dectime'
 
