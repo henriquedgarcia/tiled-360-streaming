@@ -1,84 +1,22 @@
 {
-  "videos_list": {
-    "angel_falls_erp_nas": {
-      "original": "angel_falls_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "5:30",
-      "duration": 60,
-      "group": "MN"
-    },
-    "angel_falls_cmp_nas": {
-      "original": "angel_falls_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "5:30",
-      "duration": 60,
-      "group": "MN"
-    },
-    "blue_angels_erp_nas": {
-      "original": "blue_angels_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "1:00",
-      "duration": 60,
-      "group": "MM"
-    },
-    "blue_angels_cmp_nas": {
-      "original": "blue_angels_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "1:00",
-      "duration": 60,
-      "group": "MM"
-    },
-    "cable_cam_erp_nas": {
-      "original": "cable_cam_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:15",
-      "duration": 60,
-      "group": "HS"
-    },
-    "cable_cam_cmp_nas": {
-      "original": "cable_cam_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:15",
-      "duration": 60,
-      "group": "HS"
-    },
-    "chariot_race_erp_nas": {
-      "original": "chariot_race_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "HM"
-    },
-    "chariot_race_cmp_nas": {
-      "original": "chariot_race_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "HM"
-    },
-    "closet_tour_erp_nas": {
-      "original": "closet_tour_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:07",
-      "duration": 60,
-      "group": "FS"
-    },
-    "closet_tour_cmp_nas": {
-      "original": "closet_tour_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:07",
-      "duration": 60,
-      "group": "FS"
-    }
+  "angel_falls": {
+    "offset": "5:30",
+    "group": "MN"
+  },
+  "blue_angels": {
+    "offset": "1:00",
+    "group": "MM"
+  },
+  "cable_cam": {
+    "offset": "0:15",
+    "group": "HS"
+  },
+  "chariot_race": {
+    "offset": "0:00",
+    "group": "HM"
+  },
+  "closet_tour": {
+    "offset": "0:07",
+    "group": "FS"
   }
 }

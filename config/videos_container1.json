@@ -1,84 +1,22 @@
 {
-  "videos_list": {
-    "elevator_lift_erp_nas": {
-      "original": "elevator_lift_erp_nas.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "VN"
-    },
-    "elevator_lift_cmp_nas": {
-      "original": "elevator_lift_cmp_nas.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "VN"
-    },
-    "glass_elevator_erp_nas": {
-      "original": "glass_elevator_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:14",
-      "duration": 60,
-      "group": "VN"
-    },
-    "glass_elevator_cmp_nas": {
-      "original": "glass_elevator_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:14",
-      "duration": 60,
-      "group": "VN"
-    },
-    "montana_erp_nas": {
-      "original": "montana_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "FN"
-    },
-    "montana_cmp_nas": {
-      "original": "montana_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:00",
-      "duration": 60,
-      "group": "FN"
-    },
-    "motorsports_park_erp_nas": {
-      "original": "motorsports_park_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:15",
-      "duration": 60,
-      "group": "HS"
-    },
-    "motorsports_park_cmp_nas": {
-      "original": "motorsports_park_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:15",
-      "duration": 60,
-      "group": "HS"
-    },
-    "nyc_drive_erp_nas": {
-      "original": "nyc_drive_erp.mp4",
-      "scale": "4320x2160",
-      "projection": "erp",
-      "offset": "0:12",
-      "duration": 60,
-      "group": "HM"
-    },
-    "nyc_drive_cmp_nas": {
-      "original": "nyc_drive_cmp.mp4",
-      "scale": "3240x2160",
-      "projection": "cmp",
-      "offset": "0:12",
-      "duration": 60,
-      "group": "HM"
-    }
+  "elevator_lift": {
+    "offset": "0:00",
+    "group": "VN"
+  },
+  "glass_elevator": {
+    "offset": "0:14",
+    "group": "VN"
+  },
+  "montana": {
+    "offset": "0:00",
+    "group": "FN"
+  },
+  "motorsports_park": {
+    "offset": "0:15",
+    "group": "HS"
+  },
+  "nyc_drive": {
+    "offset": "0:12",
+    "group": "HM"
   }
 }
