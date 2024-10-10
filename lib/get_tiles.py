@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections import Counter
 from time import time
 from typing import Union
@@ -51,10 +52,10 @@ class GetTilesBase(Worker, CtxInterface):
         projection_dict = AutoDict()
         for tiling in self.tiling_list:
             erp = build_projection(proj_name='erp', tiling=tiling,
-                                   proj_res='1080x540', vp_res='660x540',
+                                   proj_res=self.config.config_dict['scale']['erp'], vp_res='1320x1080',
                                    fov_res=self.fov)
             cmp = build_projection(proj_name='cmp', tiling=tiling,
-                                   proj_res='1080x540', vp_res='660x540',
+                                   proj_res=self.config.config_dict['scale']['cmp'], vp_res='1320x1080',
                                    fov_res=self.fov)
 
             projection_dict['erp'][tiling] = erp
@@ -275,7 +276,6 @@ class TestGetTiles(GetTilesReal):
         ax: list[plt.Axes]
 
         for self.quality in '28':
-            from collections import defaultdict
             result5 = defaultdict(list)  # By chunk
             self.seen_tiles_metric = {}
             for self.chunk in self.chunk_list:
@@ -283,26 +283,13 @@ class TestGetTiles(GetTilesReal):
                 tiles_list = seen_tiles_metric['time'].keys()
 
                 result5[f'n_tiles'].append(len(tiles_list))
-                for self.metric in ['time', 'rate', 'PSNR', 'WS-PSNR', 'S-PSNR']:
+                for self.metric in self.metric_list:
                     value = [seen_tiles_metric[self.metric][tile] for tile in tiles_list]
                     percentile = list(np.percentile(value, [0, 25, 50, 75, 100]))
-                    # Tempo
-                    # total
-                    # de
-                    # um
-                    # chunk(sem
-                    # decodificação
-                    # paralela) (soma os tempos de decodificação
-                    # dos tiles)
-                    # result5[f'{self.metric}_sum'].append(np.sum(value))
-                    # tempo
-                    # médio
-                    # de
-                    # um
-                    # chunk(com
-                    # decodificação
-                    # paralela) (média dos tempos de decodificação
-                    # dos tiles)
+                    # Tempo total de um chunk:
+                    # sem decodificação paralela - soma os tempos de decodificação dos tiles
+                    # com decodificação paralela - Usar apenas o maior tempo entre todos os tiles usados
+                    result5[f'{self.metric}_sum'].append(np.sum(value))
                     result5[f'{self.metric}_avg'].append(np.average(value))
                     result5[f'{self.metric}_std'].append(np.std(value))
                     result5[f'{self.metric}_min'].append(percentile[0])
