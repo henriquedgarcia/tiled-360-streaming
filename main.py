@@ -7,7 +7,7 @@ from lib.assets.context import Context
 from lib.assets.worker import Worker
 from lib.maketiles import MakeTiles
 # from lib.decode import Decode
-# from lib.get_tiles import GetTiles
+from lib.get_tiles import GetTiles
 # from lib.getbitrate import GetBitrate
 # from lib.getdectime import GetDectime
 # from lib.getquality import GetQuality
@@ -71,7 +71,7 @@ worker_list = [
     Option(id=0, name='MakeTiles', obj=MakeTiles),
     Option(id=1, name='Segmenter', obj=Segmenter),
     # Option(id=2, name='Decode', obj=Decode),
-    # Option(id=3, name='GetTiles', obj=GetTiles),
+    Option(id=3, name='GetTiles', obj=GetTiles),
     # Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
     # Option(id=5, name='GetBitrate', obj=GetBitrate),
     # Option(id=6, name='GetDectime', obj=GetDectime),
