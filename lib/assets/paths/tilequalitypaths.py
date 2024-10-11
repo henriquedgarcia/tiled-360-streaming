@@ -10,7 +10,6 @@ from lib.utils.context_utils import context_quality
 class ChunkQualityPaths(CtxInterface):
     def __init__(self, context: Context):
         self.ctx = context
-        self.config = context.config
         self.base_paths = BasePaths(context)
         self.segmenter_paths = SegmenterPaths(context)
 
@@ -19,6 +18,20 @@ class ChunkQualityPaths(CtxInterface):
         with context_quality(self.ctx, '0', 'qp'):
             chunk_video_paths = self.segmenter_paths.chunk_video
         return chunk_video_paths
+
+    @property
+    def chunk_video(self):
+        return self.segmenter_paths.chunk_video
+
+    @property
+    def reference_tile(self):
+        with context_quality(self.ctx, '0', 'qp'):
+            chunk_video_paths = self.segmenter_paths.tile_video
+        return chunk_video_paths
+
+    @property
+    def tile_video(self):
+        return self.segmenter_paths.tile_video
 
     @property
     def chunk_quality_result_json(self) -> Path:
