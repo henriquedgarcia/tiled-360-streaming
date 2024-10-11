@@ -12,7 +12,7 @@ from lib.maketiles import MakeTiles
 # from lib.getdectime import GetDectime
 # from lib.getquality import GetQuality
 from lib.segmenter import Segmenter
-# from lib.tilequality import TileChunkQuality
+from lib.tilequality import TileChunkQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -72,7 +72,7 @@ worker_list = [
     Option(id=1, name='Segmenter', obj=Segmenter),
     # Option(id=2, name='Decode', obj=Decode),
     # Option(id=3, name='GetTiles', obj=GetTiles),
-    # Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
+    Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
     # Option(id=5, name='GetBitrate', obj=GetBitrate),
     # Option(id=6, name='GetDectime', obj=GetDectime),
     # Option(id=7, name='GetQuality', obj=GetQuality),
