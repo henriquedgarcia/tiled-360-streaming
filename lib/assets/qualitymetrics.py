@@ -59,7 +59,7 @@ class QualityMetrics(CtxInterface):
 
     # from PIL import Image
     # Image.fromarray(array).show()
-    def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
+    def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray) -> float:
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
         resolution.
