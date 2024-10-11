@@ -1,10 +1,10 @@
 import shutil
-from contextlib import contextmanager
 
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
+from lib.utils.context_utils import task
 from lib.utils.worker_utils import decode_video, print_error, run_command
 
 
@@ -45,17 +45,6 @@ from lib.utils.worker_utils import decode_video, print_error, run_command
 #     self.segmenter_paths.lossless_video.parent.mkdir(parents=True, exist_ok=True)
 #     process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
 #     self.segmenter_paths.lossless_log.write_text(process.stdout)
-
-
-@contextmanager
-def task(self):
-    print(f'==== {self.__class__.__name__} {self.ctx} ====')
-    try:
-        yield
-    except AbortError as e:
-        print_error(f'\t{e.args[0]}')
-    finally:
-        pass
 
 
 class Segmenter(Worker, CtxInterface):
