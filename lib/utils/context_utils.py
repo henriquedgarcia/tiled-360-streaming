@@ -1,5 +1,8 @@
 from contextlib import contextmanager
 
+from lib.assets.errors import AbortError
+from lib.utils.worker_utils import print_error
+
 
 @contextmanager
 def context_chunk(ctx, value):
@@ -34,3 +37,14 @@ def context_quality(ctx, quality='0', rate_control='crf'):
     finally:
         ctx.quality = qlt
         ctx.config.rate_control = rc
+
+
+@contextmanager
+def task(self):
+    print(f'==== {self.__class__.__name__} {self.ctx} ====')
+    try:
+        yield
+    except AbortError as e:
+        print_error(f'\t{e.args[0]}')
+    finally:
+        pass
