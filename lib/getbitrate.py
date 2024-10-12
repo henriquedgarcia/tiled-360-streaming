@@ -3,11 +3,11 @@ from typing import Any
 from lib.assets.autodict import AutoDict
 from lib.assets.worker import Worker
 from lib.utils.worker_utils import save_json, load_json, print_error
-from lib.segmenter import Segmenter, SegmenterPaths
+from lib.makechunks import MakeChunks, SegmenterPaths
 from lib.assets.ctxinterface import CtxInterface
 from lib.utils.worker_utils import get_nested_value
 
-class GetBitrate(Segmenter, CtxInterface):
+class GetBitrate(MakeChunks, CtxInterface):
     """
        The result dict have a following structure:
        results[video_name][tile_pattern][quality][tile_id][chunk_id]
