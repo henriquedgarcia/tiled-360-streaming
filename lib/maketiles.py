@@ -5,6 +5,7 @@ from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.status_ctx import StatusCtx
 from lib.assets.worker import Worker
 from lib.utils.worker_utils import print_error, decode_video, run_command
+from lib.utils.context_utils import task
 
 
 class CheckTiles(CtxInterface):
