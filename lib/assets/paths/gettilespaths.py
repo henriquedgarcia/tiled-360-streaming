@@ -17,15 +17,15 @@ class GetTilesPaths(CtxInterface):
         return self.base_paths.project_path / 'get_tiles'
 
     @property
-    def get_tiles_json(self) -> Path:
+    def get_tiles_result_json(self) -> Path:
         filename = (f'get_tiles_{self.name}_{self.projection}'
                     f'_fov{self.fov}.json')
-        return self.get_tiles_folder / filename
+        return self.base_paths.results_folder / filename
 
     @property
     def user_tiles_seen_json(self) -> Path:
         folder = self.get_tiles_folder / self.name / self.projection / self.tiling
-        filename = f'seen_tiles_user{self.user}.json'
+        filename = f'user{int(self.user):02d}.json'
         return folder / filename
 
     @property

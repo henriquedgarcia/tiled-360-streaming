@@ -4,6 +4,7 @@ from lib.assets.paths.maketilespaths import MakeTilesPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
 from lib.utils.worker_utils import print_error, decode_video, run_command
+from lib.utils.context_utils import task
 
 
 class MakeTiles(Worker, CtxInterface):
