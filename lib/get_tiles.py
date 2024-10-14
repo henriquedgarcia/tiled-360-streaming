@@ -1,6 +1,5 @@
-from collections import defaultdict
 from collections import Counter
-from time import time
+from collections import defaultdict
 from typing import Union
 
 import numpy as np
@@ -9,11 +8,10 @@ from py360tools import ERP, CMP, ProjectionBase
 from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
-from lib.assets.ctxinterface import CtxInterface
-from lib.assets.errors import GetTilesOkError, HMDDatasetError
+from lib.assets.errors import GetTilesOkError, HMDDatasetError, AbortError
 from lib.assets.paths.gettilespaths import GetTilesPaths
-from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.worker import Worker
+from lib.utils.context_utils import task, timer
 from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
                                     get_nested_value)
 
@@ -24,10 +22,10 @@ from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
 # rotation = rotation_map[video_nas_id] if video_nas_id in [10, 17, 27, 28] else 0
 
 
-class GetTilesBase(Worker, CtxInterface):
+class GetTiles(Worker):
     projection_dict: dict['str', dict['str', ProjectionBase]]
-    segmenter_paths: SegmenterPaths
     get_tiles_paths: GetTilesPaths
+    tiles_seen: dict
 
     def main(self):
         self.init()
@@ -35,32 +33,38 @@ class GetTilesBase(Worker, CtxInterface):
 
     def init(self):
         self.get_tiles_paths = GetTilesPaths(self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.ctx)
-        self.projection_dict = self.create_projections_dict()
-
-    def for_each_user(self):
-        ...
+        self.create_projections_dict()
 
     def process(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        self.for_each_user()
+        for _ in self.iterate_name_projection_tiling_user():
+            with task(self):
+                self.work()
+
+    def work(self):
+        self.check_get_tiles()
+        self.check_user_hmd_data()
+        self.get_tiles_seen()
+        self.save_tiles_seen()
+
+    def get_tiles_seen(self):
+        with timer(ident=1):
+            tiles_seen_by_frame = self.get_tiles_seen_by_frame(self.user_hmd_data)
+            tiles_seen_by_chunk = self.get_tiles_seen_by_chunk(tiles_seen_by_frame)
+
+            self.tiles_seen = {'frames': tiles_seen_by_frame,
+                               'chunks': tiles_seen_by_chunk}
+
+    def save_tiles_seen(self):
+        save_json(self.tiles_seen, self.get_tiles_paths.user_tiles_seen_json)
 
     def create_projections_dict(self):
-        projection_dict = AutoDict()
+        self.projection_dict = AutoDict()
         for tiling in self.tiling_list:
-            erp = build_projection(proj_name='erp', tiling=tiling,
-                                   proj_res=self.config.config_dict['scale']['erp'], vp_res='1320x1080',
-                                   fov_res=self.fov)
-            cmp = build_projection(proj_name='cmp', tiling=tiling,
-                                   proj_res=self.config.config_dict['scale']['cmp'], vp_res='1320x1080',
-                                   fov_res=self.fov)
-
-            projection_dict['erp'][tiling] = erp
-            projection_dict['cmp'][tiling] = cmp
-        return projection_dict
+            for proj_str in self.projection_list:
+                proj = build_projection(proj_name=proj_str, tiling=tiling,
+                                        proj_res=self.config.config_dict['scale'][proj_str], vp_res='1320x1080',
+                                        fov_res=self.fov)
+                self.projection_dict[proj_str][tiling] = proj
 
     _results: dict
 
@@ -81,63 +85,32 @@ class GetTilesBase(Worker, CtxInterface):
     def reset_results(self, data_type=dict):
         self._results = data_type()
 
-
-class GetTilesReal(GetTilesBase):
-    def for_each_user(self):
-        print(f'==== GetTiles {self.ctx} ====')
-        try:
-            self.get_tiles_by_video()
-        except (HMDDatasetError, GetTilesOkError) as e:
-            print_error(f'\t{e.args[0]}')
-
-    def get_tiles_by_video(self):
-        self.check_get_tiles()
-        self.assert_user_hmd_data()
-
-        start = time()
-
-        tiles_seen_by_frame = self.get_tiles_seen_by_frame(self.user_hmd_data)
-        tiles_seen_by_chunk = self.get_tiles_seen_by_chunk(tiles_seen_by_frame)
-
-        tiles_seen = {'frames': tiles_seen_by_frame,
-                      'chunks': tiles_seen_by_chunk}
-
-        save_json(tiles_seen, self.get_tiles_paths.user_tiles_seen_json)
-        print(f'\ttime =  {time() - start}')
-
     def check_get_tiles(self):
-        if not self.status.get_status('user_get_tiles_ok'):
-            try:
-                self.assert_user_tiles_seen_json()
-            except FileNotFoundError:
-                self.status.update_status('user_get_tiles_ok', False)
-                return
-
-            self.status.update_status('user_get_tiles_ok', True)
-        raise GetTilesOkError('Get tiles is OK.')
-
-    def assert_user_tiles_seen_json(self):
-        size = self.get_tiles_paths.user_tiles_seen_json.stat().st_size
+        try:
+            size = self.get_tiles_paths.user_tiles_seen_json.stat().st_size
+        except FileNotFoundError:
+            return
 
         if size == 0:
             self.get_tiles_paths.user_tiles_seen_json.unlink(missing_ok=True)
-            raise FileNotFoundError
+            return
 
-    def assert_user_hmd_data(self):
+        raise AbortError('Get tiles is OK.')
+
+    def check_user_hmd_data(self):
         if self.user_hmd_data == {}:
             self.logger.register_log(f'HMD samples is missing, '
                                      f'user{self.user}',
                                      self.config.dataset_file)
-            raise HMDDatasetError(f'HMD samples is missing, '
-                                  f'user{self.user}')
+            raise AbortError(f'HMD samples is missing, '
+                             f'user{self.user}')
 
     def get_tiles_seen_by_frame(self, user_hmd_data) -> list[list[str]]:
         if self.tiling == '1x1':
             return [["0"]] * self.n_frames
 
         tiles_seen_by_frame = []
-        projection_obj = self.projection_dict[self.projection]
-        projection_obj = projection_obj[self.tiling]
+        projection_obj = self.projection_dict[self.projection][self.tiling]
 
         for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
             print(f'\r\tframe {frame:04d}/{self.n_frames}', end='')
@@ -166,7 +139,7 @@ class GetTilesReal(GetTilesBase):
     def count_tiles(self):
         if self.get_tiles_paths.counter_tiles_json.exists(): return
 
-        self.results = load_json(self.get_tiles_paths.get_tiles_json)
+        self.results = load_json(self.get_tiles_paths.get_tiles_result_json)
         result = {}
 
         for self.tiling in self.tiling_list:
@@ -202,7 +175,7 @@ class GetTilesReal(GetTilesBase):
         save_json(result, self.get_tiles_paths.counter_tiles_json)
 
 
-class CreateJson(GetTilesBase):
+class CreateJson(GetTiles):
     def process(self):
         for self.name in self.name_list:
             self.reset_results(AutoDict)
@@ -210,7 +183,7 @@ class CreateJson(GetTilesBase):
                 for self.tiling in self.tiling_list:
                     for self.user in self.users_list:
                         self.for_each_user()
-            save_json(self.results, self.get_tiles_paths.get_tiles_json)
+            save_json(self.results, self.get_tiles_paths.get_tiles_result_json)
 
     def for_each_user(self):
         print(f'==== CreateJson {self.ctx} ====')
@@ -218,7 +191,7 @@ class CreateJson(GetTilesBase):
         self.results.update(tiles_seen)
 
 
-class HeatMap(GetTilesBase):
+class HeatMap(GetTiles):
     def for_each_user(self):
         print(f'==== GetTiles {self.ctx} ====')
         try:
@@ -253,7 +226,7 @@ class HeatMap(GetTilesBase):
         fig.savefig(f'{heatmap_tiling}')
 
 
-class TestGetTiles(GetTilesReal):
+class TestGetTiles(GetTiles):
     def for_each_user(self):
         print(f'==== GetTiles {self.ctx} ====')
         try:
@@ -263,7 +236,7 @@ class TestGetTiles(GetTilesReal):
 
     def init(self):
         super().init()
-        self.results = load_json(self.get_tiles_paths.get_tiles_json)
+        self.results = load_json(self.get_tiles_paths.get_tiles_result_json)
         pass
 
     seen_tiles_metric: dict
@@ -279,7 +252,8 @@ class TestGetTiles(GetTilesReal):
             result5 = defaultdict(list)  # By chunk
             self.seen_tiles_metric = {}
             for self.chunk in self.chunk_list:
-                seen_tiles_metric = self.seen_tiles_metric[self.name][self.projection][self.tiling][self.quality][self.user][self.chunk]
+                seen_tiles_metric = \
+                    self.seen_tiles_metric[self.name][self.projection][self.tiling][self.quality][self.user][self.chunk]
                 tiles_list = seen_tiles_metric['time'].keys()
 
                 result5[f'n_tiles'].append(len(tiles_list))
@@ -360,7 +334,6 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
     fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
     fig_final = draw.compose(fig_final, vp, (0, 0, 255))
     draw.show(fig_final)
-
 
 # class TestGetTiles(GetTiles):
 #     def init(self):
@@ -446,6 +419,3 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
 #         output = folder / f"user{ctx.user}_{ctx.frame_n}.png"
 #
 #         return output
-
-
-GetTiles = CreateJson
