@@ -9,7 +9,7 @@ from lib.assets.worker import Worker
 from lib.decode import Decode
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
-# from lib.get_tiles import GetTiles
+from lib.get_tiles import GetTiles
 from lib.maketiles import MakeTiles
 # from lib.getdectime import GetDectime
 # from lib.tilequality import TileChunkQuality
@@ -73,8 +73,8 @@ worker_list = [
     Option(id=1, name='MakeDash', obj=MakeDash),
     Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='Decode', obj=Decode),
-    # Option(id=3, name='GetTiles', obj=GetTiles),
     # Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
+    Option(id=5, name='GetTiles', obj=GetTiles),
     # Option(id=5, name='GetBitrate', obj=GetBitrate),
     # Option(id=6, name='GetDectime', obj=GetDectime),
     # Option(id=7, name='GetQuality', obj=GetQuality),
