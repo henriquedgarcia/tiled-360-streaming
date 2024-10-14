@@ -50,3 +50,22 @@ class Worker(ABC, CtxInterface):
               f'  qualities: {self.ctx.quality_list}\n'
               f'  patterns: {self.ctx.tiling_list}')
         print('=' * 70)
+
+    def iterate_name_projection_quality_tiling_tile(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.quality in self.quality_list:
+                    for self.tiling in self.tiling_list:
+                        for self.tile in self.tile_list:
+                            self.ctx.iterations += 1
+                            yield
+
+    def iterate_name_projection_quality_tiling_tile_chunk(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.quality in self.quality_list:
+                    for self.tiling in self.tiling_list:
+                        for self.tile in self.tile_list:
+                            for self.chunk in self.chunk_list:
+                                self.ctx.iterations += 1
+                                yield
