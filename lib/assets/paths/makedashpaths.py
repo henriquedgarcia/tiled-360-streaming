@@ -3,33 +3,34 @@ from pathlib import Path
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
+from lib.assets.paths.maketilespaths import MakeTilesPaths
 
 
-class SegmenterPaths(CtxInterface):
+class MakeDashPaths(CtxInterface):
     def __init__(self, context: Context):
         self.ctx = context
         self.base_paths = BasePaths(context)
-
-    @property
-    def lossless_video(self) -> Path:
-        return self.base_paths.lossless_folder / self.projection / f'{self.name}.mp4'
-
-    @property
-    def lossless_log(self) -> Path:
-        return self.lossless_video.with_suffix('.log')
-
-    @property
-    def tile_folder(self) -> Path:
-        folder = self.base_paths.tiles_folder / self.base_paths.basename1
-        return folder
+        self.make_tiles_paths = MakeTilesPaths(context)
+    #
+    # @property
+    # def lossless_video(self) -> Path:
+    #     return self.make_tiles_paths.lossless_video
+    #
+    # @property
+    # def lossless_log(self) -> Path:
+    #     return self.make_tiles_paths.lossless_log
+    #
+    # @property
+    # def tile_folder(self) -> Path:
+    #     return self.make_tiles_paths.tile_folder
 
     @property
     def tile_video(self) -> Path:
-        return self.base_paths.tiles_folder / self.base_paths.basename1 / f'tile{self.tile}.mp4'
-
-    @property
-    def tile_log(self) -> Path:
-        return self.tile_video.with_suffix('.log')
+        return self.make_tiles_paths.tile_video
+    #
+    # @property
+    # def tile_log(self) -> Path:
+    #     return self.make_tiles_paths.tile_log
 
     @property
     def segmenter_log(self) -> Path:
@@ -38,18 +39,6 @@ class SegmenterPaths(CtxInterface):
     @property
     def mpd_folder(self) -> Path:
         return self.base_paths.segmenter_folder / self.base_paths.basename2
-
-    @property
-    def decodable_folder(self) -> Path:
-        return self.base_paths.decodable_folder / self.base_paths.basename2
-
-    @property
-    def chunk_video(self) -> Path:
-        return self.decodable_chunk
-
-    @property
-    def decodable_chunk(self) -> Path:
-        return self.decodable_folder / f'tile{self.tile}_{self.chunk}.mp4'
 
     @property
     def dash_mpd(self) -> Path:

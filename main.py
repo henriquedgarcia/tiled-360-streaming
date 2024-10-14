@@ -5,14 +5,15 @@ from pathlib import Path
 from config.config import Config
 from lib.assets.context import Context
 from lib.assets.worker import Worker
-from lib.maketiles import MakeTiles
-# from lib.decode import Decode
-# from lib.get_tiles import GetTiles
 # from lib.getbitrate import GetBitrate
+from lib.decode import Decode
+from lib.makedash import MakeDash
+from lib.makedecodable import MakeDecodable
+# from lib.get_tiles import GetTiles
+from lib.maketiles import MakeTiles
 # from lib.getdectime import GetDectime
-# from lib.getquality import GetQuality
-from lib.segmenter import Segmenter
 # from lib.tilequality import TileChunkQuality
+# from lib.getquality import GetQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -69,8 +70,9 @@ videos_list = [
 
 worker_list = [
     Option(id=0, name='MakeTiles', obj=MakeTiles),
-    Option(id=1, name='Segmenter', obj=Segmenter),
-    # Option(id=2, name='Decode', obj=Decode),
+    Option(id=1, name='MakeDash', obj=MakeDash),
+    Option(id=2, name='MakeDecodable', obj=MakeDecodable),
+    Option(id=3, name='Decode', obj=Decode),
     # Option(id=3, name='GetTiles', obj=GetTiles),
     # Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
     # Option(id=5, name='GetBitrate', obj=GetBitrate),

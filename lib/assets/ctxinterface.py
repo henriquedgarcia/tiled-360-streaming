@@ -79,6 +79,14 @@ class Factors:
     def group(self, value):
         self.ctx.group = value
 
+    @property
+    def turn(self):
+        return self.ctx.turn
+
+    @turn.setter
+    def turn(self, value):
+        self.ctx.turn = value
+
 
 class Lists:
     ctx: Context
@@ -166,6 +174,10 @@ class CtxInterface(Factors, Lists):
     @property
     def rate_control(self):
         return self.config.rate_control
+
+    @property
+    def decoding_num(self):
+        return self.config.decoding_num
 
     @property
     def dataset_name(self):
