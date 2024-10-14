@@ -9,7 +9,7 @@
   "scale": {"cmp": "540x360"},
 
   "rate_control": "qp",
-  "decoding_num": 5,
+  "decoding_num": 3,
 
   "bins": 30,
   "metric_list": ["time", "rate", "ssim", "mse", "s-mse", "ws-mse"],

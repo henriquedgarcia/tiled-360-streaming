@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from time import time
 
 from lib.assets.errors import AbortError
 from lib.utils.worker_utils import print_error
@@ -48,3 +49,14 @@ def task(self):
         print_error(f'\t{e.args[0]}')
     finally:
         pass
+
+
+@contextmanager
+def timer(ident=0):
+    start = time()
+    ident = '\t' * ident
+
+    try:
+        yield
+    finally:
+        print(f"{ident}time={time() - start}.")
