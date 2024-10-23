@@ -4,7 +4,6 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.makedashpaths import MakeDashPaths
 from lib.assets.worker import Worker
-from lib.maketiles import MakeTiles
 from lib.utils.context_utils import task
 from lib.utils.worker_utils import run_command
 
@@ -13,16 +12,6 @@ class MakeDash(Worker, CtxInterface):
     quality_list: list[str] = None
     make_decodable_path: MakeDashPaths
     decode_check = False
-
-    def tile_video_is_ok(self):
-        try:
-            compressed_file_size = self.tile_video.stat().st_size
-            if compressed_file_size == 0:
-                self.tile_video.unlink()
-                raise FileNotFoundError()
-        except FileNotFoundError:
-            return False
-        return True
 
     def init(self):
         self.make_decodable_path = MakeDashPaths(self.ctx)
@@ -35,9 +24,8 @@ class MakeDash(Worker, CtxInterface):
                 self.work()
 
     def work(self):
-        if self.dash_is_ok(): raise AbortError('Dash is ok. Skipping.')
-        if not self.tile_video_is_ok():
-            raise AbortError('Tiles is not ok')
+        if self.dash_is_ok():
+            raise AbortError('Dash is ok. Skipping.')
         print(f'\tTile ok. Creating chunks.')
         cmd = self.make_dash_cmd_mp4box()
         run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
@@ -46,18 +34,17 @@ class MakeDash(Worker, CtxInterface):
         print(f'\tChecking dash.')
         try:
             segment_log_txt = self.segmenter_log.read_text()
-            if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
-                shutil.rmtree(self.mpd_folder, ignore_errors=True)
-                self.segmenter_log.unlink()
-                self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
-                raise FileNotFoundError
-            return True
+            if f'Dashing P1 AS#1.1(V) done (60 segs)' in segment_log_txt:
+                return True
+            self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
         except FileNotFoundError:
-            shutil.rmtree(self.mpd_folder, ignore_errors=True)
-            self.segmenter_log.unlink(missing_ok=True)
+            pass
+        shutil.rmtree(self.mpd_folder, ignore_errors=True)
+        self.segmenter_log.unlink(missing_ok=True)
 
         if not self.tile_video.exists():
-            raise AbortError(f'Tile video not found. Aborting.')
+            self.logger.register_log('Tiles is not ok.', self.segmenter_log)
+            raise AbortError('Tiles is not ok. Aborting.')
         return False
 
     def make_split_cmd_mp4box(self):
