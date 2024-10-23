@@ -13,7 +13,16 @@ class MakeDash(Worker, CtxInterface):
     quality_list: list[str] = None
     make_decodable_path: MakeDashPaths
     decode_check = False
-    tile_video_is_ok = MakeTiles.tile_video_is_ok
+
+    def tile_video_is_ok(self):
+        try:
+            compressed_file_size = self.tile_video.stat().st_size
+            if compressed_file_size == 0:
+                self.tile_video.unlink()
+                raise FileNotFoundError()
+        except FileNotFoundError:
+            return False
+        return True
 
     def init(self):
         self.make_decodable_path = MakeDashPaths(self.ctx)
