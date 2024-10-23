@@ -183,7 +183,7 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix='\n'):
+def run_command(cmd: str, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix='\n'):
     """
 
     :param cmd:
