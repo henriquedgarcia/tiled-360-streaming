@@ -26,9 +26,9 @@ class MakeDash(Worker, CtxInterface):
                 self.work()
 
     def work(self):
-        if self.dash_is_ok(): raise AbortError('Dash is ok. Skipping.')
-        if not self.tile_video_is_ok():
-            raise AbortError('Tiles is not ok')
+        if self.dash_is_ok():
+            raise AbortError('Dash is ok. Skipping.')
+
         print(f'\tTile ok. Creating chunks.')
         cmd = self.make_dash_cmd_mp4box()
         run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
@@ -37,15 +37,15 @@ class MakeDash(Worker, CtxInterface):
         print(f'\tChecking dash.')
         try:
             segment_log_txt = self.segmenter_log.read_text()
-            if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
-                shutil.rmtree(self.mpd_folder, ignore_errors=True)
-                self.segmenter_log.unlink()
-                self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
-                raise FileNotFoundError
-            return True
+            if f'Dashing P1 AS#1.1(V) done (60 segs)' in segment_log_txt:
+                return True
+            self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
+            raise FileNotFoundError
         except FileNotFoundError:
-            shutil.rmtree(self.mpd_folder, ignore_errors=True)
-            self.segmenter_log.unlink(missing_ok=True)
+            pass
+
+        shutil.rmtree(self.mpd_folder, ignore_errors=True)
+        self.segmenter_log.unlink(missing_ok=True)
 
         if not self.tile_video.exists():
             raise AbortError(f'Tile video not found. Aborting.')
