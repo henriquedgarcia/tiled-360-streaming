@@ -3,39 +3,26 @@ from time import time
 
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
-from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
+from lib.utils.context_utils import task, timer
 from lib.utils.worker_utils import save_json, load_json, iter_frame, print_error
 
 
 class TileChunkQuality(Worker, CtxInterface):
     quality_metrics: QualityMetrics
-    tile_chunk_quality_paths: ChunkQualityPaths
-    segmenter_paths: SegmenterPaths
+    chunk_quality_paths: ChunkQualityPaths
 
     def main(self):
         self.init()
 
         for _ in self.iterator():
-            try:
-                print(f'==== TileChunkQuality {self.ctx} ====')
+            with task():
                 self.work()
-            except (AbortError, FileNotFoundError) as e:
-                print_error('\t' + e.args[0])
-            except ValueError as e:
-                self.logger.register_log('Cant decode Chunk.', self.segmenter_paths.chunk_video)
-                print_error('\t' + e.args[0])
-                try:
-                    self.segmenter_paths.chunk_video.unlink()
-                except PermissionError:
-                    print_error('\tCant remove chunk_video.')
-                    self.logger.register_log('Cant remove chunk_video.', self.segmenter_paths.chunk_video)
 
     def init(self):
-        self.tile_chunk_quality_paths = ChunkQualityPaths(self.ctx)
-        self.segmenter_paths = SegmenterPaths(self.ctx)
+        self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
         self.quality_metrics = QualityMetrics(self.ctx)
 
     def iterator(self):
@@ -44,47 +31,45 @@ class TileChunkQuality(Worker, CtxInterface):
                 for self.quality in reversed(self.quality_list):
                     for self.tiling in reversed(self.tiling_list):
                         for self.tile in self.tile_list:
-                            for self.chunk in self.chunk_list:
-                                yield
+                            yield
 
     def work(self):
-        self.check_tile_chunk_quality()
+        if self.skip_tile():
+            raise AbortError('This chunk is OK.')
+
         self.assert_segments()
 
-        start = time()
+        with timer():
+            reference_frames = iter_frame(self.reference_tile)
+            tile_frame = iter_frame(self.tile_video)
 
-        chunk_quality = defaultdict(list)
+            for frame in range(self.n_frames):
+                print(f'\r\t{frame}', end='')
 
-        iter_reference_segment = iter_frame(self.tile_chunk_quality_paths.reference_chunk)
-        iter_segment = iter_frame(self.segmenter_paths.chunk_video)
-        zip_frames = zip(iter_reference_segment, iter_segment)
+                chunk_frame = frame % 30
+                if chunk_frame == 0:
+                    self.chunk = 1 + frame // 30
+                    chunk_quality = defaultdict(list)
 
-        for frame, (frame1, frame2) in enumerate(zip_frames):
-            print(f'\r\t{frame=}', end='')
-            chunk_quality['ssim'].append(self.quality_metrics.ssim(frame1, frame2))
-            chunk_quality['mse'].append(self.quality_metrics.mse(frame1, frame2))
-            chunk_quality['s-mse'].append(self.quality_metrics.smse_nn(frame1, frame2))
-            chunk_quality['ws-mse'].append(self.quality_metrics.wsmse(frame1, frame2))
+                frame1 = next(reference_frames)
+                frame2 = next(tile_frame)
 
-        save_json(chunk_quality, self.tile_chunk_quality_paths.chunk_quality_json)
-        print(f"\ttime={time() - start}.")
+                chunk_quality['ssim'].append(self.quality_metrics.ssim(frame1, frame2))
+                chunk_quality['mse'].append(self.quality_metrics.mse(frame1, frame2))
+                chunk_quality['s-mse'].append(self.quality_metrics.smse_nn(frame1, frame2))
+                chunk_quality['ws-mse'].append(self.quality_metrics.wsmse(frame1, frame2))
+                save_json(chunk_quality, self.chunk_quality_json)
+            print(f'\n', end='')
 
-    def check_tile_chunk_quality(self):
-        if not self.status.get_status('tile_chunk_quality_json_ok'):
-            try:
-                self.assert_tile_chunk_quality_json()
-            except FileNotFoundError:
-                self.status.update_status('tile_chunk_quality_json_ok', False)
-                return
-            self.status.update_status('tile_chunk_quality_json_ok', True)
-        raise AbortError('tile_chunk_quality_json is OK.')
-
-    def assert_tile_chunk_quality_json(self):
-        chunk_quality = load_json(self.tile_chunk_quality_paths.chunk_quality_json)
+    def skip_tile(self) -> bool:
+        try:
+            chunk_quality = load_json(self.chunk_quality_paths.chunk_quality_json)
+        except FileNotFoundError:
+            return False
 
         if len(chunk_quality['mse']) != int(self.config.gop):
-            self.tile_chunk_quality_paths.chunk_quality_json.unlink(missing_ok=True)
-            self.logger.register_log(f'MISSING_FRAMES', self.tile_chunk_quality_paths.chunk_quality_json)
+            self.chunk_quality_paths.chunk_quality_json.unlink(missing_ok=True)
+            self.logger.register_log(f'MISSING_FRAMES', self.chunk_quality_paths.chunk_quality_json)
             raise FileNotFoundError('Missing Frames')
 
         msg = []
@@ -118,6 +103,6 @@ class TileChunkQuality(Worker, CtxInterface):
             raise FileNotFoundError('segment_file NOTFOUND')
 
     def check_reference_chunk(self):
-        if not self.tile_chunk_quality_paths.reference_chunk.exists():
-            self.logger.register_log('reference_segment NOTFOUND', self.tile_chunk_quality_paths.reference_chunk)
+        if not self.chunk_quality_paths.reference_chunk.exists():
+            self.logger.register_log('reference_segment NOTFOUND', self.chunk_quality_paths.reference_chunk)
             raise FileNotFoundError('reference_segment NOTFOUND')
