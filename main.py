@@ -5,14 +5,14 @@ from pathlib import Path
 from config.config import Config
 from lib.assets.context import Context
 from lib.assets.worker import Worker
-# from lib.getbitrate import GetBitrate
 from lib.decode import Decode
+from lib.get_tiles import GetTiles
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
-from lib.get_tiles import GetTiles
 from lib.maketiles import MakeTiles
+from lib.tilequality import TileChunkQuality
 # from lib.getdectime import GetDectime
-# from lib.tilequality import TileChunkQuality
+# from lib.getbitrate import GetBitrate
 # from lib.getquality import GetQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
@@ -54,7 +54,7 @@ config_list = [
     Option(id=3, name='reversed_qp', obj=path_config / 'config_reversed_qp.json'),
     Option(id=4, name='test', obj=path_config / 'config_test.json'),
     Option(id=5, name='test_qp', obj=path_config / 'config_test_qp.json'),
-    ]
+]
 
 videos_list = [
     Option(id=0, name='full', obj=path_config / 'videos_full.json'),
@@ -66,20 +66,20 @@ videos_list = [
     Option(id=6, name='lumine', obj=path_config / 'videos_lumine.json'),
     Option(id=9, name='reversed', obj=path_config / 'videos_reversed.json'),
     Option(id=10, name='test', obj=path_config / 'videos_test.json'),
-    ]
+]
 
 worker_list = [
     Option(id=0, name='MakeTiles', obj=MakeTiles),
     Option(id=1, name='MakeDash', obj=MakeDash),
     Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='Decode', obj=Decode),
-    # Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
+    Option(id=4, name='TileChunkQuality', obj=TileChunkQuality),
     Option(id=5, name='GetTiles', obj=GetTiles),
     # Option(id=5, name='GetBitrate', obj=GetBitrate),
     # Option(id=6, name='GetDectime', obj=GetDectime),
     # Option(id=7, name='GetQuality', obj=GetQuality),
 
-    ]
+]
 
 if __name__ == '__main__':
     main()
