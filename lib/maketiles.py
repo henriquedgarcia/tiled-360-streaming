@@ -24,15 +24,14 @@ class MakeTiles(Worker, CtxInterface):
 
     def make_tile(self):
         if self.tile_is_ok(): return
-        if not self.lossless_is_ok():
-            raise AbortError('Lossless is not ok')
+
 
         cmd = self.make_tile_cmd()
         run_command(cmd, self.make_tiles_paths.tile_folder,
                     self.make_tiles_paths.tile_log,
                     ui_prefix='\t')
 
-    def make_tile_cmd(self):
+    def make_tile_cmd(self) -> str:
         lossless_file = self.make_tiles_paths.lossless_video.as_posix()
         compressed_file = self.make_tiles_paths.tile_video.as_posix()
 
@@ -59,15 +58,18 @@ class MakeTiles(Worker, CtxInterface):
 
         return cmd
 
-    def tile_is_ok(self):
+    def tile_is_ok(self) -> bool:
         print(f'\tChecking tiles')
         if not (self.tile_log_is_ok()
                 and self.tile_video_is_ok()):
             self.clean_tile()
             return False
+        if not self.lossless_is_ok():
+
+            raise AbortError('Lossless is not ok')
         return True
 
-    def tile_log_is_ok(self):
+    def tile_log_is_ok(self) -> bool:
         try:
             compressed_log_text = self.make_tiles_paths.tile_log.read_text()
         except FileNotFoundError:
@@ -84,7 +86,7 @@ class MakeTiles(Worker, CtxInterface):
             return False
         return True
 
-    def tile_video_is_ok(self):
+    def tile_video_is_ok(self) -> bool:
         try:
             compressed_file_size = self.make_tiles_paths.tile_video.stat().st_size
         except FileNotFoundError:
@@ -104,7 +106,7 @@ class MakeTiles(Worker, CtxInterface):
 
         return True
 
-    def decode_tile(self):
+    def decode_tile(self) -> None:
         if self.status.get_status('decode_check'):
             print_error(f'. OK')
             return
@@ -116,12 +118,12 @@ class MakeTiles(Worker, CtxInterface):
         self.status.update_status('decode_check', True)
         print_error(f'. OK')
 
-    def lossless_is_ok(self):
+    def lossless_is_ok(self) -> None:
         print(f'\tChecking lossless')
         if not self.make_tiles_paths.lossless_video.exists():
             self.logger.register_log('lossless_video not found.', self.make_tiles_paths.lossless_video)
             raise AbortError(f'lossless_video not found.')
 
-    def clean_tile(self):
+    def clean_tile(self) -> None:
         self.make_tiles_paths.tile_log.unlink(missing_ok=True)
         self.make_tiles_paths.tile_video.unlink(missing_ok=True)
