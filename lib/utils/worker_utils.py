@@ -216,7 +216,7 @@ def __frame_handler__(): ...
 
 
 def iter_video(video_path, gray=True, dtype='float64'):
-    cap = cv2.VideoCapture(f'{video_path}')
+    cap = cv2.VideoCapture(f'{video_path}', cv2.CAP_FFMPEG)
     while True:
         ok, frame = cap.read()
         if not ok:
