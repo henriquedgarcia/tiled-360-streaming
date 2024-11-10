@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 from tqdm import tqdm
+import cv2
 
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
@@ -9,10 +10,10 @@ from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import save_json, load_json, iter_frame
+from lib.utils.worker_utils import save_json, load_json, iter_video
 
 
-class TileChunkQuality(Worker, CtxInterface):
+class TileQuality(Worker, CtxInterface):
     quality_metrics: QualityMetrics
     chunk_quality_paths: ChunkQualityPaths
 
@@ -31,8 +32,8 @@ class TileChunkQuality(Worker, CtxInterface):
         if self.chunk_quality_json_ok():
             raise AbortError('chunk_quality_json is ok')
 
-        reference_frames = iter_frame(self.reference_chunk)
-        tile_frame = iter_frame(self.chunk_video)
+        reference_frames = iter_video(self.reference_chunk)
+        tile_frame = iter_video(self.chunk_video)
         chunk_quality = defaultdict(list)
         error = []
         frame1 = frame2 = np.array([])
