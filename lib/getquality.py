@@ -6,11 +6,11 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from lib.assets.autodict import AutoDict
-from lib.tilequality import TileChunkQuality
+from lib.tilequality import TileQuality
 from lib.utils.worker_utils import save_json, load_json, print_error, get_nested_value
 
 
-class GetQuality(TileChunkQuality):
+class GetQuality(TileQuality):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
