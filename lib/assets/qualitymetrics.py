@@ -59,7 +59,7 @@ class QualityMetrics(CtxInterface):
 
     # from PIL import Image
     # Image.fromarray(array).show()
-    def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray):
+    def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray) -> float:
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
         resolution.
@@ -125,8 +125,8 @@ def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
 
     :return:
     """
-
-    sph_points_mask_file = Path(f'datasets/sph_points_mask.pickle')
+    project_folder: Path = ctx.config.project_folder
+    sph_points_mask_file = Path(f'datasets/{project_folder.name}/sph_points_mask.pickle')
 
     try:
         sph_points_mask = load_pickle(sph_points_mask_file)
@@ -156,7 +156,7 @@ def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
     return sph_points_mask
 
 
-def lines_2_list(line):
+def lines_2_list(line) -> list:
     strip_line = line.strip()
     split_line = strip_line.split()
     map_float_line = map(float, split_line)
@@ -164,8 +164,9 @@ def lines_2_list(line):
     return list(map_rad_line)
 
 
-def make_weight_ndarray_dict(ctx: Context):
-    weight_ndarray_dict_file = Path(f'datasets/weight_ndarray_dict.pickle')
+def make_weight_ndarray_dict(ctx: Context) -> dict[str, np.ndarray]:
+    project_folder: Path = ctx.config.project_folder
+    weight_ndarray_dict_file = Path(f'datasets/{project_folder.name}/weight_ndarray_dict.pickle')
 
     try:
         weight_ndarray_dict = load_pickle(weight_ndarray_dict_file)
@@ -175,7 +176,7 @@ def make_weight_ndarray_dict(ctx: Context):
     return weight_ndarray_dict
 
 
-def process_weight_ndarray_dict_file(ctx: Context):
+def process_weight_ndarray_dict_file(ctx: Context) -> dict[str, np.ndarray]:
     weight_array = {}
     for proj in ctx.projection_list:
         scale = ctx.config.config_dict['scale'][proj]
@@ -186,8 +187,8 @@ def process_weight_ndarray_dict_file(ctx: Context):
             proj_h_2 = 0.5 - h / 2
 
             def func(y, x):
-                w = np.cos((y + proj_h_2) * pi_proj)
-                return w
+                weights = np.cos((y + proj_h_2) * pi_proj)
+                return weights
 
         elif proj == 'cmp':
             a = h / 2
@@ -199,8 +200,8 @@ def process_weight_ndarray_dict_file(ctx: Context):
                 x = x % a
                 y = y % a
                 d = (x + r1) ** 2 + (y + r1) ** 2
-                w = (1 + d / r2) ** (-1.5)
-                return w
+                weights = (1 + d / r2) ** (-1.5)
+                return weights
         else:
             raise ValueError(f'Unknown projection: {proj}')
         weight_array[proj] = np.fromfunction(func, (h, w), dtype=float)
