@@ -215,8 +215,8 @@ def run_command(cmd: str, folder: Path = None, log_file: Path = None, mode='w',
 def __frame_handler__(): ...
 
 
-def iter_video(video_path, gray=True, dtype='float64'):
-    cap = cv2.VideoCapture(f'{video_path}', cv2.CAP_FFMPEG)
+def iter_video(video_path: Path, gray=True, dtype='float64'):
+    cap = cv2.VideoCapture(f'{video_path}')
     while True:
         ok, frame = cap.read()
         if not ok:
