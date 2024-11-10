@@ -1,5 +1,4 @@
 import json
-import os
 import pickle
 from functools import reduce
 from pathlib import Path
@@ -8,6 +7,7 @@ from typing import Union
 
 import numpy as np
 import skvideo.io
+from tqdm import tqdm
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
@@ -17,38 +17,37 @@ def __geral__(): ...
 
 
 def print_error(msg: str, end: str = '\n'):
-    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}',
-          end=end)
-
-
-def load_json(filename, object_hook=None):
-    with open(filename, 'r', encoding='utf-8') as f:
-        results = json.load(f, object_hook=object_hook)
-    return results
+    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}', end=end)
 
 
 def save_json(data: Union[dict, list], filename: Union[str, Path], separators=(',', ':'), indent=None):
+    filename = Path(filename)
     try:
-        json_dump(data, filename, separators, indent)
+        filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
     except FileNotFoundError:
         filename.parent.mkdir(parents=True, exist_ok=True)
-        json_dump(data, filename, separators, indent)
+        filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
 
 
-def json_dump(data, filename, separators=(',', ':'), indent=None):
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(data, f, separators=separators, indent=indent)
-
-
-def load_pickle(filename):
-    with open(filename, 'rb') as f:
-        results = pickle.load(f)
+def load_json(filename: Union[str, Path], object_hook: type[dict] = None):
+    filename = Path(filename)
+    results = json.loads(filename.read_text(encoding='utf-8'), object_hook=object_hook)
     return results
 
 
 def save_pickle(data: object, filename: Union[str, Path]):
-    with open(filename, 'wb') as f:
-        pickle.dump(data, f, protocol=5)
+    filename = Path(filename)
+    try:
+        filename.write_bytes(pickle.dumps(data, protocol=5))
+    except FileNotFoundError:
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        filename.write_bytes(pickle.dumps(data, protocol=5))
+
+
+def load_pickle(filename: Path):
+    filename = Path(filename)
+    results = pickle.loads(filename.read_bytes())
+    return results
 
 
 def __coords__(): ...
@@ -123,11 +122,7 @@ def count_decoding(dectime_log: Path) -> int:
     Count how many times the word "utime" appears in "log_file"
     :return:
     """
-    try:
-        times = len(get_times(dectime_log, only_count=True))
-    except FileNotFoundError:
-        print('ERROR: FileNotFoundError. Return 0.')
-        times = 0
+    times = len(get_times(dectime_log, only_count=True))
     return times
 
 
@@ -183,7 +178,8 @@ def get_nested_value(data, keys):
         raise TypeError(f"Invalid structure: {e}")
 
 
-def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suffix='\n'):
+def run_command(cmd: str, folder: Path = None, log_file: Path = None, mode='w',
+                ui_prefix='', ui_suffix='\n'):
     """
 
     :param cmd:
@@ -197,23 +193,21 @@ def run_command(cmd, folder=None, log_file=None, mode='w', ui_prefix='', ui_suff
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
 
-    ui = LoadingUi()
-    ui.start(prefix=ui_prefix)
-    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-    stdout_lines = [cmd + '\n']
-
-    while True:
-        ui.increment()
-        out = process.stdout.readline()
-        if not out:
-            break
-        stdout_lines.append(out)
-    ui.end(suffix=ui_suffix)
+    with tqdm(desc=f'{ui_prefix}Running Command', total=float("inf")) as bar:
+        process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+        stdout_lines = [cmd + '\n']
+        while True:
+            out = process.stdout.readline()
+            if not out: break
+            stdout_lines.append(out)
+            bar.update(len(stdout_lines))
+        process.wait()
+        stdout = ''.join(stdout_lines)
+        print(ui_suffix, end='')
 
     if log_file is not None:
         with open(log_file, mode) as f:
-            f.writelines(stdout_lines)
-    stdout = ''.join(stdout_lines)
+            f.write(stdout)
 
     return process, stdout
 
@@ -223,14 +217,22 @@ def __frame_handler__(): ...
 
 def iter_frame(video_path, gray=True, dtype='float64'):
     vreader = skvideo.io.vreader(f'{video_path}', as_grey=gray)
-    # frames = []
     for frame in vreader:
         if gray:
             _, height, width, _ = frame.shape
             frame = frame.reshape((height, width)).astype(dtype)
-        # frames.append(frame)
         yield frame
-    # return frames
+
+
+def get_frames(video_path, gray=True, dtype='float64'):
+    vreader = skvideo.io.vreader(f'{video_path}', as_grey=gray)
+    frames = []
+    for frame in vreader:
+        if gray:
+            _, height, width, _ = frame.shape
+            frame = frame.reshape((height, width)).astype(dtype)
+        frames.append(frame)
+    return frames
 
 
 class LoadingUi:

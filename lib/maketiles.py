@@ -4,7 +4,6 @@ from lib.assets.paths.maketilespaths import MakeTilesPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
 from lib.utils.worker_utils import print_error, decode_video, run_command
-from lib.utils.context_utils import task
 
 
 class MakeTiles(Worker, CtxInterface):
@@ -18,23 +17,23 @@ class MakeTiles(Worker, CtxInterface):
 
     def main(self):
         self.init()
-        for _ in self.iterate_name_projection_quality_tiling_tile():
+        for _ in self.iterate_name_projection_tiling_tile_quality():
             with task(self):
                 self.make_tile()
 
     def make_tile(self):
-        if self.tile_is_ok(): return
-        if not self.lossless_is_ok():
-            raise AbortError('Lossless is not ok')
+        if self.tiles_is_ok():
+            return 'All OK'
 
         cmd = self.make_tile_cmd()
-        run_command(cmd, self.make_tiles_paths.tile_folder,
-                    self.make_tiles_paths.tile_log,
+        run_command(cmd=cmd,
+                    folder=self.tile_folder,
+                    log_file=self.tile_log,
                     ui_prefix='\t')
 
-    def make_tile_cmd(self):
-        lossless_file = self.make_tiles_paths.lossless_video.as_posix()
-        compressed_file = self.make_tiles_paths.tile_video.as_posix()
+    def make_tile_cmd(self) -> str:
+        lossless_file = self.lossless_video.as_posix()
+        compressed_file = self.tile_video.as_posix()
 
         x1, y1, x2, y2 = self.tile_position_dict[self.scale][self.tiling][self.tile]
 
@@ -59,69 +58,81 @@ class MakeTiles(Worker, CtxInterface):
 
         return cmd
 
-    def tile_is_ok(self):
+    def tiles_is_ok(self) -> bool:
         print(f'\tChecking tiles')
-        if not (self.tile_log_is_ok()
-                and self.tile_video_is_ok()):
-            self.clean_tile()
-            return False
-        return True
-
-    def tile_log_is_ok(self):
         try:
-            compressed_log_text = self.make_tiles_paths.tile_log.read_text()
+            self.check_tile_log()
+            self.check_tile_video()
+            raise AbortError('Tiles are OK')
         except FileNotFoundError:
-            return False
+            self.clean_tile()
+
+        try:
+            self.assert_lossless()
+        except FileNotFoundError:
+            raise AbortError('Lossless not found.')
+
+        return False
+
+    def check_tile_log(self):
+        compressed_log_text = self.tile_log.read_text()
 
         if 'encoded 1800 frames' not in compressed_log_text:
-            self.logger.register_log('Tile log is corrupt', self.make_tiles_paths.tile_log)
-            self.make_tiles_paths.tile_log.unlink()
-            return False
+            self.logger.register_log('Tile log is corrupt', self.tile_log)
+            self.tile_log.unlink()
+            raise FileNotFoundError
 
         if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-            self.logger.register_log('Codec version is different.', self.make_tiles_paths.tile_log)
-            self.make_tiles_paths.tile_log.unlink(missing_ok=True)
-            return False
-        return True
+            self.logger.register_log('Codec version is different.', self.tile_log)
+            self.tile_log.unlink(missing_ok=True)
+            raise FileNotFoundError
 
-    def tile_video_is_ok(self):
-        try:
-            compressed_file_size = self.make_tiles_paths.tile_video.stat().st_size
-        except FileNotFoundError:
-            return False
+    def check_tile_video(self):
+        compressed_file_size = self.tile_video.stat().st_size
 
         if compressed_file_size == 0:
-            return False
+            raise FileNotFoundError('Filesize is 0')
 
         if self.decode_check:
             print(f'\r\t\tDecoding check tile{self.tile}.', end='')
-            try:
-                self.decode_tile()
-            except FileNotFoundError as e:
-                self.clean_tile()
-                print_error('\t', e.args[0])
-                return False
+            self.decode_tile()
 
         return True
 
-    def decode_tile(self):
+    def decode_tile(self) -> None:
         if self.status.get_status('decode_check'):
             print_error(f'. OK')
             return
 
-        stdout = decode_video(self.make_tiles_paths.tile_video, ui_prefix='\t')
+        stdout = decode_video(self.tile_video, ui_prefix='\t')
         if "frame= 1800" not in stdout:
-            self.logger.register_log(f'Decode tile error.', self.make_tiles_paths.tile_video)
+            self.logger.register_log(f'Decode tile error.', self.tile_video)
             raise FileNotFoundError('Decode Tile Error')
         self.status.update_status('decode_check', True)
         print_error(f'. OK')
 
-    def lossless_is_ok(self):
+    def assert_lossless(self) -> None:
         print(f'\tChecking lossless')
-        if not self.make_tiles_paths.lossless_video.exists():
-            self.logger.register_log('lossless_video not found.', self.make_tiles_paths.lossless_video)
+        if not self.lossless_video.exists():
+            self.logger.register_log('lossless_video not found.', self.lossless_video)
             raise AbortError(f'lossless_video not found.')
 
-    def clean_tile(self):
-        self.make_tiles_paths.tile_log.unlink(missing_ok=True)
-        self.make_tiles_paths.tile_video.unlink(missing_ok=True)
+    def clean_tile(self) -> None:
+        self.tile_log.unlink(missing_ok=True)
+        self.tile_video.unlink(missing_ok=True)
+
+    @property
+    def tile_folder(self):
+        return self.make_tiles_paths.tile_folder
+
+    @property
+    def tile_log(self):
+        return self.make_tiles_paths.tile_log
+
+    @property
+    def tile_video(self):
+        return self.make_tiles_paths.tile_video
+
+    @property
+    def lossless_video(self):
+        return self.make_tiles_paths.lossless_video

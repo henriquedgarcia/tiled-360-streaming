@@ -41,9 +41,10 @@ class GetQuality(TileChunkQuality):
                             for self.chunk in self.chunk_list:
                                 self.work()
 
-            save_json(self.tile_chunk_quality_dict, self.tile_chunk_quality_paths.chunk_quality_result_json)
+            save_json(self.tile_chunk_quality_dict, self.chunk_quality_paths.chunk_quality_result_json)
 
     error: bool
+    change_flag: bool
 
     def work(self):
         print(f'==== CollectQuality {self.ctx} ====')
@@ -69,15 +70,15 @@ class GetQuality(TileChunkQuality):
 
     def read_video_quality_json(self):
         try:
-            tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.chunk_quality_json)
+            tile_chunk_quality_dict = load_json(self.chunk_quality_paths.chunk_quality_json)
         except FileNotFoundError as e:
-            self.logger.register_log('CSV_NOTFOUND_ERROR', self.tile_chunk_quality_paths.chunk_quality_json)
+            self.logger.register_log('CSV_NOTFOUND_ERROR', self.chunk_quality_paths.chunk_quality_json)
             raise FileNotFoundError('tile_chunk_quality_json not found.')
         return tile_chunk_quality_dict
 
     def quality_json_exist(self, check_result=False):
         try:
-            self.tile_chunk_quality_dict = load_json(self.tile_chunk_quality_paths.chunk_quality_result_json, AutoDict)
+            self.tile_chunk_quality_dict = load_json(self.chunk_quality_paths.chunk_quality_result_json, AutoDict)
         except FileNotFoundError:
             self.change_flag = True
             self.tile_chunk_quality_dict = AutoDict()
@@ -117,9 +118,9 @@ class MakePlot(GetQuality):
             return [np.average(results[value2][chunk][value1]) for chunk in self.chunk_list]
 
         for self.video in self.name_list:
-            folder = self.tile_chunk_quality_paths.base_paths.quality_folder / '_metric plots' / f'{self.name}'
+            folder = self.chunk_quality_paths.base_paths.quality_folder / '_metric plots' / f'{self.name}'
             folder.mkdir(parents=True, exist_ok=True)
-            self.results = load_json(self.tile_chunk_quality_paths.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_paths.chunk_quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     # self.get_tile_image()
@@ -129,7 +130,7 @@ class MakePlot(GetQuality):
 
     def main2(self):
         for self.name in self.name_list:
-            self.results = load_json(self.tile_chunk_quality_paths.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_paths.chunk_quality_result_json)
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.quality in self.quality_list:
@@ -156,11 +157,11 @@ class MakePlot(GetQuality):
         fig.suptitle(f'{self.ctx}')
         fig.tight_layout()
         # fig.show()
-        fig.savefig(self.tile_chunk_quality_paths.quality_result_img)
+        fig.savefig(self.chunk_quality_paths.quality_result_img)
         plt.close()
 
     def get_tile_image(self):
-        if self.tile_chunk_quality_paths.quality_result_img.exists():
+        if self.chunk_quality_paths.quality_result_img.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
@@ -179,5 +180,5 @@ class MakePlot(GetQuality):
         fig.suptitle(f'{self.ctx}')
         fig.tight_layout()
         # fig.show()
-        fig.savefig(self.tile_chunk_quality_paths.quality_result_img)
+        fig.savefig(self.chunk_quality_paths.quality_result_img)
         plt.close()

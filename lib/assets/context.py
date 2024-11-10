@@ -22,7 +22,7 @@ class Context:
     iterations: int = 0
     projection_dict = AutoDict
 
-    factors_list = ['name', 'projection', 'quality', 'tiling', 'tile', 'chunk',
+    factors_list = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk',
                     'frame', 'user', 'metric', 'attempt']
 
     def __init__(self, config: Config):
@@ -43,16 +43,22 @@ class Context:
             if value is None:
                 continue
 
-            if factor == 'quality':
+            if factor in ['name', 'projection', 'tiling']:
+                value = value
+            elif factor == 'quality':
                 value = f'{self.config.rate_control}' + value
-            if factor == 'tile':
+            elif factor == 'tile':
                 value = 'tile' + value
-            if factor == 'chunk':
+            elif factor == 'chunk':
                 value = 'chunk' + value
-            if factor == 'frame':
+            elif factor == 'frame':
                 value = 'frame' + value
-            if factor == 'user':
+            elif factor == 'user':
                 value = 'user' + str(value)
+            elif factor == 'attempt':
+                value = 'attempt' + str(value)
+            else:
+                continue
             txt.append(f'[{value}]')
 
         return ''.join(txt)

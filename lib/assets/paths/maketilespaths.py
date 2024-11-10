@@ -20,12 +20,12 @@ class MakeTilesPaths(CtxInterface):
 
     @property
     def tile_folder(self) -> Path:
-        folder = self.base_paths.tiles_folder / self.base_paths.basename1
+        folder = self.base_paths.tiles_folder / self.base_paths.basename_lv4
         return folder
 
     @property
     def tile_video(self) -> Path:
-        return self.base_paths.tiles_folder / self.base_paths.basename1 / f'tile{self.tile}.mp4'
+        return self.tile_folder / f'tile{self.tile}_{self.config.rate_control}{self.ctx.quality}.mp4'
 
     @property
     def tile_log(self) -> Path:

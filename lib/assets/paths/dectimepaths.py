@@ -14,12 +14,12 @@ class DectimePaths(CtxInterface):
 
     @property
     def dectime_folder(self) -> Path:
-        return self.base_paths.dectime_folder / self.base_paths.basename2
+        return self.base_paths.dectime_folder / self.base_paths.basename_lv5
 
     @property
     def dectime_log(self) -> Path:
         chunk = int(self.ctx.chunk)
-        return self.dectime_folder / f'tile{self.ctx.tile}_{chunk:03d}_dectime.log'
+        return self.dectime_folder / f'chunk{chunk:03d}_dectime.log'
 
     @property
     def decodable_chunk(self) -> Path:

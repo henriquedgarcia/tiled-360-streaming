@@ -19,13 +19,14 @@ class MakeDash(Worker, CtxInterface):
 
     def main(self):
         self.init()
-        for _ in self.iterate_name_projection_quality_tiling_tile():
+        for _ in self.iterate_name_projection_tiling_tile_quality():
             with task(self):
                 self.work()
 
     def work(self):
         if self.dash_is_ok():
             raise AbortError('Dash is ok. Skipping.')
+
         print(f'\tTile ok. Creating chunks.')
         cmd = self.make_dash_cmd_mp4box()
         run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
@@ -33,19 +34,33 @@ class MakeDash(Worker, CtxInterface):
     def dash_is_ok(self):
         print(f'\tChecking dash.')
         try:
-            segment_log_txt = self.segmenter_log.read_text()
-            if f'Dashing P1 AS#1.1(V) done (60 segs)' in segment_log_txt:
-                return True
-            self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
+            self.assert_segmenter_log()
+            return True
         except FileNotFoundError:
-            pass
+            self.clean_dash()
+
+        try:
+            self.assert_tile_video()
+        except FileNotFoundError:
+            raise AbortError(f'Tile video not found. Aborting.')
+
+        return False
+
+    def clean_dash(self):
         shutil.rmtree(self.mpd_folder, ignore_errors=True)
         self.segmenter_log.unlink(missing_ok=True)
 
-        if not self.tile_video.exists():
-            self.logger.register_log('Tiles is not ok.', self.segmenter_log)
-            raise AbortError('Tiles is not ok. Aborting.')
-        return False
+    def assert_tile_video(self):
+        if self.tile_video.stat().st_size == 0:
+            self.tile_video.unlink()
+            raise FileNotFoundError()
+
+    def assert_segmenter_log(self):
+        segment_log_txt = self.segmenter_log.read_text()
+        if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
+            self.segmenter_log.unlink(missing_ok=True)
+            self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
+            raise FileNotFoundError
 
     def make_split_cmd_mp4box(self):
         compressed_file = self.tile_video.as_posix()
@@ -63,6 +78,11 @@ class MakeDash(Worker, CtxInterface):
     def make_dash_cmd_mp4box(self):
         # test gop
         # python3 /mnt/d/Henrique/Desktop/tiled-360-streaming/bin/gop/gop_all.py
+        filename = []
+        for self.quality in self.quality_list:
+            filename.append(self.tile_video.as_posix())
+        filename_ = ' '.join(filename)
+
         cmd = ('bash -c '
                "'"
                'bin/MP4Box '
@@ -70,7 +90,7 @@ class MakeDash(Worker, CtxInterface):
                '-segment-name %s_ '
                '-profile live '
                f'-out {self.dash_mpd.as_posix()} '
-               f'{self.tile_video.as_posix()}'
+               f'{filename_}'
                "'")
         return cmd
 
@@ -99,7 +119,7 @@ class MakeDash(Worker, CtxInterface):
 
     @property
     def segmenter_log(self):
-        return self.make_decodable_path.segmenter_log
+        return self.make_decodable_path.mp4box_log
 
 # def prepare(self):
 #     """
