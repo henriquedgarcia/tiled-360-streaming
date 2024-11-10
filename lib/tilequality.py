@@ -43,13 +43,13 @@ class TileQuality(Worker, CtxInterface):
                 frame1 = next(reference_frames)
             except (StopIteration, ValueError):
                 error.append('reference_frames error')
-                self.reference_chunk.unlink(missing_ok=True)
+                # self.reference_chunk.unlink(missing_ok=True)
 
             try:
                 frame2 = next(tile_frame)
             except (StopIteration, ValueError):
                 error.append('tile_frame error')
-                self.chunk_video.unlink(missing_ok=True)
+                # self.chunk_video.unlink(missing_ok=True)
 
             if error:
                 self.logger.register_log(', '.join(error), self.chunk_video)
