@@ -21,8 +21,8 @@ class BasePaths:
         return self.project_path / 'lossless'
 
     @property
-    def segmenter_folder(self):
-        return self.project_path / 'chunks'
+    def dash_folder(self):
+        return self.project_path / 'dash'
 
     @property
     def decodable_folder(self):
@@ -61,13 +61,25 @@ class BasePaths:
         return self.project_path / 'siti'
 
     @property
-    def basename1(self):
-        return (Path(f'{self.ctx.name}') /
-                f'{self.ctx.projection}' /
-                f'{self.config.rate_control}{self.ctx.quality}' /
-                f'{self.ctx.tiling}'
-                )
+    def get_tiles_folder(self):
+        return self.project_path / 'get_tiles'
 
     @property
-    def basename2(self):
-        return self.basename1 / f'tile{self.ctx.tile}'
+    def basename_lv1(self):
+        return Path(f'{self.ctx.name}')
+
+    @property
+    def basename_lv2(self):
+        return self.basename_lv1 / Path(f'{self.ctx.projection}')
+
+    @property
+    def basename_lv3(self):
+        return self.basename_lv2 / Path(f'{self.ctx.tiling}')
+
+    @property
+    def basename_lv4(self):
+        return self.basename_lv3 / Path(f'tile{self.ctx.tile}')
+
+    @property
+    def basename_lv5(self):
+        return self.basename_lv4 / Path(f'{self.config.rate_control}{self.ctx.quality}')
