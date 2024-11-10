@@ -5,8 +5,8 @@ from pathlib import Path
 from subprocess import STDOUT, PIPE, Popen
 from typing import Union
 
+import cv2
 import numpy as np
-import skvideo.io
 from tqdm import tqdm
 
 from lib.assets.ansi_colors import Bcolors
@@ -215,23 +215,27 @@ def run_command(cmd: str, folder: Path = None, log_file: Path = None, mode='w',
 def __frame_handler__(): ...
 
 
-def iter_frame(video_path, gray=True, dtype='float64'):
-    vreader = skvideo.io.vreader(f'{video_path}', as_grey=gray)
-    for frame in vreader:
+def iter_video(video_path, gray=True, dtype='float64'):
+    cap = cv2.VideoCapture(f'{video_path}')
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
         if gray:
-            _, height, width, _ = frame.shape
-            frame = frame.reshape((height, width)).astype(dtype)
-        yield frame
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        yield frame.astype(dtype)
 
 
 def get_frames(video_path, gray=True, dtype='float64'):
-    vreader = skvideo.io.vreader(f'{video_path}', as_grey=gray)
+    cap = cv2.VideoCapture(f'{video_path}')
     frames = []
-    for frame in vreader:
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
         if gray:
-            _, height, width, _ = frame.shape
-            frame = frame.reshape((height, width)).astype(dtype)
-        frames.append(frame)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frames.append(frame.astype(dtype))
     return frames
 
 
