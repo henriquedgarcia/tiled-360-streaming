@@ -1,10 +1,8 @@
-
 from lib.assets.errors import *
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import decode_video, print_error, count_decoding, save_json, load_json, get_nested_value, \
-    get_times
+from lib.utils.worker_utils import decode_video, count_decoding, print_error
 
 
 class Decode(Worker):
@@ -19,7 +17,7 @@ class Decode(Worker):
     def decode_chunks(self):
         for self.attempt in range(self.config.decoding_num):
             self.changes = False
-            for _ in self.iterate_name_projection_quality_tiling_tile_chunk():
+            for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
                 with task(self):
                     self.work()
             if not self.changes:
@@ -27,11 +25,10 @@ class Decode(Worker):
 
     def work(self):
         self.check_dectime()
+        print_error(f'\tDecoded {self.turn} times.')
         self.check_decodable()
         self.decode()
         self.save()
-        self.check_dectime()
-        raise AbortError(f'Decoded {self.turn} times.')
 
     def check_dectime(self):
         try:
@@ -51,13 +48,11 @@ class Decode(Worker):
             raise AbortError('/'.join(msg))
 
     def decode(self):
-        print(f'\tattempt={self.attempt}/decoded={self.turn}of{self.decoding_num}')
+        # print(f'\tattempt={self.attempt}/decoded={self.turn}of{self.decoding_num}')
         self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
     def save(self):
-        if not self.dectime_folder.exists():
-            self.dectime_log.parent.mkdir(parents=True)
-
+        self.dectime_log.parent.mkdir(parents=True, exist_ok=True)
         with open(self.dectime_log, 'a') as f:
             f.write('\n' + self.stdout)
 
