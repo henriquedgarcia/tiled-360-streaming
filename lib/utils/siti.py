@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 from scipy import ndimage
 
-from lib.utils.worker_utils import iter_frame
+from lib.utils.worker_utils import iter_video
 
 
 class SiTi:
@@ -17,7 +17,7 @@ class SiTi:
         self.siti = defaultdict(list)
         self.previous_frame = None
 
-        for n, frame in enumerate(iter_frame(filename)):
+        for n, frame in enumerate(iter_video(filename)):
             si = self._calc_si(frame)
             self.siti['si'].append(si)
 
