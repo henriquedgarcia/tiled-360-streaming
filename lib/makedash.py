@@ -43,6 +43,7 @@ class MakeDash(Worker, CtxInterface):
             self.assert_tile_video()
         except FileNotFoundError:
             raise AbortError(f'Tile video not found. Aborting.')
+
         return False
 
     def clean_dash(self):
