@@ -6,10 +6,10 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "scale": {"cmp": "540x360"},
+  "scale": {"cmp": "810x540"},
 
   "rate_control": "qp",
-  "decoding_num": 3,
+  "decoding_num": 2,
 
   "bins": 30,
   "metric_list": ["time", "rate", "ssim", "mse", "s-mse", "ws-mse"],
