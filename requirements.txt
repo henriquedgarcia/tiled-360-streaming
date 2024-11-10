@@ -7,8 +7,5 @@ matplotlib
 cycler
 fitter
 tqdm
-opencv
-cython
+opencv-python
 scikit-image
-setuptools
-pillow
