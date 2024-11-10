@@ -261,3 +261,38 @@ def percorrer_arvore_iterativo(dicionario):
                 folhas.append(f"{novo_caminho}: {valor}")
 
     return folhas
+
+
+def draw_pixel_density():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    array = np.zeros([200, 200])
+    n_array = np.zeros([199, 199])
+    z = 1
+    for i in range(200):
+        x = (i - 100) / 200
+        for j in range(200):
+            y = (j - 100) / 200
+            print(f'({i=}, {j}) => {x=}, {y=}, {z=} => {np.sqrt(x ** 2 + y ** 2 + z ** 2)} ')
+            np.arccos(1 / (np.sqrt(x ** 2 + y ** 2 + 1)))
+            array[j][i] = np.arccos(1 / (np.sqrt(x ** 2 + y ** 2 + 1)))
+            if x <= 0 or y <= 0:
+                continue
+            n_array[j - 1][i - 1] = np.abs(array[j][i] - array[j - 1][i - 1])
+
+    new_array = np.zeros([199 * 2, 199 * 3])
+
+    for j in range(199 * 2):
+        j_ = j % 199
+        for i in range(199 * 3):
+            i_ = i % 199
+            new_array[j, i] = n_array[j_, i_] - 1
+
+    plt.cla()
+    plt.close()
+    im = plt.imshow(new_array, cmap=plt.get_cmap('gray_r'))
+    plt.axis('off')
+    plt.colorbar(im, fraction=0.03)
+    plt.title('Variação da densidade de pixels')
+    plt.show()
