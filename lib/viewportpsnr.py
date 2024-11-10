@@ -41,7 +41,7 @@ class ViewportPSNRProps(CtxInterface):
         with context_quality(quality):
             for tile in tiles_list:
                 with context_tile(tile):
-                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.segmenter_paths.chunk_video}')
+                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.segmenter_paths.decodable_chunk}')
 
         for tile in tiles_list:
             is_ok, tile_frame = self.readers[quality][tile].read()
