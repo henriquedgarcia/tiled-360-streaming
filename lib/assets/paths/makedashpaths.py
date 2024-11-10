@@ -11,6 +11,7 @@ class MakeDashPaths(CtxInterface):
         self.ctx = context
         self.base_paths = BasePaths(context)
         self.make_tiles_paths = MakeTilesPaths(context)
+
     #
     # @property
     # def lossless_video(self) -> Path:
@@ -27,18 +28,18 @@ class MakeDashPaths(CtxInterface):
     @property
     def tile_video(self) -> Path:
         return self.make_tiles_paths.tile_video
-    #
+
     # @property
     # def tile_log(self) -> Path:
     #     return self.make_tiles_paths.tile_log
 
     @property
-    def segmenter_log(self) -> Path:
-        return self.base_paths.segmenter_folder / self.base_paths.basename1 / f'tile{self.tile}_segmenter.log'
+    def mp4box_log(self) -> Path:
+        return self.base_paths.dash_folder / self.base_paths.basename_lv3 / f'tile{self.tile}_segmenter.log'
 
     @property
     def mpd_folder(self) -> Path:
-        return self.base_paths.segmenter_folder / self.base_paths.basename2
+        return self.base_paths.dash_folder / self.base_paths.basename_lv4
 
     @property
     def dash_mpd(self) -> Path:
@@ -46,12 +47,12 @@ class MakeDashPaths(CtxInterface):
 
     @property
     def dash_m4s(self) -> Path:
-        return self.mpd_folder / f'tile{self.tile}_{self.chunk}.m4s'
+        return self.mpd_folder / f'tile{self.tile}_{self.rate_control}{self.quality}_{self.chunk}.m4s'
 
     @property
     def dash_init(self) -> Path:
-        return self.mpd_folder / f'tile{self.tile}_init.mp4'
+        return self.mpd_folder / f'tile{self.tile}_{self.rate_control}{self.quality}_init.mp4'
 
     @property
     def bitrate_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'rate_{self.name}.json'
+        return self.base_paths.results_folder / f'bitrate/{self.name}.json'
