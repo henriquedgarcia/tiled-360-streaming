@@ -19,6 +19,6 @@
                     "expon"],
 
   "fov": "110x90",
-  "quality_list": ["28", "34", "40"],
+  "quality_list": ["34", "40"],
   "tiling_list": ["1x1", "3x2"]
 }
