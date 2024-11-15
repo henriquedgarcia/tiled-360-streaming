@@ -2,7 +2,6 @@ from collections import defaultdict
 
 import numpy as np
 from tqdm import tqdm
-import cv2
 
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
