@@ -32,7 +32,7 @@ class TileQuality(Worker, CtxInterface):
             raise AbortError('chunk_quality_json is ok')
 
         reference_frames = iter_video(self.reference_chunk)
-        tile_frame = iter_video(self.chunk_video)
+        tile_frame = iter_video(self.decodable_chunk)
         chunk_quality = defaultdict(list)
         error = []
         frame1 = frame2 = np.array([])
@@ -51,7 +51,7 @@ class TileQuality(Worker, CtxInterface):
                 # self.chunk_video.unlink(missing_ok=True)
 
             if error:
-                self.logger.register_log(', '.join(error), self.chunk_video)
+                self.logger.register_log(', '.join(error), self.decodable_chunk)
                 return
 
             chunk_quality['ssim'].append(self.quality_metrics.ssim(frame1, frame2))
@@ -74,8 +74,8 @@ class TileQuality(Worker, CtxInterface):
 
     def assert_chunk_and_reference(self):
         error = []
-        if not self.chunk_video.exists():
-            self.logger.register_log('segment_file NOTFOUND', self.chunk_video)
+        if not self.decodable_chunk.exists():
+            self.logger.register_log('segment_file NOTFOUND', self.decodable_chunk)
             error += ['segment_file NOTFOUND']
         if not self.reference_chunk.exists():
             self.logger.register_log('reference_segment NOTFOUND', self.reference_chunk)
@@ -86,7 +86,7 @@ class TileQuality(Worker, CtxInterface):
             raise AbortError(msg)
 
     @property
-    def chunk_video(self):
+    def decodable_chunk(self):
         return self.chunk_quality_paths.decodable_chunk
 
     @property
