@@ -149,20 +149,25 @@ def decode_video(filename, threads=None, ui_prefix='', ui_suffix='\n'):
     :param ui_suffix:
     :return:
     """
+
     cmd = make_decode_cmd(filename=filename, threads=threads)
     process, stdout = run_command(cmd, ui_prefix=ui_prefix, ui_suffix=ui_suffix)
     return stdout
 
 
-def make_decode_cmd(filename, threads: int = None):
+def make_decode_cmd(filename, threads: int = None, codec: str = 'hevc', benchmark: bool = True):
     threads_opt = f'-threads {threads} ' if threads else ''
+    benchmark = '-benchmark' if benchmark else ''
+    codec = f'-codec {codec}'
+    input_file = f'-i {filename.as_posix()}'
 
     cmd = (f'bash -c '
            f'"'
-           f'bin/ffmpeg -hide_banner -benchmark '
-           f'-codec hevc '
+           f'bin/ffmpeg -hide_banner '
+           f'{benchmark} '
+           f'{codec} '
            f'{threads_opt}'
-           f'-i {filename.as_posix()} '
+           f'{input_file} '
            f'-f null -'
            f'"')
     return cmd
