@@ -1,4 +1,3 @@
-from collections import Counter
 from collections import defaultdict
 from typing import Union
 
@@ -8,10 +7,9 @@ from py360tools import ERP, CMP, ProjectionBase
 from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
-from lib.assets.errors import GetTilesOkError, HMDDatasetError, AbortError
-from lib.assets.paths.gettilespaths import GetTilesPaths
+from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.worker import Worker
-from lib.utils.context_utils import task, timer
+from lib.utils.context_utils import task
 from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
                                     get_nested_value)
 
@@ -19,6 +17,7 @@ from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
 class HmAnalysisPaths:
     def __init__(self, ctx):
         self.ctx = ctx
+
     pass
 
 
