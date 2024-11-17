@@ -24,7 +24,7 @@ class SiTi:
             ti = self._calc_ti(frame)
             self.siti['ti'].append(ti)
 
-            print(f'\rSiTi - {filename.parts[-4:]}: frame={n}, si={si:.2f}, ti={ti:.3f}', end='')
+            print(f'\rSiTi - {filename.parts[-5:]}: frame={n}, si={si:.2f}, ti={ti:.3f}', end='')
 
         print('')
 
