@@ -24,7 +24,7 @@ def save_json(data: Union[dict, list], filename: Union[str, Path], separators=('
     filename = Path(filename)
     try:
         filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         filename.parent.mkdir(parents=True, exist_ok=True)
         filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
 
