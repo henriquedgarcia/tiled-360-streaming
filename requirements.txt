@@ -1,11 +1,7 @@
-python3>=3.9
-numpy
-pandas
-scikit-video
-scipy
+python3>=3.12
 matplotlib
-cycler
+pandas
 fitter
-tqdm
-opencv-python
+opencv-contrib-python
 scikit-image
+
