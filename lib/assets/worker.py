@@ -85,14 +85,13 @@ class Worker(ABC, CtxInterface):
                                 self.ctx.iterations += 1
                                 yield
 
-    def iterate_projection_tiling_tile_quality_chunk(self):
+    def iterate_projection_tiling_tile_quality(self):
         for self.projection in self.projection_list:
             for self.tiling in self.tiling_list:
                 for self.tile in self.tile_list:
                     for self.quality in self.quality_list:
-                        for self.chunk in self.chunk_list:
-                            self.ctx.iterations += 1
-                            yield
+                        self.ctx.iterations += 1
+                        yield
 
     def iterate_name_projection_tiling_user(self):
         for self.name in self.name_list:

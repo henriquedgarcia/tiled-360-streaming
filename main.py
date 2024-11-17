@@ -14,7 +14,7 @@ from lib.maketiles import MakeTiles
 from lib.tilequality import TileQuality
 from lib.make_siti import MakeSiti
 # from lib.getdectime import GetDectime
-# from lib.getbitrate import GetBitrate
+from lib.getbitrate import GetBitrate
 # from lib.getquality import GetQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
@@ -77,7 +77,7 @@ worker_list = [
     Option(id=4, name='TileQuality', obj=TileQuality),
     Option(id=5, name='GetTiles', obj=GetTiles),
     Option(id=6, name='MakeSiti', obj=MakeSiti),
-    # Option(id=5, name='GetBitrate', obj=GetBitrate),
+    Option(id=7, name='GetBitrate', obj=GetBitrate),
     # Option(id=6, name='GetDectime', obj=GetDectime),
     # Option(id=7, name='GetQuality', obj=GetQuality),
 

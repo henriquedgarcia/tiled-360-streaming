@@ -4,8 +4,7 @@ from lib.assets.errors import AbortError
 from lib.assets.worker import Worker
 from lib.makedash import MakeDashPaths
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import get_nested_value
-from lib.utils.worker_utils import save_json, print_error
+from lib.utils.worker_utils import get_nested_value, save_json, print_error
 
 
 class GetBitrate(Worker, CtxInterface):
@@ -33,8 +32,6 @@ class GetBitrate(Worker, CtxInterface):
 
     def init(self):
         self.decodable_paths = MakeDashPaths(self.ctx)
-        self.quality_list = ['0'] + self.ctx.quality_list
-        self.collect_bitrate()
 
     def work(self):
         self.collect_bitrate()
@@ -48,7 +45,7 @@ class GetBitrate(Worker, CtxInterface):
             self.video_bitrate = AutoDict()
 
             with task(self):
-                for _ in self.iterate_projection_tiling_tile_quality_chunk():
+                for _ in self.iterate_projection_tiling_tile_quality():
                     self.bitrate()
 
             print(f'Saving video_bitrate for {self.name}.')
@@ -57,18 +54,43 @@ class GetBitrate(Worker, CtxInterface):
 
     def bitrate(self):
         print(f'\t{self.ctx}', end='\r')
+        bitrate_dash_m4s = []
+        for self.chunk in self.chunk_list:
+            try:
+                dash_m4s = self.decodable_paths.dash_m4s.stat().st_size
+                if dash_m4s == 0:
+                    self.logger.register_log('BITRATE==0', self.decodable_paths.dash_m4s)
+
+                bitrate_dash_m4s.append(8 * dash_m4s)
+
+            except FileNotFoundError:
+                self.logger.register_log('chunk not exist', self.decodable_paths.dash_m4s)
+                raise AbortError('Chunk not exist')
 
         try:
-            dash_m4s = self.decodable_paths.dash_m4s.stat().st_size
-            bitrate = 8 * dash_m4s
-            if dash_m4s == 0:
-                self.logger.register_log('BITRATE==0', self.decodable_paths.dash_m4s)
-
+            dash_init = self.decodable_paths.dash_init.stat().st_size
+            if dash_init == 0:
+                self.logger.register_log('dash_init==0', self.decodable_paths.dash_init)
+            bitrate_dash_init = 8 * dash_init
         except FileNotFoundError:
-            self.logger.register_log('chunk not exist', self.decodable_paths.dash_m4s)
+            self.logger.register_log('dash_init not exist', self.decodable_paths.dash_init)
             raise AbortError('Chunk not exist')
 
-        self.set_bitrate({'bitrate': bitrate, })
+        try:
+            dash_mpd = self.decodable_paths.dash_mpd.stat().st_size
+            if dash_mpd == 0:
+                self.logger.register_log('dash_mpd==0', self.decodable_paths.dash_mpd)
+            bitrate_dash_mpd = 8 * dash_mpd
+        except FileNotFoundError:
+            self.logger.register_log('dash_mpd not exist', self.decodable_paths.dash_mpd)
+            raise AbortError('Chunk not exist')
+
+        result_dict = {'dash_m4s': bitrate_dash_m4s,
+                       'dash_init': bitrate_dash_init,
+                       'dash_mpd': bitrate_dash_mpd,
+                       }
+
+        self.set_bitrate(result_dict)
 
     def get_bitrate(self):
         keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
