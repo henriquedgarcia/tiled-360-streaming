@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 
 import numpy as np
@@ -5,24 +6,36 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from lib.assets.ctxinterface import CtxInterface
+from lib.assets.errors import AbortError
 from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
 from lib.utils.siti import SiTi
-from lib.utils.worker_utils import load_json
-from lib.assets.errors import AbortError
+from lib.utils.worker_utils import load_json, save_json
+
+
+def save_siti(results, results_file):
+    if not results_file.parent.exists(): results_file.parent.mkdir(exist_ok=True, parents=True)
+    results_file.write_text(json.dumps(results, indent=2))
 
 
 class MakeSiti(Worker, CtxInterface):
-    make_siti_paths: MakeSitiPaths
-    siti_results_df: pd.DataFrame
+    siti: SiTi = None
+    make_siti_paths: MakeSitiPaths = None
+    siti_results_df: pd.DataFrame = None
 
     def main(self):
         self.init()
         for self.name in self.name_list:
             with task(self):
                 self.calc_siti()
+
+        for self.name in self.name_list:
+            with task(self):
                 self.calc_stats()
+
+        for self.name in self.name_list:
+            with task(self):
                 self.scatter_plot_siti()
                 self.plot_siti()
 
@@ -35,8 +48,6 @@ class MakeSiti(Worker, CtxInterface):
 
     def calc_siti(self):
         if self.siti_results.exists():
-            self.siti_results_df = pd.read_csv(self.siti_results,
-                                               index_col=0)
             return
 
         if not self.tile_video.exists():
@@ -44,16 +55,15 @@ class MakeSiti(Worker, CtxInterface):
             raise AbortError(f'compressed_file not exist. Skipping.')
 
         siti = SiTi(self.tile_video)
-
-        self.siti_results_df = pd.DataFrame(siti.siti)
-        self.siti_results_df.to_csv(self.siti_results)
+        save_json(siti.siti, self.siti_results)
 
     def calc_stats(self):
         if self.siti_stats.exists():
             print(f'{self.siti_stats} - the file exist')
             return
 
-        siti_results = pd.read_csv(self.siti_results, index_col=0)
+        siti_results = load_json(self.siti_results)
+
         si = siti_results['si']
         ti = siti_results['ti']
         bitrate = self.tile_video.stat().st_size * 8 / 60
@@ -84,8 +94,9 @@ class MakeSiti(Worker, CtxInterface):
 
     def plot_siti(self):
         def plot1():
-            ax1: plt.Axes | None = None
-            ax2: plt.Axes | None = None
+            from typing import Optional
+            ax1: Optional[plt.Axes] = None
+            ax2: Optional[plt.Axes] = None
             fig = plt.Figure()
             if self.name == self.name_list[0]:
                 fig, (ax1, ax2) = plt.subplots(2,
