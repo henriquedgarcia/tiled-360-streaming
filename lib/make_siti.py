@@ -48,6 +48,8 @@ class MakeSiti(Worker, CtxInterface):
 
     def calc_siti(self):
         if self.siti_results.exists():
+            new_name = self.siti_stats.with_suffix('.json')
+            self.siti_stats.rename(new_name)
             return
 
         if not self.tile_video.exists():
