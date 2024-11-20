@@ -1,5 +1,3 @@
-from sys import prefix
-
 from tqdm import tqdm
 
 from lib.assets.autodict import AutoDict
@@ -12,23 +10,15 @@ from lib.utils.worker_utils import get_nested_value, save_json, print_error
 
 class GetBitrate(Worker, CtxInterface):
     """
-       The result dict have a following structure:
-       results[video_name][tile_pattern][quality][tile_id][chunk_id]
-               ['times'|'rate']
-       [video_proj]    : The video projection
-       [video_name]    : The video name
-       [tile_pattern]  : The tile tiling. e.g. "6x4"
-       [quality]       : Quality. An int like in crf or qp.
-       [tile_id]           : the tile number. ex. max = 6*4
-       [chunk_id]           : the chunk number. Start with 1.
-
+    self.video_bitrate[name][projection][tiling][tile]  |
+                                  ['dash_mpd'] |
+                                  ['dash_init'][self.quality] |
+                                  ['dash_m4s'][self.quality][self.chunk]
+    :return:
     """
     video_bitrate: AutoDict
-    quality_list: list
     decodable_paths: MakeDashPaths
-    old_name: str = None
     t: tqdm
-    a: int
 
     def main(self):
         self.decodable_paths = MakeDashPaths(self.ctx)
@@ -72,8 +62,19 @@ class GetBitrate(Worker, CtxInterface):
         self.set_bitrate(result_dict)
         self.quality = self.chunk = None
 
-    def get_bitrate(self):
-        keys = [self.name, self.projection, self.quality, self.tiling, self.tile, self.chunk]
+    def get_bitrate(self, file_tipe: str):
+        """
+        self.video_bitrate[name][projection][tiling][tile]
+        :param file_tipe: ['dash_mpd'] |
+                          ['dash_init'][self.quality] |
+                          ['dash_m4s'][self.quality][self.chunk]
+        :return:
+        """
+        keys = [self.name, self.projection, self.tiling, self.tile]
+        if file_tipe == 'dash_init':
+            keys.extend(['dash_init', self.quality])
+        if file_tipe == 'dash_m4s':
+            keys.extend(['dash_m4s', self.quality, self.chunk])
         return get_nested_value(self.video_bitrate, keys)
 
     def set_bitrate(self, value: dict):
