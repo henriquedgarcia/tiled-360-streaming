@@ -46,7 +46,7 @@ class GetDectime(Worker, CtxInterface):
                                  * len(self.chunk_list)),
                           desc=f'    {self.__class__.__name__}')
 
-            for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+            for _ in self.iterate_projection_tiling_tile_quality_chunk():
                 self.t.set_postfix_str(f'{self.ctx}')
                 self.t.update()
 
