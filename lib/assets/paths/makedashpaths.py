@@ -12,26 +12,9 @@ class MakeDashPaths(CtxInterface):
         self.base_paths = BasePaths(context)
         self.make_tiles_paths = MakeTilesPaths(context)
 
-    #
-    # @property
-    # def lossless_video(self) -> Path:
-    #     return self.make_tiles_paths.lossless_video
-    #
-    # @property
-    # def lossless_log(self) -> Path:
-    #     return self.make_tiles_paths.lossless_log
-    #
-    # @property
-    # def tile_folder(self) -> Path:
-    #     return self.make_tiles_paths.tile_folder
-
     @property
     def tile_video(self) -> Path:
         return self.make_tiles_paths.tile_video
-
-    # @property
-    # def tile_log(self) -> Path:
-    #     return self.make_tiles_paths.tile_log
 
     @property
     def mp4box_log(self) -> Path:
