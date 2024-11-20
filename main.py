@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import matplotlib as mpl; mpl.use("Qt5Agg")
+import matplotlib as mpl;
+
+mpl.use("Qt5Agg")
 import argparse
 from pathlib import Path
 
@@ -13,7 +15,7 @@ from lib.makedecodable import MakeDecodable
 from lib.maketiles import MakeTiles
 from lib.tilequality import TileQuality
 from lib.make_siti import MakeSiti
-# from lib.getdectime import GetDectime
+from lib.getdectime import GetDectime
 from lib.getbitrate import GetBitrate
 # from lib.getquality import GetQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
@@ -65,7 +67,7 @@ videos_list = [
     Option(id=4, name='container1', obj=path_config / 'videos_container1.json'),  # elevator_lift-nyc_drive
     Option(id=5, name='fortrek', obj=path_config / 'videos_fortrek.json'),  # pac_man-sunset
     Option(id=6, name='hp_elite', obj=path_config / 'videos_hp_elite.json'),  # three_peaks-video_22
-    Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'), # video_23-wingsuit_dubai
+    Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # video_23-wingsuit_dubai
     Option(id=8, name='test', obj=path_config / 'videos_test.json'),  # 
 ]
 
@@ -78,9 +80,8 @@ worker_list = [
     Option(id=5, name='GetTiles', obj=GetTiles),
     Option(id=6, name='MakeSiti', obj=MakeSiti),
     Option(id=7, name='GetBitrate', obj=GetBitrate),
-    # Option(id=6, name='GetDectime', obj=GetDectime),
+    Option(id=8, name='GetDectime', obj=GetDectime),
     # Option(id=7, name='GetQuality', obj=GetQuality),
-
 ]
 
 if __name__ == '__main__':
