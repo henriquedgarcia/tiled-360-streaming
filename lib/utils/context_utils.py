@@ -41,8 +41,9 @@ def context_quality(ctx, quality='0', rate_control='crf'):
 
 
 @contextmanager
-def task(self):
-    print(f'==== {self.__class__.__name__} {self.ctx} ====')
+def task(self, verbose=True):
+    if verbose:
+        print(f'==== {self.__class__.__name__} {self.ctx} ====')
     try:
         yield
     except AbortError as e:
