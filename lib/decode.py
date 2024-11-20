@@ -1,4 +1,4 @@
-from lib.assets.errors import *
+from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
@@ -48,7 +48,6 @@ class Decode(Worker):
             raise AbortError('/'.join(msg))
 
     def decode(self):
-        # print(f'\tattempt={self.attempt}/decoded={self.turn}of{self.decoding_num}')
         self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
     def save(self):
