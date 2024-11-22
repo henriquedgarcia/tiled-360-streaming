@@ -51,6 +51,7 @@ class Worker(ABC, CtxInterface):
 
         with self.logger.logger_context(self.__class__.__name__):
             with self.status.status_context(self.__class__.__name__):
+                self.init()
                 self.main()
 
     @abstractmethod
