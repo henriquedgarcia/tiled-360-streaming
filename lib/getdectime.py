@@ -23,9 +23,9 @@ class GetDectime(Worker, CtxInterface):
 
             self.dectime_result = AutoDict()
             for self.projection in self.projection_list:
-                for self.quality in self.quality_list:
-                    for self.tiling in self.tiling_list:
-                        for self.tile in self.tile_list:
+                for self.tiling in self.tiling_list:
+                    for self.tile in self.tile_list:
+                        for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
                                 yield
 
