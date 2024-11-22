@@ -25,6 +25,23 @@ class Multi(ABC):
             pass
 
 
+class ProgressBar:
+    t: tqdm
+
+    def __init__(self, total, desc):
+        self.t = tqdm(total=total, desc=desc)
+
+    def new(self, total, desc):
+        self.t = tqdm(total=total, desc=desc)
+
+    def update(self, postfix_str):
+        self.t.set_postfix_str(postfix_str)
+        self.t.update()
+
+    def __del__(self):
+        self.t.close()
+
+
 class Worker(ABC, CtxInterface):
     def __init__(self, ctx: Context):
         self.ctx = ctx
