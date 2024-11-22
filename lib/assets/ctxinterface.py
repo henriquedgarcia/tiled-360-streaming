@@ -92,7 +92,7 @@ class Lists:
     ctx: Context
 
     @LazyProperty
-    def name_list(self) -> list[str]:
+    def name_list(self):
         return self.ctx.name_list
 
     @LazyProperty
