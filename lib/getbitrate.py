@@ -45,38 +45,20 @@ class GetBitrate(Worker, CtxInterface):
                       self.decodable_paths.bitrate_result_json)
 
     def work(self):
-        dash_mpd = self.decodable_paths.dash_mpd.stat().st_size
-        dash_init = {}
-        dash_m4s = AutoDict()
+        bitrate = AutoDict()
+
         for self.quality in self.quality_list:
-            dash_init[self.quality] = self.decodable_paths.dash_init.stat().st_size
             for self.chunk in self.chunk_list:
                 self.t.set_postfix_str(f'{self.ctx}')
                 self.t.update()
-                dash_m4s[self.quality][self.chunk] = self.decodable_paths.dash_m4s.stat().st_size
+                bitrate[self.quality][self.chunk] = self.decodable_paths.dash_m4s.stat().st_size
+            bitrate[self.quality]['dash_init'] = self.decodable_paths.dash_init.stat().st_size
+        bitrate['dash_mpd'] = self.decodable_paths.dash_mpd.stat().st_size
 
-        result_dict = {'dash_mpd': dash_mpd,
-                       'dash_init': dash_init,  # dash_init[quality]
-                       'dash_m4s': dash_m4s,  # dash_m4s[quality][chunk]
-                       }
-        self.set_bitrate(result_dict)
+        self.set_bitrate(bitrate)
         self.quality = self.chunk = None
-
-    def get_bitrate(self, file_tipe: str):
-        """
-        self.video_bitrate[name][projection][tiling][tile]
-        :param file_tipe: ['dash_mpd'] |
-                          ['dash_init'][self.quality] |
-                          ['dash_m4s'][self.quality][self.chunk]
-        :return:
-        """
-        keys = [self.name, self.projection, self.tiling, self.tile]
-        if file_tipe == 'dash_init':
-            keys.extend(['dash_init', self.quality])
-        if file_tipe == 'dash_m4s':
-            keys.extend(['dash_m4s', self.quality, self.chunk])
-        return get_nested_value(self.video_bitrate, keys)
 
     def set_bitrate(self, value: dict):
         keys = [self.name, self.projection, self.tiling, self.tile]
-        get_nested_value(self.video_bitrate, keys).update(value)
+        tile_bitrate = get_nested_value(self.video_bitrate, keys)
+        tile_bitrate.update(value)
