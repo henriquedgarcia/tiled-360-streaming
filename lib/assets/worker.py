@@ -58,6 +58,9 @@ class Worker(ABC, CtxInterface):
     def main(self):
         ...
 
+    def init(self):
+        pass
+
     def print_resume(self):
         print('=' * 70)
         print(f'Processing {len(self.ctx.name_list)} videos:\n'
