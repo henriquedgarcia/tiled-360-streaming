@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
 
 from lib.assets.autodict import AutoDict
@@ -11,7 +10,6 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.worker import Worker, ProgressBar
 from lib.makequality import ChunkQualityPaths
-from lib.utils.context_utils import task
 from lib.utils.worker_utils import save_json, load_json, print_error, get_nested_value
 
 
@@ -37,59 +35,61 @@ class GetQuality(Worker, CtxInterface):
 
     def init(self):
         self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
-        self.total = (181 * len(self.projection_list)
-                      * len(self.quality_list) * len(self.chunk_list))
-
-        change_flag: bool
 
     def iter_proj_tiling_tile_qlt_chunk(self):
+        total = (181 * len(self.projection_list)
+                 * len(self.quality_list))
+
+        t = ProgressBar(total=total, desc=self.__class__.__name__)
+
         for self.projection in self.projection_list:
             for self.tiling in self.tiling_list:
                 for self.tile in self.tile_list:
                     for self.quality in self.quality_list:
+                        t.update(f'{self.ctx}')
                         for self.chunk in self.chunk_list:
                             yield
 
     @contextmanager
     def task(self):
-        class_name = self.__class__.__name__
-        print(f'==== {class_name} {self.ctx} ====')
+        print(f'==== {self.__class__.__name__} {self.ctx} ====')
         self.tile_quality_result = AutoDict()
-        t = ProgressBar(total=self.total, desc=class_name)
 
         try:
-            for _ in self.iter_proj_tiling_tile_qlt_chunk():
-                t.update(f'{self.ctx}')
-                yield
-
+            yield
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
+            return
 
-        save_json(self.tile_quality_result, self.chunk_quality_paths.chunk_quality_result_json)
-        del t
+        for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
+            name = self.chunk_quality_paths.chunk_quality_result_json.stem
+            new_name = name + f'_{self.metric}'
+            new_file = self.chunk_quality_paths.chunk_quality_result_json.with_stem(new_name)
+            save_json(self.tile_quality_result[self.metric], new_file)
 
     def main(self):
         for self.name in self.name_list:
-            if self.chunk_quality_paths.chunk_quality_result_json.exists():
-                print_error('\tJson exist.')
-                continue
-
             with self.task():
-                self.work()
+                if self.chunk_quality_paths.chunk_quality_result_json.exists():
+                    raise AbortError('chunk_quality_result_json exist.')
 
-    def work(self):
+                for _ in self.iter_proj_tiling_tile_qlt_chunk():
+                    tile_chunk_quality_dict = self.get_chunk_quality()
+                    for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
+                        self.set_quality_result(tile_chunk_quality_dict[self.metric])
+
+    def get_chunk_quality(self):
         try:
             tile_chunk_quality_dict = load_json(self.chunk_quality_paths.chunk_quality_json)
-        except FileNotFoundError as e:
-            self.logger.register_log('CSV_NOTFOUND_ERROR', self.chunk_quality_paths.chunk_quality_json)
-            raise FileNotFoundError('tile_chunk_quality_json not found.')
+        except FileNotFoundError:
+            self.logger.register_log('chunk_quality_json not found', self.chunk_quality_paths.chunk_quality_json)
+            raise AbortError('tile_chunk_quality_json not found.')
+        return tile_chunk_quality_dict
 
-        self.set_quality(tile_chunk_quality_dict)
-
-    def set_quality(self, chunk_quality_dict):
-        keys = [self.name, self.projection, self.tiling, self.tile, self.quality, self.chunk]
+    def set_quality_result(self, chunk_quality_dict):
+        keys = [self.metric, self.name, self.projection, self.tiling, self.tile, self.quality, ]
         result = get_nested_value(self.tile_quality_result, keys)
-        result.update(chunk_quality_dict)
+        result.update({self.chunk: chunk_quality_dict})
 
 
 class MakePlot(GetQuality):
