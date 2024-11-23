@@ -10,7 +10,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.worker import Worker, ProgressBar
-from lib.tilequality import ChunkQualityPaths
+from lib.makequality import ChunkQualityPaths
 from lib.utils.context_utils import task
 from lib.utils.worker_utils import save_json, load_json, print_error, get_nested_value
 
