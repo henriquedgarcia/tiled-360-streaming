@@ -53,8 +53,8 @@ class BasePaths:
         return self.project_path / 'graphs'
 
     @property
-    def viewport_folder(self):
-        return self.project_path / 'viewport'
+    def viewport_quality_folder(self):
+        return self.project_path / 'viewport_quality'
 
     @property
     def siti_folder(self):
