@@ -13,7 +13,7 @@ from lib.get_tiles import GetTiles
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
 from lib.maketiles import MakeTiles
-from lib.tilequality import TileQuality
+from lib.makequality import TileQuality
 from lib.make_siti import MakeSiti
 from lib.getdectime import GetDectime
 from lib.getbitrate import GetBitrate
