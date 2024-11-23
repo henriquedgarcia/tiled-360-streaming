@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
-from pywin.mfc.object import Object
 
 from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
