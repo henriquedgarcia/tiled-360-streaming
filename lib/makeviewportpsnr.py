@@ -7,6 +7,7 @@ import cv2 as cv
 import numpy as np
 import pandas as pd
 from PIL import Image
+from lib.assets.paths.segmenterpaths import SegmenterPaths
 from py360tools import ProjectionBase, ERP
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 from skvideo.io import FFmpegReader
@@ -14,19 +15,15 @@ from skvideo.io import FFmpegReader
 from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.assets.paths.segmenterpaths import SegmenterPaths
-
 from lib.assets.errors import AbortError
 from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
+from lib.assets.worker import Worker, ProgressBar
 from lib.utils.context_utils import context_quality, context_tile
 from lib.utils.worker_utils import idx2xy, splitx, save_json, load_json, print_error
 
-from lib.assets.paths.gettilespaths import GetTilesPaths
-
-from lib.assets.worker import Worker, ProgressBar
 
 class ViewportQualityPaths(CtxInterface):
     def __init__(self, context: Context):
@@ -42,11 +39,11 @@ class ViewportQualityPaths(CtxInterface):
         return self.base_paths.viewport_quality_folder
 
     @property
-    def viewport_quality_folder(self) -> Path:
+    def user_viewport_quality_json(self) -> Path:
         """
         Need None
         """
-        return self.base_paths.viewport_quality_folder
+        return self.viewport_quality_folder / f'{self.name}' / f'{self.tiling}'/ f'{self.user}'/ f'{self.ctx.config.rate_control}{self.quality}'/ f'chunk{self.chunk}'
 
 
 class ViewportQualityProps(CtxInterface):
@@ -63,8 +60,6 @@ class ViewportQualityProps(CtxInterface):
     quality_metrics: QualityMetrics
     tile_chunk_quality_paths: ChunkQualityPaths
     segmenter_paths: SegmenterPaths
-
-
 
     ## Methods #############################################
     def mount_frame(self, proj_frame, tiles_list, quality: str):
@@ -89,14 +84,15 @@ class ViewportQualityProps(CtxInterface):
         info['nm'] = (n, m)
         tile_y, tile_x = self.tile_position_dict
 
-
     def output_exist(self, overwrite=False):
         if self.viewport_psnr_file.exists() and not overwrite:
             print(f'  The data file "{self.viewport_psnr_file}" exist.')
             return True
         return False
 
+
 from lib.get_tiles import build_projection
+
 
 class ViewportQuality(Worker, CtxInterface):
     viewport_quality_paths: ViewportQualityPaths
@@ -127,18 +123,19 @@ class ViewportQuality(Worker, CtxInterface):
                             for self.chunk in self.chunk_list:
                                 yield
 
-    user_viewport_quality_json: dict
+    user_viewport_quality_dict: dict
+    frame: np.ndarray
 
     @contextmanager
     def task(self):
         class_name = self.__class__.__name__
         print(f'==== {class_name} {self.ctx} ====')
-        self.user_viewport_quality_json = AutoDict()
-        t = ProgressBar(total=self.total, desc=class_name)
+        self.user_viewport_quality_dict = AutoDict()
+        t = ProgressBar(total=30, desc=class_name)
 
         try:
             for _ in self.iter_name_proj_tiling_user_qlt_chunk():
-                t.update(f'{self.ctx}')
+                t.update(f'{self.ctx} - frame{self.frame}')
                 yield
 
         except FileNotFoundError as e:
@@ -146,25 +143,19 @@ class ViewportQuality(Worker, CtxInterface):
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
 
-        save_json(self.user_viewport_quality_json, self.viewport_quality_paths.viewport_quality_folder)
+        save_json(self.user_viewport_quality_dict, self.viewport_quality_paths.viewport_quality_folder)
         del t
 
     def main(self):
         self.init()
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        for self.quality in self.quality_list:
-                            self.worker()
-                            # self.make_video()
+        for _ in self.iter_name_proj_tiling_user_qlt_chunk:
+            self.worker()
+            # self.make_video()
 
     frame_n: int
 
     def worker(self):
-        print(f'{self.projection}, {self.name}, {self.tiling}, {self.user}')
-
-        if self.viewport_psnr_file.exists():
+        if self.viewport_quality_paths.user_viewport_quality_json.exists():
             print(f'\tThe file exist. Skipping')
             return
 
