@@ -82,7 +82,7 @@ class GetDectime(Worker, CtxInterface):
             keys = [self.name, self.projection, self.tiling, self.tile, self.quality, self.chunk]
             result = get_nested_value(self.dectime_result, keys)
             result.update(dectime)
-        elif isinstance(dectime, Object):
+        else:
             keys = [self.name, self.projection, self.tiling, self.tile, self.quality]
             result = get_nested_value(self.dectime_result, keys)
             result.update({self.chunk: dectime})
