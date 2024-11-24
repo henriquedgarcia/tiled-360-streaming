@@ -45,21 +45,6 @@ class ViewportQualityPaths(CtxInterface):
         return self.viewport_quality_folder / f'{self.name}' / f'{self.tiling}'/ f'{self.user}'/ f'{self.ctx.config.rate_control}{self.quality}'/ f'chunk{self.chunk}'
 
 
-class ViewportQualityProps(CtxInterface):
-    dataset_data: dict
-    erp_list: dict
-    readers: dict
-    seen_tiles: dict
-    yaw_pitch_roll_frames: list
-    video_frame_idx: int
-    tile_h: float
-    tile_w: float
-    projection_obj: ProjectionBase
-
-    quality_metrics: QualityMetrics
-    tile_chunk_quality_paths: ChunkQualityPaths
-    decodable_paths: MakeDecodablePaths
-
     ## Methods #############################################
 
     def tile_info(self, tile):
@@ -74,13 +59,18 @@ class ViewportQualityProps(CtxInterface):
             return True
         return False
 
+class ViewportQualityProps(CtxInterface):
+
+
 
 from lib.get_tiles import build_projection
 
 
 class ViewportQuality(Worker, CtxInterface):
+    decodable_paths: MakeDecodablePaths
     viewport_quality_paths: ViewportQualityPaths
     projection_dict: AutoDict
+    _get_tiles_data: dict
     total: int
 
     def main(self):
