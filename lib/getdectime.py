@@ -40,6 +40,7 @@ class GetDectime(Worker, CtxInterface):
             yield
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
+            return
 
         save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
 
@@ -58,14 +59,12 @@ class GetDectime(Worker, CtxInterface):
                                       'dectime_med': np.median(times),
                                       })
 
-            save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
-
     def get_times(self):
         times = get_times(self.dectime_paths.dectime_log)
         decoded = len(times)
 
         try:
-            assert decoded < self.config.decoding_num
+            assert decoded >= self.config.decoding_num
         except AssertionError:
             self.logger.register_log(f'Chunk is not decoded enough. {decoded} times.',
                                      self.dectime_paths.dectime_log)
