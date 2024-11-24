@@ -37,19 +37,18 @@ class GetDectime(Worker, CtxInterface):
         self.dectime_result = AutoDict()
 
         try:
+            if self.dectime_paths.dectime_result_json.exists():
+                raise AbortError(f'The dectime_result_json exist.')
             yield
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
             return
 
+        print(f'\tSaving for {self.name}.')
         save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
 
     def main(self):
         for self.name in self.name_list:
-            if self.dectime_paths.dectime_result_json.exists():
-                print_error(f'\tThe dectime_result_json exist.')
-                continue
-
             with self.task():
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
                     times = self.get_times()
