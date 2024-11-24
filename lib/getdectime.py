@@ -66,7 +66,8 @@ class GetDectime(Worker, CtxInterface):
         try:
             assert decoded >= self.config.decoding_num
         except AssertionError:
-            self.logger.register_log(f'Chunk is not decoded enough. {decoded} times.',
+            msg = f'Chunk is not decoded enough. {decoded} times.'
+            self.logger.register_log(msg,
                                      self.dectime_paths.dectime_log)
             raise AbortError(f'Chunk is not decoded enough. {decoded} times.')
 
