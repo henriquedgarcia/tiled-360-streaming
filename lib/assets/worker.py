@@ -40,7 +40,7 @@ class ProgressBar:
         self.t.set_postfix_str(postfix_str)
         self.t.update()
 
-    def __del__(self):
+    def close(self):
         self.t.close()
 
 
