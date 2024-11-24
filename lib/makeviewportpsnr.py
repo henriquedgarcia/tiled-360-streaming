@@ -15,8 +15,6 @@ from skvideo.io import FFmpegReader
 from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.assets.errors import AbortError
-from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
@@ -59,7 +57,7 @@ class ViewportQualityProps(CtxInterface):
 
     quality_metrics: QualityMetrics
     tile_chunk_quality_paths: ChunkQualityPaths
-    segmenter_paths: SegmenterPaths
+    decodable_paths: MakeDecodablePaths
 
     ## Methods #############################################
     def mount_frame(self, proj_frame, tiles_list, quality: str):
@@ -68,7 +66,7 @@ class ViewportQualityProps(CtxInterface):
         with context_quality(quality):
             for tile in tiles_list:
                 with context_tile(tile):
-                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.segmenter_paths.decodable_chunk}')
+                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.decodable_paths.decodable_chunk}')
 
         for tile in tiles_list:
             is_ok, tile_frame = self.readers[quality][tile].read()
@@ -340,7 +338,7 @@ class ViewportQualityGraphs(ViewportQualityProps):
         pass
 
 
-class CheckViewportPSNR(ViewportQuality):
+class CheckViewportPSNR(ViewportPSNR):
     def loop(self):
         self.workfolder.mkdir(parents=True, exist_ok=True)
         self.sse_frame: dict = {}
