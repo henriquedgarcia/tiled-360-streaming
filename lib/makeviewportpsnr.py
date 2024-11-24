@@ -150,7 +150,16 @@ class ViewportQuality(Worker, CtxInterface):
             self.worker()
             # self.make_video()
 
-    frame_n: int
+    def main(self):
+        self.init()
+        for _ in self.iterator():
+            with task(self):
+                self.worker()
+                # self.make_video()
+
+    def init(self):
+        self._get_tiles_data = {}
+        self.create_projections_dict()
 
     def worker(self):
         if self.viewport_quality_paths.user_viewport_quality_json.exists():
@@ -298,6 +307,18 @@ class ViewportQuality(Worker, CtxInterface):
 
             print('')
 
+    projection_dict: dict
+
+    def create_projections_dict(self):
+        self.projection_dict = AutoDict()
+        for tiling in self.tiling_list:
+            for proj_str in self.projection_list:
+                proj = build_projection(proj_name=proj_str,
+                                        tiling=tiling,
+                                        proj_res=self.config.config_dict['scale'][proj_str], vp_res='1320x1080',
+                                        fov_res=self.fov)
+                self.projection_dict[proj_str][tiling] = proj
+
 
 class ViewportQualityGraphs(ViewportQualityProps):
     _tiling: str
@@ -394,3 +415,13 @@ class CheckViewportPSNR(ViewportPSNR):
 
     def worker(self, **kwargs):
         print(f'\rprocessing {self.vid_proj}_{self.name}_user{self.user}', end='')
+
+
+def build_projection(proj_name, proj_res, tiling, vp_res, fov_res) -> ProjectionBase:
+    if proj_name == 'erp':
+        projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+    elif proj_name == 'cmp':
+        projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+    else:
+        raise TypeError(f'Unknown projection name: {proj_name}')
+    return projection
