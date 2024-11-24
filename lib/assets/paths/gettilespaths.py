@@ -14,7 +14,7 @@ class GetTilesPaths(CtxInterface):
 
     @property
     def get_tiles_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'get_tiles_{self.name}_{self.projection}_fov{self.fov}.json'
+        return self.base_paths.results_folder / f'get_tiles/get_tiles_{self.name}_fov{self.fov}.json'
 
     @property
     def user_tiles_seen_folder(self) -> Path:
