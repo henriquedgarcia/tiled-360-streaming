@@ -37,21 +37,19 @@ class GetGetTiles(Worker, CtxInterface):
         self.get_tiles_result = AutoDict()
 
         try:
+            if self.get_tiles_paths.get_tiles_result_json.exists():
+                raise AbortError(f'The get_tiles_result_json exist.')
             yield
-        except FileNotFoundError as e:
-            print_error('Chunk not Found.')
-            return
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
             return
 
+        print(f'\tSaving for {self.name}.')
         save_json(self.get_tiles_result, self.get_tiles_paths.get_tiles_result_json)
 
     def main(self):
         for self.name in self.name_list:
-            if self.get_tiles_paths.get_tiles_result_json.exists():
-                print_error(f'\tThe get_tiles_result_json exist.')
-                continue
+
 
             with self.task():
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
