@@ -7,14 +7,15 @@ import cv2 as cv
 import numpy as np
 import pandas as pd
 from PIL import Image
-from lib.assets.paths.segmenterpaths import SegmenterPaths
-from py360tools import ProjectionBase, ERP
+from py360tools import ProjectionBase, ERP, CMP
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 from skvideo.io import FFmpegReader
 
 from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
+from lib.assets.errors import AbortError
+from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
@@ -60,21 +61,6 @@ class ViewportQualityProps(CtxInterface):
     decodable_paths: MakeDecodablePaths
 
     ## Methods #############################################
-    def mount_frame(self, proj_frame, tiles_list, quality: str):
-        readers = AutoDict()
-
-        with context_quality(quality):
-            for tile in tiles_list:
-                with context_tile(tile):
-                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.decodable_paths.decodable_chunk}')
-
-        for tile in tiles_list:
-            is_ok, tile_frame = self.readers[quality][tile].read()
-
-            tile_y, tile_x = self.projectionection_obj.tile_shape[-2] * n, self.projectionection_obj.tile_shape[-1] * m
-            # tile_frame = cv.cvtColor(tile_frame, cv.COLOR_BGR2YUV)[:, :, 0]
-            proj_frame[tile_y:tile_y + self.projectionection_obj.tile_shape[-2],
-            tile_x:tile_x + self.projectionection_obj.tile_shape[-1], :] = tile_frame
 
     def tile_info(self, tile):
         info = {}
@@ -97,11 +83,48 @@ class ViewportQuality(Worker, CtxInterface):
     projection_dict: AutoDict
     total: int
 
+    def main(self):
+        self.init()
+        for _ in self.iterator():
+            with self.task(self):
+                self.worker()
+                # self.make_video()
+
     def init(self):
+        self.decodable_paths = MakeDecodablePaths(self.ctx)
         self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
+        self._get_tiles_data = {}
+
         self.create_projections_dict()
-        self.total = (len(self.name_list) * len(self.tiling_list)
-                      * len(self.projection_list))
+        user_times_video = np.sum([len(self.users_list) for self.name in self.name_list])
+        self.total = (user_times_video * len(self.tiling_list) * len(self.projection_list))
+
+    def iterator(self):
+        class_name = self.__class__.__name__
+        t = ProgressBar(total=self.total, desc=class_name)
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list:
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                t.update(f'{self.ctx} - frame{self.frame}')
+                                yield
+
+    @contextmanager
+    def task(self):
+        self.user_viewport_quality_dict = AutoDict()
+
+        try:
+            if self.viewport_quality_paths.user_viewport_quality_json.exists():
+                raise AbortError(f'The user_viewport_quality_json exist.')
+            yield
+
+        except AbortError as e:
+            print_error(f'\t{e.args[0]}')
+            return
+
+        save_json(self.user_viewport_quality_dict, self.viewport_quality_paths.viewport_quality_folder)
 
     def create_projections_dict(self):
         self.projection_dict = AutoDict()
@@ -111,62 +134,11 @@ class ViewportQuality(Worker, CtxInterface):
                                         proj_res=self.config.config_dict['scale'][proj_str], vp_res='1320x1080',
                                         fov_res=self.fov)
                 self.projection_dict[proj_str][tiling] = proj
-
-    def iter_name_proj_tiling_user_qlt_chunk(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        for self.quality in self.quality_list:
-                            for self.chunk in self.chunk_list:
-                                yield
-
     user_viewport_quality_dict: dict
     frame: np.ndarray
 
-    @contextmanager
-    def task(self):
-        class_name = self.__class__.__name__
-        print(f'==== {class_name} {self.ctx} ====')
-        self.user_viewport_quality_dict = AutoDict()
-        t = ProgressBar(total=30, desc=class_name)
-
-        try:
-            for _ in self.iter_name_proj_tiling_user_qlt_chunk():
-                t.update(f'{self.ctx} - frame{self.frame}')
-                yield
-
-        except FileNotFoundError as e:
-            print_error('Chunk not Found.')
-        except AbortError as e:
-            print_error(f'\t{e.args[0]}')
-
-        save_json(self.user_viewport_quality_dict, self.viewport_quality_paths.viewport_quality_folder)
-        del t
-
-    def main(self):
-        self.init()
-        for _ in self.iter_name_proj_tiling_user_qlt_chunk:
-            self.worker()
-            # self.make_video()
-
-    def main(self):
-        self.init()
-        for _ in self.iterator():
-            with task(self):
-                self.worker()
-                # self.make_video()
-
-    def init(self):
-        self._get_tiles_data = {}
-        self.create_projections_dict()
-
     def worker(self):
-        if self.viewport_quality_paths.user_viewport_quality_json.exists():
-            print(f'\tThe file exist. Skipping')
-            return
 
-        self.frame_n = -1
         yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
         seen_tiles = self.get_tiles_samples['chunks']
 
@@ -228,6 +200,23 @@ class ViewportQuality(Worker, CtxInterface):
             print(f'\tchunk{self.chunk}_crf{self.quality}_frame{self.frame_n} - {time.time() - start: 0.3f} s')
         print('')
         save_json(qlt_by_frame, self.viewport_psnr_file)
+
+    def mount_frame(self, proj_frame, tiles_list, quality: str):
+        readers = AutoDict()
+
+        with context_quality(quality):
+            for tile in tiles_list:
+                with context_tile(tile):
+                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.decodable_paths.decodable_chunk}')
+
+        for tile in tiles_list:
+            is_ok, tile_frame = self.readers[quality][tile].read()
+
+            tile_y, tile_x = (self.projectionection_obj.tile_shape[-2],
+                              self.projectionection_obj.tile_shape[-1])
+            # tile_frame = cv.cvtColor(tile_frame, cv.COLOR_BGR2YUV)[:, :, 0]
+            proj_frame[tile_y:tile_y + self.projectionection_obj.tile_shape[-2],
+            tile_x:tile_x + self.projectionection_obj.tile_shape[-1], :] = tile_frame
 
     @property
     def yaw_pitch_roll_frames(self):
@@ -359,7 +348,7 @@ class ViewportQualityGraphs(ViewportQualityProps):
         pass
 
 
-class CheckViewportPSNR(ViewportPSNR):
+class CheckViewportPSNR(ViewportQuality):
     def loop(self):
         self.workfolder.mkdir(parents=True, exist_ok=True)
         self.sse_frame: dict = {}
