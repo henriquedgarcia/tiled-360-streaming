@@ -56,19 +56,19 @@ class GetQuality(Worker, CtxInterface):
         self.tile_quality_result = AutoDict()
 
         try:
+            if self.chunk_quality_paths.chunk_quality_result_json.exists():
+                raise AbortError('chunk_quality_result_json exist.')
             yield
         except AbortError as e:
             print_error(f'\t{e.args[0]}')
             return
 
+        print(f'\tSaving for {self.name}.')
         save_json(self.tile_quality_result[self.metric], self.chunk_quality_paths.chunk_quality_result_json)
 
     def main(self):
         for self.name in self.name_list:
             with self.task():
-                if self.chunk_quality_paths.chunk_quality_result_json.exists():
-                    raise AbortError('chunk_quality_result_json exist.')
-
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
                     tile_chunk_quality_dict = self.get_chunk_quality()
                     self.set_quality_result(tile_chunk_quality_dict)
