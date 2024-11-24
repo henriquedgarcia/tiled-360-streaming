@@ -122,18 +122,15 @@ def count_decoding(dectime_log: Path) -> int:
     Count how many times the word "utime" appears in "log_file"
     :return:
     """
-    times = len(get_times(dectime_log, only_count=True))
+    times = len(get_times(dectime_log))
     return times
 
 
-def get_times(filename: Path, only_count=False):
+def get_times(filename: Path):
     content = filename.read_text(encoding='utf-8')
     times = []
     for line in content.splitlines():
         if 'utime' in line:
-            if only_count:
-                times.append('')
-                continue
             t = float(line.strip().split(' ')[1].split('=')[1][:-1])
             if t > 0:
                 times.append(t)
