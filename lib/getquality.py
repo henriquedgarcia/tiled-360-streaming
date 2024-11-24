@@ -61,11 +61,7 @@ class GetQuality(Worker, CtxInterface):
             print_error(f'\t{e.args[0]}')
             return
 
-        for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
-            name = self.chunk_quality_paths.chunk_quality_result_json.stem
-            new_name = name + f'_{self.metric}'
-            new_file = self.chunk_quality_paths.chunk_quality_result_json.with_stem(new_name)
-            save_json(self.tile_quality_result[self.metric], new_file)
+        save_json(self.tile_quality_result[self.metric], self.chunk_quality_paths.chunk_quality_result_json)
 
     def main(self):
         for self.name in self.name_list:
@@ -75,8 +71,7 @@ class GetQuality(Worker, CtxInterface):
 
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
                     tile_chunk_quality_dict = self.get_chunk_quality()
-                    for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
-                        self.set_quality_result(tile_chunk_quality_dict[self.metric])
+                    self.set_quality_result(tile_chunk_quality_dict)
 
     def get_chunk_quality(self):
         try:
@@ -87,9 +82,9 @@ class GetQuality(Worker, CtxInterface):
         return tile_chunk_quality_dict
 
     def set_quality_result(self, chunk_quality_dict):
-        keys = [self.metric, self.name, self.projection, self.tiling, self.tile, self.quality, ]
+        keys = [self.name, self.projection, self.tiling, self.tile, self.quality, self.chunk]
         result = get_nested_value(self.tile_quality_result, keys)
-        result.update({self.chunk: chunk_quality_dict})
+        result.update(chunk_quality_dict)
 
 
 class MakePlot(GetQuality):
