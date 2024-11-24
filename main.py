@@ -18,6 +18,7 @@ from lib.make_siti import MakeSiti
 from lib.getdectime import GetDectime
 from lib.getbitrate import GetBitrate
 from lib.getquality import GetQuality
+from lib.getget_tiles import GetGetTiles
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -82,7 +83,7 @@ worker_list = [
     Option(id=7, name='GetBitrate', obj=GetBitrate),
     Option(id=8, name='GetDectime', obj=GetDectime),
     Option(id=9, name='GetQuality', obj=GetQuality),
-    # Option(id=10, name='GetGetTiles', obj=GetGetTiles),
+    Option(id=10, name='GetGetTiles', obj=GetGetTiles),
 ]
 
 if __name__ == '__main__':
