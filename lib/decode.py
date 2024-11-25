@@ -9,23 +9,29 @@ class Decode(Worker):
     dectime_paths: DectimePaths
     changes: bool
     stdout: str
+    items = []
 
     def main(self):
         self.dectime_paths = DectimePaths(context=self.ctx)
         self.decode_chunks()
 
     def decode_chunks(self):
+        for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+            self.items.append((self.name, self.projection, self.tiling,
+                               self.tile, self.quality, self.chunk))
+
         for self.attempt in range(self.config.decoding_num):
-            self.changes = False
-            for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+            for item in self.items:
+                (self.name, self.projection, self.tiling,
+                 self.tile, self.quality, self.chunk) = item
+
                 with task(self):
                     self.work()
-            if not self.changes:
-                break
+                    if self.turn >= 5:
+                        self.items.remove(item)
 
     def work(self):
         self.check_dectime()
-        print_error(f'\tDecoded {self.turn} times.')
         self.check_decodable()
         self.decode()
         self.save()
@@ -36,7 +42,9 @@ class Decode(Worker):
         except (FileNotFoundError, UnicodeDecodeError):
             self.turn = 0
             self.dectime_log.unlink(missing_ok=True)
-        if self.turn < self.decoding_num: return
+        if self.turn < self.decoding_num:
+            print_error(f'\tDecoded {self.turn} times.')
+            return
         raise AbortError(f'Dectime is OK. {self.turn}/{self.decoding_num} times. Skipping.')
 
     def check_decodable(self):
