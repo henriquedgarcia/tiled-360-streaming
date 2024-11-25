@@ -25,7 +25,7 @@ class Decode(Worker):
                 (self.name, self.projection, self.tiling,
                  self.tile, self.quality, self.chunk) = item
 
-                with task(self):
+                with task(self, verbose=False):
                     self.work()
                     if self.turn >= 5:
                         self.items.remove(item)
