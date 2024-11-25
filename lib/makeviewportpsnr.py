@@ -59,9 +59,6 @@ class ViewportQualityPaths(CtxInterface):
             return True
         return False
 
-class ViewportQualityProps(CtxInterface):
-
-
 
 from lib.get_tiles import build_projection
 
