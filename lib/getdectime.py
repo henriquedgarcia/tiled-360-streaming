@@ -48,7 +48,8 @@ class GetDectime(Worker, CtxInterface):
         for self.name in self.name_list:
             with self.task():
                 if self.dectime_paths.dectime_result_json.exists():
-                    AbortError(f'The dectime_result_json exist.')
+                    print_error(f'\tThe dectime_result_json exist.')
+                    continue
 
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
                     times = self.get_times()
