@@ -10,23 +10,63 @@ class Decode(Worker):
     dectime_paths: DectimePaths
     stdout: str
     items = []
+    t: ProgressBar
 
     def main(self):
         self.init()
         for self.attempt in range(self.config.decoding_num):
             self.decode_chunks()
 
-    def decode_chunks(self):
-        for _ in self.iter_items():
-            with self.task(self, verbose=False):
-                self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
-
     def init(self):
         self.dectime_paths = DectimePaths(context=self.ctx)
         self.make_task_list()
 
+    def make_task_list(self):
+        for _ in self.iter_ctx('Creating items list'):
+            with self.task1():
+                self.check_dectime()
+                self.check_decodable()
+                self.items.append((self.name, self.projection, self.tiling,
+                                   self.tile, self.quality, self.chunk))
+
+    def iter_ctx(self, desc):
+        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
+        self.t = ProgressBar(total=total, desc=desc)
+
+        for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+            yield
+
+    def check_dectime(self):
+        try:
+            self.turn = count_decoding(self.dectime_log)
+        except (FileNotFoundError, UnicodeDecodeError):
+            self.turn = 0
+            self.dectime_log.unlink(missing_ok=True)
+        if self.turn < self.decoding_num:
+            print_error(f'\tDecoded {self.turn} times.')
+            return
+        raise AbortError()
+
+    def check_decodable(self):
+        if not self.decodable_chunk.exists():
+            msg = 'decodable_chunk not exist'
+            self.logger.register_log(msg, self.decodable_chunk)
+            raise AbortError()
+
+    def decode_chunks(self):
+        for _ in self.iter_items():
+            with self.task2(self):
+                self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
+
     @contextmanager
-    def task(self):
+    def task1(self):
+        try:
+            yield
+        except AbortError as e:
+            return
+
+    @contextmanager
+    def task2(self):
         try:
             yield
         except AbortError as e:
@@ -60,39 +100,6 @@ class Decode(Worker):
             if self.turn >= 5:
                 self.items.remove(item)
 
-    t: ProgressBar
-
-    def iter_ctx(self, desc):
-        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
-        self.t = ProgressBar(total=total, desc=desc)
-
-        for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
-            yield
-
-    def check_dectime(self):
-        try:
-            self.turn = count_decoding(self.dectime_log)
-        except (FileNotFoundError, UnicodeDecodeError):
-            self.turn = 0
-            self.dectime_log.unlink(missing_ok=True)
-        if self.turn < self.decoding_num:
-            print_error(f'\tDecoded {self.turn} times.')
-            return
-        raise AbortError(f'Dectime is OK. {self.turn}/{self.decoding_num} times. Skipping.')
-
-    def check_decodable(self):
-        if not self.decodable_chunk.exists():
-            msg = 'decodable_chunk not exist'
-            self.logger.register_log(msg, self.decodable_chunk)
-            raise AbortError('/'.join(msg))
-
-    def make_task_list(self):
-        for _ in self.iter_ctx('Creating items list'):
-            with self.task():
-                self.check_dectime()
-                self.check_decodable()
-                self.items.append((self.name, self.projection, self.tiling,
-                                   self.tile, self.quality, self.chunk))
 
     @property
     def dectime_log(self):
