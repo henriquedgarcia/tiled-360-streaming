@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.context_utils import task
 from lib.utils.worker_utils import decode_video, count_decoding, print_error
 
 
@@ -11,6 +10,16 @@ class Decode(Worker):
     dectime_paths: DectimePaths
     stdout: str
     items = []
+
+    def main(self):
+        self.init()
+        for self.attempt in range(self.config.decoding_num):
+            self.decode_chunks()
+
+    def decode_chunks(self):
+        for _ in self.iter_items():
+            with self.task(self, verbose=False):
+                self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
     def iter_items(self):
         t = ProgressBar(total=len(self.items), desc=self.__class__.__name__)
@@ -22,17 +31,6 @@ class Decode(Worker):
 
             if self.turn >= 5:
                 self.items.remove(item)
-
-    def main(self):
-        self.init()
-        for self.attempt in range(self.config.decoding_num):
-            self.decode_chunks()
-
-    def decode_chunks(self):
-        for _ in self.iter_items():
-            with task(self, verbose=False):
-                self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
-                self.save()
 
     def init(self):
         self.dectime_paths = DectimePaths(context=self.ctx)
