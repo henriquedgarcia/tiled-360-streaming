@@ -1,15 +1,17 @@
 from contextlib import contextmanager
 
+from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.worker_utils import decode_video, count_decoding, print_error
+from lib.utils.worker_utils import decode_video, count_decoding, print_error, get_nested_value
 
 
 class Decode(Worker):
     dectime_paths: DectimePaths
+    total: int
     stdout: str
-    items = []
+    items: AutoDict
     t: ProgressBar
 
     def main(self):
@@ -22,19 +24,28 @@ class Decode(Worker):
         self.make_task_list()
 
     def make_task_list(self):
+        self.items = AutoDict()
+        self.total = 0
         for _ in self.iter_ctx('Creating items list'):
             with self.task1():
                 self.check_dectime()
                 self.check_decodable()
-                self.items.append((self.name, self.projection, self.tiling,
-                                   self.tile, self.quality, self.chunk))
+                self.items[self.name][self.projection][self.tiling][self.tile][self.quality][self.chunk] = None
+                self.total += 1
 
     def iter_ctx(self, desc):
-        total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list)
+        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
         self.t = ProgressBar(total=total, desc=desc)
-
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+            self.t.update(f'{self.ctx}')
             yield
+
+    @contextmanager
+    def task1(self):
+        try:
+            yield
+        except AbortError:
+            return
 
     def check_dectime(self):
         try:
@@ -58,15 +69,25 @@ class Decode(Worker):
             with self.task2(self):
                 self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
-    @contextmanager
-    def task1(self):
-        try:
+    def iter_items(self):
+        self.t = ProgressBar(total=self.total, desc=self.__class__.__name__)
+        pilha = []
+        for item in traverse_items(self.items, pilha):
+            self.name, self.projection, self.tiling, self.tile, self.quality, self.chunk = item
+            self.t.update(f'{self.ctx}')
+
             yield
-        except AbortError as e:
-            return
+            self.check_turn(item)
+
+    def check_turn(self, item):
+        if self.turn >= 5:
+            result = get_nested_value(self.items, item[:-1])
+            del result[item[-1]]
 
     @contextmanager
     def task2(self):
+        print(f'==== {self.__class__.__name__} {self.ctx} ====')
+
         try:
             yield
         except AbortError as e:
@@ -80,25 +101,6 @@ class Decode(Worker):
         with open(self.dectime_log, 'a') as f:
             f.write('\n' + self.stdout)
 
-    @property
-    def tiling(self):
-        return self.ctx.tiling
-
-    @tiling.setter
-    def tiling(self, tiling):
-        self.ctx.tiling = tiling
-        self.t.update(f'{self.ctx}')
-
-    def iter_items(self):
-        total = len(self.items)
-        self.t = ProgressBar(total=total, desc=self.__class__.__name__)
-        for item in self.items:
-            (self.name, self.projection, self.tiling,
-             self.tile, self.quality, self.chunk) = item
-            yield
-
-            if self.turn >= 5:
-                self.items.remove(item)
 
     @property
     def dectime_log(self):
@@ -111,3 +113,13 @@ class Decode(Worker):
     @property
     def dectime_folder(self):
         return self.dectime_paths.dectime_folder
+
+
+def traverse_items(x: dict, pilha):
+    if x is None:
+        yield pilha
+    elif isinstance(x, dict):
+        for key in x:
+            pilha.append(key)
+            traverse_items(x[key], pilha)
+            pilha.pop()
