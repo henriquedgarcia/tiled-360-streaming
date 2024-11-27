@@ -21,25 +21,12 @@ class Decode(Worker):
             with self.task(self, verbose=False):
                 self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
-    def iter_items(self):
-        t = ProgressBar(total=len(self.items), desc=self.__class__.__name__)
-        for item in self.items:
-            t.update(f'{self.ctx}')
-            (self.name, self.projection, self.tiling,
-             self.tile, self.quality, self.chunk) = item
-            yield
-
-            if self.turn >= 5:
-                self.items.remove(item)
-
     def init(self):
         self.dectime_paths = DectimePaths(context=self.ctx)
         self.make_task_list()
 
     @contextmanager
     def task(self):
-        print(f'==== {self.__class__.__name__} {self.ctx} ====')
-
         try:
             yield
         except AbortError as e:
@@ -53,9 +40,21 @@ class Decode(Worker):
         with open(self.dectime_log, 'a') as f:
             f.write('\n' + self.stdout)
 
-    def iterator(self):
-        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
+    def iter_items(self):
+        total = len(self.items)
         t = ProgressBar(total=total, desc=self.__class__.__name__)
+        for item in self.items:
+            t.update(f'{self.ctx}')
+            (self.name, self.projection, self.tiling,
+             self.tile, self.quality, self.chunk) = item
+            yield
+
+            if self.turn >= 5:
+                self.items.remove(item)
+
+    def iter_ctx(self, desc):
+        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
+        t = ProgressBar(total=total, desc=desc)
 
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             t.update(f'{self.ctx}')
@@ -79,7 +78,7 @@ class Decode(Worker):
             raise AbortError('/'.join(msg))
 
     def make_task_list(self):
-        for _ in self.iterator():
+        for _ in self.iter_ctx('Creating items list'):
             with self.task():
                 self.check_dectime()
                 self.check_decodable()
