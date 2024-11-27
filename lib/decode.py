@@ -30,7 +30,7 @@ class Decode(Worker):
                                    self.tile, self.quality, self.chunk))
 
     def iter_ctx(self, desc):
-        total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
+        total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list)
         self.t = ProgressBar(total=total, desc=desc)
 
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
@@ -99,7 +99,6 @@ class Decode(Worker):
 
             if self.turn >= 5:
                 self.items.remove(item)
-
 
     @property
     def dectime_log(self):
