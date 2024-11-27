@@ -4,7 +4,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.worker_utils import decode_video, count_decoding, print_error
+from lib.utils.worker_utils import decode_video, count_decoding
 
 
 class Decode(Worker):
@@ -60,8 +60,7 @@ class Decode(Worker):
     def task(self):
         try:
             yield
-        except AbortError as e:
-            print_error(f'\t{e.args[0]}')
+        except AbortError:
             return
         self.save()
 
