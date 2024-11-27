@@ -18,7 +18,7 @@ class GetDectime(Worker, CtxInterface):
     def iter_proj_tiling_tile_qlt_chunk(self):
         total = (181 * len(self.projection_list)
                  * len(self.quality_list) * len(self.chunk_list))
-        t = ProgressBar(total=total, desc=f'    {self.__class__.__name__}')
+        t = ProgressBar(total=total, desc=f'{self.__class__.__name__}')
 
         for self.projection in self.projection_list:
             for self.tiling in self.tiling_list:
@@ -33,22 +33,21 @@ class GetDectime(Worker, CtxInterface):
 
     @contextmanager
     def task(self):
-        print(f'==== {self.__class__.__name__} {self.ctx} ====')
+        print(f'==== {self.__class__.__name__} {self.name} ====')
         self.dectime_result = AutoDict()
 
         try:
             yield
+            save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
         except AbortError as e:
-            print_error(f'\t{e.args[0]}')
+            print_error(f'    {e.args[0]}')
             return
-
-        save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
 
     def main(self):
         for self.name in self.name_list:
             with self.task():
                 if self.dectime_paths.dectime_result_json.exists():
-                    print_error(f'\tThe dectime_result_json exist.')
+                    print_error(f'    The dectime_result_json exist.')
                     continue
 
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
@@ -62,14 +61,10 @@ class GetDectime(Worker, CtxInterface):
     def get_times(self):
         times = get_times(self.dectime_paths.dectime_log)
         decoded = len(times)
-
-        try:
-            assert decoded >= self.config.decoding_num
-        except AssertionError:
+        if decoded < self.config.decoding_num:
             msg = f'Chunk is not decoded enough. {decoded} times.'
-            self.logger.register_log(msg,
-                                     self.dectime_paths.dectime_log)
-            raise AbortError(f'Chunk is not decoded enough. {decoded} times.')
+            self.logger.register_log(msg, self.dectime_paths.dectime_log)
+            raise AbortError(msg)
 
         return times
 
