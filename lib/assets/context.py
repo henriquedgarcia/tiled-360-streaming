@@ -46,17 +46,17 @@ class Context:
             if factor in ['name', 'projection', 'tiling']:
                 value = value
             elif factor == 'quality':
-                value = f'{self.config.rate_control}' + value
+                value = f'{self.config.rate_control}{value}'
             elif factor == 'tile':
-                value = 'tile' + value
+                value = f'tile{value:02d}'
             elif factor == 'chunk':
-                value = 'chunk' + value
+                value = f'chunk{value:02d}'
             elif factor == 'frame':
-                value = 'frame' + value
+                value = f'frame{value:03d}'
             elif factor == 'user':
-                value = 'user' + str(value)
+                value = f'user{value:02d}'
             elif factor == 'attempt':
-                value = 'attempt' + str(value)
+                value = f'attempt{value}'
             else:
                 continue
             txt.append(f'[{value}]')
