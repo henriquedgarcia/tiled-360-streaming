@@ -4,7 +4,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.worker_utils import decode_video, count_decoding, print_error, get_nested_value
+from lib.utils.worker_utils import decode_video, count_decoding, print_error
 
 
 class Decode(Worker):
@@ -26,8 +26,8 @@ class Decode(Worker):
         for _ in self.iter_items():
             if self.status.get_status('is_ok'):
                 continue
-                
-            with self.task2(self):
+
+            with self.task():
                 self.check_dectime()
                 self.check_decodable()
                 self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
@@ -57,7 +57,7 @@ class Decode(Worker):
             raise AbortError()
 
     @contextmanager
-    def task2(self):
+    def task(self):
         try:
             yield
         except AbortError as e:
