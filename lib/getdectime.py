@@ -18,7 +18,7 @@ class GetDectime(Worker, CtxInterface):
     def iter_proj_tiling_tile_qlt_chunk(self):
         total = (181 * len(self.projection_list)
                  * len(self.quality_list) * len(self.chunk_list))
-        t = ProgressBar(total=total, desc=f'\t{self.__class__.__name__}')
+        t = ProgressBar(total=total, desc=f'{self.__class__.__name__}')
 
         for self.projection in self.projection_list:
             for self.tiling in self.tiling_list:
