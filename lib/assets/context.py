@@ -48,13 +48,13 @@ class Context:
             elif factor == 'quality':
                 value = f'{self.config.rate_control}{value}'
             elif factor == 'tile':
-                value = f'tile{value:02d}'
+                value = f'tile{int(value):02d}'
             elif factor == 'chunk':
-                value = f'chunk{value:02d}'
+                value = f'chunk{int(value):02d}'
             elif factor == 'frame':
-                value = f'frame{value:03d}'
+                value = f'frame{int(value):03d}'
             elif factor == 'user':
-                value = f'user{value:02d}'
+                value = f'user{int(value):02d}'
             elif factor == 'attempt':
                 value = f'attempt{value}'
             else:
