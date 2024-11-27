@@ -26,9 +26,10 @@ class Decode(Worker):
         for _ in self.iter_items():
             if self.status.get_status('is_ok'):
                 continue
-            self.check_dectime()
-            self.check_decodable()
+                
             with self.task2(self):
+                self.check_dectime()
+                self.check_decodable()
                 self.stdout = decode_video(self.decodable_chunk, threads=1, ui_prefix='\t')
 
     def iter_items(self):
