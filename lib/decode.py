@@ -40,11 +40,19 @@ class Decode(Worker):
         with open(self.dectime_log, 'a') as f:
             f.write('\n' + self.stdout)
 
+    @property
+    def tiling(self):
+        return self.ctx.tiling
+
+    @tiling.setter
+    def tiling(self, tiling):
+        self.ctx.tiling = tiling
+        self.t.update(f'{self.ctx}')
+
     def iter_items(self):
         total = len(self.items)
-        t = ProgressBar(total=total, desc=self.__class__.__name__)
+        self.t = ProgressBar(total=total, desc=self.__class__.__name__)
         for item in self.items:
-            t.update(f'{self.ctx}')
             (self.name, self.projection, self.tiling,
              self.tile, self.quality, self.chunk) = item
             yield
@@ -52,12 +60,13 @@ class Decode(Worker):
             if self.turn >= 5:
                 self.items.remove(item)
 
+    t: ProgressBar
+
     def iter_ctx(self, desc):
         total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
-        t = ProgressBar(total=total, desc=desc)
+        self.t = ProgressBar(total=total, desc=desc)
 
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
-            t.update(f'{self.ctx}')
             yield
 
     def check_dectime(self):
