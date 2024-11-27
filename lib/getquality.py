@@ -49,6 +49,7 @@ class GetQuality(Worker, CtxInterface):
                         t.update(f'{self.ctx}')
                         for self.chunk in self.chunk_list:
                             yield
+                    self.quality = self.chunk = None
 
     @contextmanager
     def task(self):
@@ -61,13 +62,23 @@ class GetQuality(Worker, CtxInterface):
             print_error(f'\t{e.args[0]}')
             return
 
-        save_json(self.tile_quality_result, self.chunk_quality_paths.chunk_quality_result_json)
+        self.save()
+
+    def save(self):
+        save_json(self.tile_quality_result, self.chunk_quality_result_json)
+
+    @property
+    def chunk_quality_result_json(self) -> Path:
+        # stem = self.chunk_quality_paths.chunk_quality_result_json.stem
+        # return self.chunk_quality_paths.chunk_quality_result_json.with_stem(stem + f'_{self.metric}')
+        return self.chunk_quality_paths.chunk_quality_result_json
 
     def main(self):
         for self.name in self.name_list:
             with self.task():
-                if self.chunk_quality_paths.chunk_quality_result_json.exists():
-                    raise AbortError('chunk_quality_result_json exist.')
+                for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
+                    if self.chunk_quality_result_json.exists():
+                        raise AbortError('chunk_quality_result_json exist.')
 
                 for _ in self.iter_proj_tiling_tile_qlt_chunk():
                     tile_chunk_quality_dict = self.get_chunk_quality()
