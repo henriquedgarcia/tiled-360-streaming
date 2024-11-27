@@ -59,7 +59,13 @@ class GetDectime(Worker, CtxInterface):
                                       })
 
     def get_times(self):
-        times = get_times(self.dectime_paths.dectime_log)
+        try:
+            times = get_times(self.dectime_paths.dectime_log)
+        except FileNotFoundError:
+            msg = f'    {self.dectime_paths.dectime_log} not found.'
+            self.logger.register_log(msg, self.dectime_paths.dectime_log)
+            raise AbortError(msg)
+
         decoded = len(times)
         if decoded < self.config.decoding_num:
             msg = f'Chunk is not decoded enough. {decoded} times.'
