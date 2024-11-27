@@ -61,7 +61,7 @@ class GetQuality(Worker, CtxInterface):
             print_error(f'\t{e.args[0]}')
             return
 
-        save_json(self.tile_quality_result[self.metric], self.chunk_quality_paths.chunk_quality_result_json)
+        save_json(self.tile_quality_result, self.chunk_quality_paths.chunk_quality_result_json)
 
     def main(self):
         for self.name in self.name_list:
