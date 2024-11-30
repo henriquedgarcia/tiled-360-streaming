@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from py360tools import ProjectionBase, ERP
+from py360tools.draw import draw
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 from skvideo.io import FFmpegReader
 
@@ -16,7 +17,6 @@ from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
-from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker, ProgressBar
@@ -195,7 +195,7 @@ class ViewportQualityProps(CtxInterface):
     projection_obj: ProjectionBase
 
     quality_metrics: QualityMetrics
-    tile_chunk_quality_paths: ChunkQualityPaths
+    viewport_quality_paths: ViewportQualityPaths
 
     ## Methods #############################################
     def mount_frame(self, proj_frame, tiles_list, quality: str):
@@ -204,23 +204,23 @@ class ViewportQualityProps(CtxInterface):
         with context_quality(quality):
             for tile in tiles_list:
                 with context_tile(tile):
-                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.segmenter_paths.decodable_chunk}')
+                    readers[self.quality][self.tile] = cv.VideoCapture(f'{self.viewport_quality_paths.decodable_chunk}')
 
         self.projection_obj = build_projection(proj_name=self.ctx.projection,
-                                     tiling=self.ctx.tiling,
-                                     proj_res=self.ctx.scale,
-                                     vp_res='1320x1080',
-                                     fov_res=self.ctx.fov)
-        
+                                               tiling=self.ctx.tiling,
+                                               proj_res=self.ctx.scale,
+                                               vp_res='1320x1080',
+                                               fov_res=self.ctx.fov)
+
         tile_N, tile_M = self.projection_obj.tiling.shape
         for tile in tiles_list:
             tile_m, tile_n = idx2xy(int(tile), (tile_N, tile_M))
             is_ok, tile_frame = self.readers[quality][tile].read()
 
-            tile_y, tile_x = self.projectionection_obj.tile_shape[-2] * n, self.projectionection_obj.tile_shape[-1] * m
+            tile_y, tile_x = self.projection_obj.tiling.tile_shape[-2] * tile_n, self.projection_obj.viewport.tile_shape[-1] * tile_m
             # tile_frame = cv.cvtColor(tile_frame, cv.COLOR_BGR2YUV)[:, :, 0]
-            proj_frame[tile_y:tile_y + self.projectionection_obj.tile_shape[-2],
-            tile_x:tile_x + self.projectionection_obj.tile_shape[-1], :] = tile_frame
+            (proj_frame[tile_y:tile_y + self.projection_obj.tiling.tile_shape[-2],
+             tile_x:tile_x + self.projection_obj.tiling.tile_shape[-1], :]) = tile_frame
 
     def make_video(self):
         if self.tiling == '1x1': return
@@ -246,7 +246,7 @@ class ViewportQualityProps(CtxInterface):
                 self.video_frame_idx = (int(self.chunk) - 1) * 30 + chunk_frame_idx
 
                 if debug_img().exists():
-                    print(f'Debug Video exist. State=[{self.video}][{self.tiling}][user{self.user}]')
+                    print(f'Debug Video exist. State=[{self.name}][{self.tiling}][user{self.user}]')
                     return
 
                 yaw_pitch_roll = self.yaw_pitch_roll_frames[self.video_frame_idx]
@@ -257,11 +257,10 @@ class ViewportQualityProps(CtxInterface):
                 # Image.fromarray(proj_frame[..., ::-1]).show()
                 # Image.fromarray(cv.cvtColor(proj_frame, cv.COLOR_BGR2RGB)).show()
 
-                viewport_frame = self.erp.get_vp_image(proj_frame, yaw_pitch_roll)  # .astype('float64')
+                viewport_frame = self.projection_obj.extract_viewport(proj_frame, yaw_pitch_roll)  # .astype('float64')
 
-                print(
-                    f'\r    chunk{self.chunk}_crf{self.quality}_frame{chunk_frame_idx} - {time.time() - start: 0.3f} s',
-                    end='')
+                print(f'\r    chunk{self.chunk}_crf{self.quality}_frame{chunk_frame_idx} '
+                      f'- {time.time() - start: 0.3f} s', end='')
                 # vptiles = self.erp.get_vptiles(yaw_pitch_roll)
 
                 # <editor-fold desc="Get and process frames">
@@ -277,11 +276,10 @@ class ViewportQualityProps(CtxInterface):
                 cover_g = Image.new("RGB", (width, height), (0, 255, 0))
                 cover_b = Image.new("RGB", (width, height), (0, 0, 255))
                 cover_gray = Image.new("RGB", (width, height), (200, 200, 200))
-
-                mask_all_tiles_borders = Image.fromarray(self.erp.draw_all_tiles_borders()).resize((width, height))
-                mask_vp_tiles = Image.fromarray(self.erp.draw_vp_tiles(yaw_pitch_roll)).resize((width, height))
-                mask_vp = Image.fromarray(self.erp.draw_vp_mask(lum=200)).resize((width, height))
-                mask_vp_borders = Image.fromarray(self.erp.draw_vp_borders(yaw_pitch_roll)).resize((width, height))
+                mask_all_tiles_borders = Image.fromarray(draw.draw_all_tiles_borders()).resize((width, height))
+                mask_vp_tiles = Image.fromarray(draw.draw_vp_tiles(projection=self.projection_obj)).resize((width, height))
+                mask_vp = Image.fromarray(draw.draw_vp_mask(projection=self.projection_obj, lum=200)).resize((width, height))
+                mask_vp_borders = Image.fromarray(draw.draw_vp_borders(projection=self.projection_obj)).resize((width, height))
 
                 frame_img = Image.composite(cover_r, proj_frame_img, mask=mask_all_tiles_borders)
                 frame_img = Image.composite(cover_g, frame_img, mask=mask_vp_tiles)
@@ -303,8 +301,8 @@ class ViewportQualityProps(CtxInterface):
         tile_y, tile_x = self.tile_position_dict
 
     def output_exist(self, overwrite=False):
-        if self.viewport_psnr_file.exists() and not overwrite:
-            print(f'  The data file "{self.viewport_psnr_file}" exist.')
+        if self.viewport_quality_paths.user_viewport_quality_json.exists() and not overwrite:
+            print(f'  The data file "{self.viewport_quality_paths.user_viewport_quality_json}" exist.')
             return True
         return False
 
@@ -325,14 +323,14 @@ class ViewportQualityGraphs(ViewportQualityProps):
         # self.workfolder = super().workfolder / 'viewport_videos'  # todo: fix it
         self.workfolder.mkdir(parents=True, exist_ok=True)
 
-        for self.video in self.video_list:
+        for self.name in self.name_list:
             self._get_tiles_data = load_json(self.get_tiles_json)
             self.erp_list = {tiling: ERP(tiling=tiling,
                                          proj_res=self.resolution,
-                                         fov=self.fov)
+                                         fov=self.ctx.fov)
                              for tiling in self.tiling_list}
             for self.tiling in self.tiling_list:
-                self.erp = self.erp_list[self.tiling]
+                self.projection_obj = self.erp_list[self.tiling]
                 self.tile_h, self.tile_w = self.erp.tile_shape[:2]
                 for self.user in self.users_list:
                     self.yaw_pitch_roll_frames = self.dataset[self.name][self.user]
