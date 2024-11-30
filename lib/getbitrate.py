@@ -51,9 +51,9 @@ class GetBitrate(Worker, CtxInterface):
             for self.chunk in self.chunk_list:
                 self.t.set_postfix_str(f'{self.ctx}')
                 self.t.update()
-                bitrate[self.quality][self.chunk]['dash_m4s'] = self.decodable_paths.dash_m4s.stat().st_size
-            bitrate[self.quality]['dash_init'] = self.decodable_paths.dash_init.stat().st_size
-        bitrate['dash_mpd'] = self.decodable_paths.dash_mpd.stat().st_size
+                bitrate[self.quality][self.chunk]['dash_m4s'] = self.decodable_paths.dash_m4s.stat().st_size * 8
+            bitrate[self.quality]['dash_init'] = self.decodable_paths.dash_init.stat().st_size * 8
+        bitrate['dash_mpd'] = self.decodable_paths.dash_mpd.stat().st_size * 8
 
         self.set_bitrate(bitrate)
         self.quality = self.chunk = None
