@@ -2,12 +2,12 @@ import time
 from collections import defaultdict
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Union
 
 import cv2 as cv
 import numpy as np
 import pandas as pd
 from PIL import Image
-from lib.assets.paths.segmenterpaths import SegmenterPaths
 from py360tools import ProjectionBase, ERP
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 from skvideo.io import FFmpegReader
@@ -16,34 +16,171 @@ from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
-from lib.assets.paths.basepaths import BasePaths
-from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
+from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker, ProgressBar
+from lib.get_tiles import build_projection
 from lib.utils.context_utils import context_quality, context_tile
-from lib.utils.worker_utils import idx2xy, splitx, save_json, load_json, print_error
+from lib.utils.worker_utils import idx2xy, splitx, save_json, load_json, print_error, get_nested_value
 
 
-class ViewportQualityPaths(CtxInterface):
-    def __init__(self, context: Context):
-        self.ctx = context
-        self.base_paths = BasePaths(context)
-        self.decodable_paths = MakeDecodablePaths(context)
+class ViewportQuality(Worker, CtxInterface):
+    viewport_quality_paths: ViewportQualityPaths
+    projection_dict: AutoDict
+    user_viewport_quality_dict: dict
+    frame: np.ndarray
+    frame_n: int
+    get_tiles: dict
+    proj_obj: ProjectionBase
 
-    @property
-    def viewport_quality_folder(self) -> Path:
-        """
-        Need None
-        """
-        return self.base_paths.viewport_quality_folder
+    def main(self):
+        self.init()
 
-    @property
-    def user_viewport_quality_json(self) -> Path:
+        for _ in self.iter_name_proj_tiling_user_qlt_chunk():
+            with self.task():
+                self.worker()
+
+    def init(self):
+        self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
+
+    def create_projections(self):
+        self.proj_obj = build_projection(proj_name=self.projection,
+                                         tiling=self.tiling,
+                                         proj_res=self.config.config_dict['scale'][self.projection],
+                                         vp_res='1320x1080',
+                                         fov_res=self.fov)
+
+    def iter_name_proj_tiling_user_qlt_chunk(self):
+        total = (len(self.name_list) * len(self.projection_list) * len(self.tiling_list)
+                 * len(self.users_list) * len(self.quality_list) * len(self.chunk_list))
+        t = ProgressBar(total=total, desc=f'{self.__class__.__name__}')
+
+        for self.name in self.name_list:
+            self.get_tiles = load_json(self.viewport_quality_paths.get_tiles_result_json)
+
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    self.create_projections()
+                    for self.user in self.users_list:
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                t.update(f'{self.ctx}')
+                                yield
+        del t
+
+    @contextmanager
+    def task(self):
+        self.tile = None
+        print(f'==== {self.__class__.__name__} {self.ctx} ====')
+        self.user_viewport_quality_dict = defaultdict(list)
+        try:
+            yield
+        except AbortError as e:
+            print_error(f'\t{e.args[0]}')
+            return
+
+        save_json(self.user_viewport_quality_dict, self.viewport_quality_paths.user_viewport_quality_json)
+
+    def get_seen_tiles(self):
+        keys = [self.name, self.projection, self.tiling, self.user]
+        return get_nested_value(self.get_tiles, keys)['chunks'][self.chunk]
+
+    def worker(self):
+        if self.viewport_quality_paths.user_viewport_quality_json.exists():
+            raise AbortError(f'The user_viewport_quality_json exist. Skipping')
+
+        yaw_pitch_roll_iter = iter(self.user_hmd_data)
+        seen_tiles = self.get_seen_tiles()
+
+        tile_ref_reader = MountFrame([self.viewport_quality_paths.reference_chunk
+                                      for self.tile in seen_tiles[self.chunk]],
+                                     seen_tiles[self.chunk],
+                                     self.ctx)
+
+        tile_deg_reader = MountFrame([self.viewport_quality_paths.decodable_chunk
+                                      for self.tile in seen_tiles[self.chunk]],
+                                     seen_tiles[self.chunk],
+                                     self.ctx)
+
+        # para cada chunk
+        for frame_idx in range(30):  # 30 frames per chunk
+            yaw_pitch_roll = next(yaw_pitch_roll_iter)
+
+            frame_proj_ref = tile_ref_reader.get_frame()
+            frame_proj_deg = tile_deg_reader.get_frame()
+
+            viewport_frame_ref = self.proj_obj.extract_viewport(frame_proj_ref,
+                                                                yaw_pitch_roll)  # .astype('float64')
+
+            viewport_frame_deg = self.proj_obj.extract_viewport(frame_proj_deg,
+                                                                yaw_pitch_roll)  # .astype('float64')
+
+            _mse = mse(viewport_frame_ref, viewport_frame_deg)
+            _ssim = ssim(viewport_frame_ref, viewport_frame_deg,
+                         data_range=255.0,
+                         gaussian_weights=True, sigma=1.5,
+                         use_sample_covariance=False)
+
+            self.user_viewport_quality_dict['mse'].append(_mse)
+            self.user_viewport_quality_dict['ssim'].append(_ssim)
+
+
+class MountFrame:
+    tiles_reader: dict
+    frame: np.ndarray
+
+    def __init__(self, tiles_path: list[Union[Path, str]], seen_tiles: list[str],
+                 ctx: Context):
         """
-        Need None
+
+        :param tiles_path:
+        :param seen_tiles: by chunk
+        :param ctx:
         """
-        return self.viewport_quality_folder / f'{self.name}' / f'{self.tiling}'/ f'{self.user}'/ f'{self.ctx.config.rate_control}{self.quality}'/ f'chunk{self.chunk}'
+        assert len(tiles_path) == len(seen_tiles)
+        self.seen_tiles = seen_tiles
+        self.tiles_path = tiles_path
+        self.ctx = ctx
+        self.proj = build_projection(proj_name=self.ctx.projection,
+                                     tiling=self.ctx.tiling,
+                                     proj_res=self.ctx.scale,
+                                     vp_res='1320x1080',
+                                     fov_res=self.ctx.fov)
+        self.reset_readers()
+
+    def reset_readers(self):
+        proj_h, proj_w = self.proj.canvas.shape
+        self.frame = np.zeros((proj_h, proj_w, 3), dtype='uint8')
+
+        self.tiles_reader = {}
+        for seen_tile, file_path in zip(self.seen_tiles, self.tiles_path):
+            self.tiles_reader[seen_tile] = FFmpegReader(f'{file_path}').nextFrame()
+
+    def get_frame(self):
+        proj_h, proj_w = self.proj.canvas.shape
+        tile_h, tile_w = self.proj.tiling.tile_shape
+        tile_N, tile_M = self.proj.tiling.shape
+
+        for tile in self.seen_tiles:
+            tile_m, tile_n = idx2xy(int(tile), (tile_N, tile_M))
+            tile_y, tile_x = tile_n * tile_h, tile_m * tile_w
+            y_ini = tile_y
+            y_end = tile_y + tile_h
+            x_ini = tile_x
+            x_end = tile_x + tile_w
+
+            tile_frame = next(self.tiles_reader[tile])
+
+            # if tile_frame.shape != (tile_h, tile_w):
+            #     tile_ref_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
+            #     tile_frame = np.asarray(tile_ref_resized)
+
+            self.frame[y_ini:y_end, x_ini:x_end, :] = tile_frame
+        return self.frame
+
+    def mount_frame(self):
+        pass
 
 
 class ViewportQualityProps(CtxInterface):
@@ -59,7 +196,6 @@ class ViewportQualityProps(CtxInterface):
 
     quality_metrics: QualityMetrics
     tile_chunk_quality_paths: ChunkQualityPaths
-    segmenter_paths: SegmenterPaths
 
     ## Methods #############################################
     def mount_frame(self, proj_frame, tiles_list, quality: str):
@@ -70,161 +206,21 @@ class ViewportQualityProps(CtxInterface):
                 with context_tile(tile):
                     readers[self.quality][self.tile] = cv.VideoCapture(f'{self.segmenter_paths.decodable_chunk}')
 
+        self.projection_obj = build_projection(proj_name=self.ctx.projection,
+                                     tiling=self.ctx.tiling,
+                                     proj_res=self.ctx.scale,
+                                     vp_res='1320x1080',
+                                     fov_res=self.ctx.fov)
+        
+        tile_N, tile_M = self.projection_obj.tiling.shape
         for tile in tiles_list:
+            tile_m, tile_n = idx2xy(int(tile), (tile_N, tile_M))
             is_ok, tile_frame = self.readers[quality][tile].read()
 
             tile_y, tile_x = self.projectionection_obj.tile_shape[-2] * n, self.projectionection_obj.tile_shape[-1] * m
             # tile_frame = cv.cvtColor(tile_frame, cv.COLOR_BGR2YUV)[:, :, 0]
             proj_frame[tile_y:tile_y + self.projectionection_obj.tile_shape[-2],
             tile_x:tile_x + self.projectionection_obj.tile_shape[-1], :] = tile_frame
-
-    def tile_info(self, tile):
-        info = {}
-        m, n = idx2xy(idx=int(tile), shape=splitx(self.tiling)[::-1])
-        info['nm'] = (n, m)
-        tile_y, tile_x = self.tile_position_dict
-
-    def output_exist(self, overwrite=False):
-        if self.viewport_psnr_file.exists() and not overwrite:
-            print(f'  The data file "{self.viewport_psnr_file}" exist.')
-            return True
-        return False
-
-
-from lib.get_tiles import build_projection
-
-
-class ViewportQuality(Worker, CtxInterface):
-    viewport_quality_paths: ViewportQualityPaths
-    projection_dict: AutoDict
-    total: int
-
-    def init(self):
-        self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
-        self.create_projections_dict()
-        self.total = (len(self.name_list) * len(self.tiling_list)
-                      * len(self.projection_list))
-
-    def create_projections_dict(self):
-        self.projection_dict = AutoDict()
-        for tiling in self.tiling_list:
-            for proj_str in self.projection_list:
-                proj = build_projection(proj_name=proj_str, tiling=tiling,
-                                        proj_res=self.config.config_dict['scale'][proj_str], vp_res='1320x1080',
-                                        fov_res=self.fov)
-                self.projection_dict[proj_str][tiling] = proj
-
-    def iter_name_proj_tiling_user_qlt_chunk(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        for self.quality in self.quality_list:
-                            for self.chunk in self.chunk_list:
-                                yield
-
-    user_viewport_quality_dict: dict
-    frame: np.ndarray
-
-    @contextmanager
-    def task(self):
-        class_name = self.__class__.__name__
-        print(f'==== {class_name} {self.ctx} ====')
-        self.user_viewport_quality_dict = AutoDict()
-        t = ProgressBar(total=30, desc=class_name)
-
-        try:
-            for _ in self.iter_name_proj_tiling_user_qlt_chunk():
-                t.update(f'{self.ctx} - frame{self.frame}')
-                yield
-
-        except FileNotFoundError as e:
-            print_error('Chunk not Found.')
-        except AbortError as e:
-            print_error(f'\t{e.args[0]}')
-
-        save_json(self.user_viewport_quality_dict, self.viewport_quality_paths.viewport_quality_folder)
-        del t
-
-    def main(self):
-        self.init()
-        for _ in self.iter_name_proj_tiling_user_qlt_chunk:
-            self.worker()
-            # self.make_video()
-
-    frame_n: int
-
-    def worker(self):
-        if self.viewport_quality_paths.user_viewport_quality_json.exists():
-            print(f'\tThe file exist. Skipping')
-            return
-
-        self.frame_n = -1
-        yaw_pitch_roll_iter = iter(self.dataset[self.name][self.user])
-        seen_tiles = self.get_tiles_samples['chunks']
-
-        proj_h, proj_w = self.projectionection_obj.proj_shape
-        tile_h, tile_w = self.projectionection_obj.tile_shape
-        qlt_by_frame = AutoDict()
-
-        for self.chunk in self.chunk_list:
-            print(f'Processing {self.name}_{self.tiling}_user{self.user}_chunk{self.chunk}')
-            start = time.time()
-
-            frame_proj = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-            frame_proj_ref = np.zeros((proj_h, proj_w, 3), dtype='uint8')
-
-            tiles_reader_ref = {self.tile: FFmpegReader(f'{self.reference_segment}').nextFrame()
-                                for self.tile in seen_tiles[self.chunk]}
-            tiles_reader = {self.tile: FFmpegReader(f'{self.segment_video}').nextFrame()
-                            for self.tile in seen_tiles[self.chunk]}
-
-            for frame_idx in range(30):  # 30 frames per chunk
-                self.frame_n += 1
-                print(f'\tframe: {self.frame_n}. tiles {seen_tiles[self.chunk]}')
-
-                yaw_pitch_roll = next(yaw_pitch_roll_iter)
-
-                for self.tile in seen_tiles[self.chunk]:
-                    tile_m, tile_n = idx2xy(int(self.tile), (self.N, self.M))
-                    tile_x, tile_y = tile_m * tile_w, tile_n * tile_h
-
-                    tile_frame_ref = next(tiles_reader_ref[self.tile])
-                    tile_ref_resized = Image.fromarray(tile_frame_ref).resize((tile_w, tile_h))
-                    tile_ref_resized_array = np.asarray(tile_ref_resized)
-                    frame_proj_ref[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_ref_resized_array
-                    viewport_frame_ref = self.projectionection_obj.get_vp_image(frame_proj_ref,
-                                                                                yaw_pitch_roll)  # .astype('float64')
-
-                    tile_frame = next(tiles_reader[self.tile])
-                    tile_resized = Image.fromarray(tile_frame).resize((tile_w, tile_h))
-                    tile_resized_array = np.asarray(tile_resized)
-                    frame_proj[tile_y:tile_y + tile_h, tile_x:tile_x + tile_w, :] = tile_resized_array
-                    viewport_frame = self.projectionection_obj.get_vp_image(frame_proj,
-                                                                            yaw_pitch_roll)  # .astype('float64')
-
-                    _mse = mse(viewport_frame_ref, viewport_frame)
-                    _ssim = ssim(viewport_frame_ref, viewport_frame,
-                                 data_range=255.0,
-                                 gaussian_weights=True, sigma=1.5,
-                                 use_sample_covariance=False)
-
-                    try:
-                        qlt_by_frame[self.projection][self.name][self.tiling][self.user][self.quality]['mse'].append(
-                            _mse)
-                        qlt_by_frame[self.projection][self.name][self.tiling][self.user][self.quality]['ssim'].append(
-                            _ssim)
-                    except AttributeError:
-                        qlt_by_frame[self.projection][self.name][self.tiling][self.user][self.quality]['mse'] = [_mse]
-                        qlt_by_frame[self.projection][self.name][self.tiling][self.user][self.quality]['ssim'] = [_ssim]
-
-            print(f'\tchunk{self.chunk}_crf{self.quality}_frame{self.frame_n} - {time.time() - start: 0.3f} s')
-        print('')
-        save_json(qlt_by_frame, self.viewport_psnr_file)
-
-    @property
-    def yaw_pitch_roll_frames(self):
-        return self.dataset[self.name][self.user]
 
     def make_video(self):
         if self.tiling == '1x1': return
@@ -234,7 +230,7 @@ class ViewportQuality(Worker, CtxInterface):
         # yaw_pitch_roll_frames = self.dataset[self.name][self.user]
 
         def debug_img() -> Path:
-            folder = self.viewport_psnr_path / f'{self.projection}_{self.name}' / f"user{self.users_list[0]}_{self.tiling}"
+            folder = self.viewport_quality_paths.viewport_quality_folder / f'{self.projection}_{self.name}' / f"user{self.users_list[0]}_{self.tiling}"
             folder.mkdir(parents=True, exist_ok=True)
             return folder / f"frame_{self.video_frame_idx}.jpg"
 
@@ -299,6 +295,18 @@ class ViewportQuality(Worker, CtxInterface):
                 img_final.save(debug_img())
 
             print('')
+
+    def tile_info(self, tile):
+        info = {}
+        m, n = idx2xy(idx=int(tile), shape=splitx(self.tiling)[::-1])
+        info['nm'] = (n, m)
+        tile_y, tile_x = self.tile_position_dict
+
+    def output_exist(self, overwrite=False):
+        if self.viewport_psnr_file.exists() and not overwrite:
+            print(f'  The data file "{self.viewport_psnr_file}" exist.')
+            return True
+        return False
 
 
 class ViewportQualityGraphs(ViewportQualityProps):
