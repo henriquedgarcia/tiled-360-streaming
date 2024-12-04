@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy as np
 from matplotlib import pyplot as plt
-from py360tools import ERP, CMP, ProjectionBase
+from py360tools import ProjectionBase
 from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
@@ -12,8 +12,7 @@ from lib.assets.errors import GetTilesOkError, HMDDatasetError, AbortError
 from lib.assets.paths.gettilespaths import GetTilesPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task, timer
-from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
-                                    get_nested_value)
+from lib.utils.util import build_projection, print_error, save_json, load_json, splitx, get_nested_value
 
 
 # "Videos 10,17,27,28 were rotated 265, 180,63,81 degrees to right,
@@ -173,22 +172,6 @@ class GetTiles(Worker):
             result[self.tiling] = dict_tiles_counter_chunks
 
         save_json(result, self.get_tiles_paths.counter_tiles_json)
-
-
-class CreateJson(GetTiles):
-    def process(self):
-        for self.name in self.name_list:
-            self.reset_results(AutoDict)
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
-                        self.for_each_user()
-            save_json(self.results, self.get_tiles_paths.get_tiles_result_json)
-
-    def for_each_user(self):
-        print(f'==== CreateJson {self.ctx} ====')
-        tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
-        self.results.update(tiles_seen)
 
 
 class HeatMap(GetTiles):
