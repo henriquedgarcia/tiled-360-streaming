@@ -10,8 +10,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import (save_json, load_json, splitx, print_error,
-                                    get_nested_value)
+from lib.utils.util import print_error, save_json, load_json, splitx, get_nested_value
 
 
 class HmAnalysisPaths:
