@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-from skvideo.io import FFmpegReader
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
@@ -12,7 +11,7 @@ class MountFrame(CtxInterface):
     tiles_reader: dict
     canvas: np.ndarray
 
-    def __init__(self, seen_tiles: dict[str, Path], ctx: Context):
+    def __init__(self, seen_tiles: dict[str, Path], ctx: Context, gray=True):
         """
 
         :param seen_tiles: by chunk
@@ -20,6 +19,7 @@ class MountFrame(CtxInterface):
         """
         self.seen_tiles = seen_tiles
         self.ctx = ctx
+        self.gray = gray
         self.proj = build_projection(proj_name=self.projection,
                                      tiling=self.tiling,
                                      proj_res=self.scale,
@@ -30,11 +30,14 @@ class MountFrame(CtxInterface):
     def reset_readers(self):
         self.tiles_reader = {}
         for seen_tile, file_path in self.seen_tiles.items():
-            self.tiles_reader[seen_tile] = iter_video(file_path)
+            self.tiles_reader[seen_tile] = iter_video(file_path, gray=self.gray)
 
     def clear_frame(self):
         proj_h, proj_w = self.proj.canvas.shape
-        self.canvas = np.zeros((proj_h, proj_w, 3), dtype='uint8')
+        if self.gray:
+            self.canvas = np.zeros((proj_h, proj_w), dtype='uint8')
+        else:
+            self.canvas = np.zeros((proj_h, proj_w, 3), dtype='uint8')
 
     def get_frame(self):
         self.clear_frame()
