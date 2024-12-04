@@ -22,8 +22,8 @@ class Context:
     iterations: int = 0
     projection_dict = AutoDict
 
-    factors_list = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk',
-                    'frame', 'user', 'metric', 'attempt']
+    factors_list = ['name', 'projection', 'tiling', 'tile', 'user', 'quality', 'chunk',
+                    'frame', 'metric', 'attempt']
 
     def __init__(self, config: Config):
         self.config = config
