@@ -282,16 +282,6 @@ class TestGetTiles(GetTiles):
         plt.close(fig)
 
 
-def build_projection(proj_name, proj_res, tiling, vp_res, fov_res) -> ProjectionBase:
-    if proj_name == 'erp':
-        projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-    elif proj_name == 'cmp':
-        projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-    else:
-        raise TypeError(f'Unknown projection name: {proj_name}')
-    return projection
-
-
 def print_tiles(proj: ProjectionBase, vptiles: list,
                 yaw_pitch_roll: Union[tuple, np.ndarray] = None):
     if yaw_pitch_roll is not None:
