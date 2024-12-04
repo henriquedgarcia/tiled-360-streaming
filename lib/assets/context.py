@@ -4,7 +4,7 @@ from py360tools.utils import LazyProperty
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.utils.worker_utils import load_json, splitx
+from lib.utils.util import load_json, splitx
 
 
 class Context:
