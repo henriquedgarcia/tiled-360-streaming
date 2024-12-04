@@ -117,7 +117,7 @@ class ViewportQuality(Worker, CtxInterface):
             _mse = mse(viewport_frame_ref, viewport_frame_deg)
             _ssim = ssim(viewport_frame_ref, viewport_frame_deg,
                          data_range=255.0, gaussian_weights=True, sigma=1.5,
-                         use_sample_covariance=False, channel_axis=2)
+                         use_sample_covariance=False)
 
             self.user_viewport_quality_dict_byframe['mse'].append(_mse)
             self.user_viewport_quality_dict_byframe['ssim'].append(_ssim)
