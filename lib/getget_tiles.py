@@ -6,7 +6,7 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.worker import Worker, ProgressBar
 from lib.get_tiles import GetTilesPaths
-from lib.utils.worker_utils import get_nested_value, save_json, load_json, print_error
+from lib.utils.util import print_error, save_json, load_json, get_nested_value
 
 
 class GetGetTiles(Worker, CtxInterface):
