@@ -1,7 +1,7 @@
 from py360tools.utils import LazyProperty
 
 from lib.assets.context import Context
-from lib.utils.worker_utils import (make_tile_position_dict)
+from lib.utils.util import make_tile_position_dict
 
 
 class Factors:
