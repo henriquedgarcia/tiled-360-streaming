@@ -129,5 +129,3 @@ class ViewportQuality(Worker, CtxInterface):
                                for self.tile in self.seen_tiles}
         self.seen_tiles_deg = {self.tile: self.viewport_quality_paths.decodable_chunk
                                for self.tile in self.seen_tiles}
-
-
