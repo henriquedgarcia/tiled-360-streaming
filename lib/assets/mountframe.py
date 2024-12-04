@@ -54,5 +54,8 @@ class MountFrame(CtxInterface):
             x_end = tile_x + tile_w
 
             tile_frame = next(self.tiles_reader[tile])
-            self.canvas[y_ini:y_end, x_ini:x_end, :] = tile_frame
+            if self.gray:
+                self.canvas[y_ini:y_end, x_ini:x_end] = tile_frame
+            else:
+                self.canvas[y_ini:y_end, x_ini:x_end, :] = tile_frame
         return self.canvas
