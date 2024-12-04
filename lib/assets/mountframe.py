@@ -5,7 +5,7 @@ from skvideo.io import FFmpegReader
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.utils.util import build_projection, idx2xy
+from lib.utils.util import build_projection, idx2xy, iter_video
 
 
 class MountFrame(CtxInterface):
@@ -30,7 +30,7 @@ class MountFrame(CtxInterface):
     def reset_readers(self):
         self.tiles_reader = {}
         for seen_tile, file_path in self.seen_tiles.items():
-            self.tiles_reader[seen_tile] = FFmpegReader(f'{file_path}').nextFrame()
+            self.tiles_reader[seen_tile] = iter_video(file_path)
 
     def clear_frame(self):
         proj_h, proj_w = self.proj.canvas.shape
