@@ -8,7 +8,7 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.worker_utils import get_nested_value, save_json, get_times, print_error
+from lib.utils.util import print_error, save_json, get_times, get_nested_value
 
 
 class GetDectime(Worker, CtxInterface):
