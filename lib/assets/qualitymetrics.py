@@ -7,7 +7,7 @@ from skimage.metrics import mean_squared_error, structural_similarity
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.utils.worker_utils import load_pickle, save_pickle
+from lib.utils.util import save_pickle, load_pickle
 
 
 class QualityMetrics(CtxInterface):
