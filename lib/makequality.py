@@ -9,7 +9,7 @@ from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import save_json, load_json, iter_video
+from lib.utils.util import save_json, load_json, iter_video
 
 
 class TileQuality(Worker, CtxInterface):
