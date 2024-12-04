@@ -7,7 +7,7 @@ from py360tools import xyz2ea
 from lib.assets.autodict import AutoDict
 from lib.assets.paths import segmenter_paths
 from lib.assets.worker import Worker
-from lib.utils.worker_utils import save_json, load_json, lin_interpol
+from lib.utils.util import save_json, load_json, lin_interpol
 
 pi = np.pi
 pi2 = np.pi * 2
