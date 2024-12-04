@@ -5,7 +5,7 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.worker import Worker
 from lib.makedash import MakeDashPaths
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import get_nested_value, save_json, print_error
+from lib.utils.util import print_error, save_json, get_nested_value
 
 
 class GetBitrate(Worker, CtxInterface):
