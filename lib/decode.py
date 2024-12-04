@@ -4,7 +4,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.worker_utils import decode_video, count_decoding
+from lib.utils.util import count_decoding, decode_video
 
 
 class Decode(Worker):
