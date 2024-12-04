@@ -87,6 +87,14 @@ class Factors:
     def turn(self, value):
         self.ctx.turn = value
 
+    @property
+    def frame(self):
+        return self.ctx.frame
+
+    @frame.setter
+    def frame(self, value):
+        self.ctx.frame = value
+
 
 class Lists:
     ctx: Context
