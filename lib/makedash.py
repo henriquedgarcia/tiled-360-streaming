@@ -5,7 +5,7 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.makedashpaths import MakeDashPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import run_command
+from lib.utils.util import run_command
 
 
 class MakeDash(Worker, CtxInterface):

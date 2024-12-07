@@ -10,7 +10,7 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.worker import Worker, ProgressBar
 from lib.makequality import ChunkQualityPaths
-from lib.utils.worker_utils import save_json, load_json, print_error, get_nested_value
+from lib.utils.util import print_error, save_json, load_json, get_nested_value
 
 
 class GetQuality(Worker, CtxInterface):

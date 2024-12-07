@@ -3,7 +3,7 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.worker_utils import decode_video, run_command
+from lib.utils.util import decode_video, run_command
 
 
 class MakeDecodable(Worker, CtxInterface):

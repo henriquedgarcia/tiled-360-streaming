@@ -1,7 +1,7 @@
 from py360tools.utils import LazyProperty
 
 from lib.assets.context import Context
-from lib.utils.worker_utils import (make_tile_position_dict)
+from lib.utils.util import make_tile_position_dict
 
 
 class Factors:
@@ -86,6 +86,14 @@ class Factors:
     @turn.setter
     def turn(self, value):
         self.ctx.turn = value
+
+    @property
+    def frame(self):
+        return self.ctx.frame
+
+    @frame.setter
+    def frame(self, value):
+        self.ctx.frame = value
 
 
 class Lists:

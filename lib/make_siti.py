@@ -10,8 +10,8 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.siti import SiTi
-from lib.utils.worker_utils import load_json, save_json
+from lib.assets.siti import SiTi
+from lib.utils.util import save_json, load_json
 
 
 def save_siti(results, results_file):

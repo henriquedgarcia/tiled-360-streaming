@@ -4,7 +4,7 @@ from py360tools.utils import LazyProperty
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.utils.worker_utils import load_json, splitx
+from lib.utils.util import load_json, splitx
 
 
 class Context:
@@ -22,8 +22,8 @@ class Context:
     iterations: int = 0
     projection_dict = AutoDict
 
-    factors_list = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk',
-                    'frame', 'user', 'metric', 'attempt']
+    factors_list = ['name', 'projection', 'tiling', 'tile', 'user', 'quality', 'chunk',
+                    'frame', 'metric', 'attempt']
 
     def __init__(self, config: Config):
         self.config = config

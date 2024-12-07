@@ -8,7 +8,7 @@ from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.logger import Logger
 from lib.assets.status_ctx import StatusCtx
-from lib.utils.worker_utils import run_command
+from lib.utils.util import run_command
 
 
 class Multi(ABC):
