@@ -3,10 +3,12 @@ from typing import NamedTuple
 Option = NamedTuple('Option', [('id', int), ('name', str), ('obj', object)])
 
 
-def make_help_txt(config, video, worker):
-    config_options = show_options(config, 1, True)
+def make_help_txt(config_list, video, worker, names_list):
+    config_options = show_options(config_list, 1, True)
     video_options = show_options(video, 1, True)
     worker_options = show_options(worker, 1, True)
+    names_options = show_options(names_list, 1, True)
+
     text = (f'Dectime Testbed.\n'
             f'================\n'
             f'CONFIG_ID:\n'
@@ -14,7 +16,10 @@ def make_help_txt(config, video, worker):
             f'VIDEOS_LIST_ID\n'
             f'{video_options}\n'
             f'WORKER_ID\n'
-            f'{worker_options}')
+            f'{worker_options}\n'
+            f'NAMES_LIST\n'
+            f'{names_options}'
+            )
     return text
 
 
