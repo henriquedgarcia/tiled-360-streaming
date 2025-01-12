@@ -41,7 +41,6 @@ class ViewportQuality(Worker, CtxInterface):
             self.load_get_tiles()
 
             for self.tiling in self.tiling_list:
-                if self.tiling == '1x1': continue
                 self.create_projections()
 
                 for self.user in self.users_list:
