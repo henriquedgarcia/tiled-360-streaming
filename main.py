@@ -104,9 +104,9 @@ worker_list = [
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
 ]
 
-names = {"angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
+names = ["angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
          "elevator_lift", "glass_elevator", "montana", "motorsports_park", "nyc_drive", "pac_man", "penthouse", "petite_anse", "rhinos", "sunset", "three_peaks",
-         "video_04", "video_19", "video_22", "video_23", "video_24", "wingsuit_dubai"}
+         "video_04", "video_19", "video_22", "video_23", "video_24", "wingsuit_dubai"]
 
 names_list = [Option(id=n, name=name, obj='')
               for n, name in enumerate(names)]
