@@ -88,11 +88,11 @@ class Factors:
         self.ctx.turn = value
 
     @property
-    def frame(self):
+    def frame(self) -> int:
         return self.ctx.frame
 
     @frame.setter
-    def frame(self, value):
+    def frame(self, value: int):
         self.ctx.frame = value
 
 
