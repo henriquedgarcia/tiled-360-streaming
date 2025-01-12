@@ -4,5 +4,15 @@ matplotlib=3.6
 pandas=1.4
 scikit-image=0.19
 scipy=1.10
-tqdm
-py360tools
+tqdm~=4.66.5
+py360tools~=0.1.0
+
+opencv-python~=4.10.0.84
+numpy~=1.23.4
+pandas~=1.5.1
+pillow~=10.3.0
+matplotlib~=3.5.3
+scipy~=1.9.3
+scikit-image~=0.24.0
+cycler~=0.11.0
+fitter~=1.5.1
