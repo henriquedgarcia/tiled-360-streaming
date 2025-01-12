@@ -108,6 +108,7 @@ class ViewportQuality(Worker, CtxInterface):
 
         for self.user in self.users_list:
             for self.quality in self.quality_list:
+                if file_check[self.quality][self.user]: continue
                 save_json(self.user_viewport_quality_dict_byframe[self.quality][self.user], self.viewport_quality_paths.user_viewport_quality_json)
 
     hmd_sample_n: int
