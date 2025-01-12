@@ -25,9 +25,14 @@ from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     description=make_help_txt(config_list, videos_list, worker_list))
+                                     description=make_help_txt(config_list,
+                                                               videos_list,
+                                                               worker_list,
+                                                               names_list))
     parser.add_argument('-r', default=None, nargs=3, metavar=('CONFIG_ID', 'VIDEOS_LIST_ID', 'WORKER_ID'),
                         help=f'Three string separated by space. See help text for details')
+    parser.add_argument('-slice', default=None, metavar=('VIDEO_RANGE',),
+                        help=f'A int or slice of video range.')
     args = parser.parse_args()
 
     if args.r is None:
@@ -47,6 +52,17 @@ def main():
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
+
+    if (videos_file == get_option(0, videos_list).obj
+            and args.slice is not None):
+        a_slice = eval(args.slice)
+        name_list = list(config.videos_dict)[a_slice]
+        if not isinstance(name_list, list):
+            name_list = [name_list]
+
+        newdict = {name: config.videos_dict[name] for name in name_list}
+        config.videos_dict = newdict
+
     app: Worker = worker(ctx)
     print(f'\tTotal iterations = {app.ctx.iterations}')
 
@@ -87,6 +103,13 @@ worker_list = [
     Option(id=10, name='GetGetTiles', obj=GetGetTiles),
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
 ]
+
+names = {"angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
+         "elevator_lift", "glass_elevator", "montana", "motorsports_park", "nyc_drive", "pac_man", "penthouse", "petite_anse", "rhinos", "sunset", "three_peaks",
+         "video_04", "video_19", "video_22", "video_23", "video_24", "wingsuit_dubai"}
+
+names_list = [Option(id=n, name=name, obj='')
+              for n, name in enumerate(names)]
 
 if __name__ == '__main__':
     main()
