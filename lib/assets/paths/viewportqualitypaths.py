@@ -28,7 +28,9 @@ class ViewportQualityPaths(CtxInterface):
         """
         Need None
         """
-        return self.viewport_quality_folder / f'{self.name}' / f'{self.tiling}' / f'{self.user}' / f'{self.ctx.config.rate_control}{self.quality}' / f'user_viewport_quality_chunk{self.chunk}.json'
+        return (self.viewport_quality_folder /
+                f'{self.name}' / f'{self.tiling}' / f'{self.user}' / f'{self.quality}' /
+                f'user_viewport_quality_chunk{self.chunk}.json')
 
     @property
     def get_tiles_result_json(self) -> Path:
