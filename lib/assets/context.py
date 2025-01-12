@@ -14,7 +14,7 @@ class Context:
     tiling: str = None
     tile: str = None
     chunk: str = None
-    frame: str = None
+    frame: int = None
     user: str = None
     metric: str = None
     turn: str = None
