@@ -31,8 +31,10 @@ def main():
                                                                names_list))
     parser.add_argument('-r', default=None, nargs=3, metavar=('CONFIG_ID', 'VIDEOS_LIST_ID', 'WORKER_ID'),
                         help=f'Three string separated by space. See help text for details')
-    parser.add_argument('-slice', default=None, metavar=('VIDEO_RANGE',),
-                        help=f'A int or slice of video range.')
+    parser.add_argument('-slice', default=None, nargs=2, metavar=('VIDEO_START', 'VIDEO_STOP',),
+                        help=f'A int or slice of video range.', type=int)
+    parser.add_argument('-tiling', default=None, metavar=('TILING',),
+                        help=f'Force tiling.')
     args = parser.parse_args()
 
     if args.r is None:
@@ -55,13 +57,14 @@ def main():
 
     if (videos_file == get_option(0, videos_list).obj
             and args.slice is not None):
-        a_slice = eval(args.slice)
-        name_list = list(config.videos_dict)[a_slice]
-        if not isinstance(name_list, list):
-            name_list = [name_list]
+        start, stop = args.slice
+        items_list = list(config.videos_dict.items())
+        sliced_list = items_list[start:stop]
+        config.videos_dict = dict(sliced_list)
 
-        newdict = {name: config.videos_dict[name] for name in name_list}
-        config.videos_dict = newdict
+    if (videos_file == get_option(0, videos_list).obj
+            and args.tiling is not None):
+        config.tiling_list = [args.tiling]
 
     app: Worker = worker(ctx)
     print(f'\tTotal iterations = {app.ctx.iterations}')
@@ -106,7 +109,7 @@ worker_list = [
 
 names = ["angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
          "elevator_lift", "glass_elevator", "montana", "motorsports_park", "nyc_drive", "pac_man", "penthouse", "petite_anse", "rhinos", "sunset", "three_peaks",
-         "video_04", "video_19", "video_22", "video_23", "video_24", "wingsuit_dubai"]
+         "video_04", "video_19", "video_20", "video_22", "video_23", "video_24", "wingsuit_dubai"]
 
 names_list = [Option(id=n, name=name, obj='')
               for n, name in enumerate(names)]
