@@ -38,8 +38,8 @@ def main():
     parser.add_argument('-tiling', default=None,
                         metavar=('TILING',),
                         help=f'Force tiling. ["1x1", "3x2", "6x4", "9x6", "12x8"]')
-    parser.add_argument('-qslice', default=None,
-                        metavar=('QUALITY_SLICE',),
+    parser.add_argument('-qslice', default=None, nargs=2, type=int,
+                        metavar=('QUALITY_START', 'QUALITY_STOP',),
                         help=f'Force quality. ["16", "22", "28", "34", "40", "46"]')
     args = parser.parse_args()
 
