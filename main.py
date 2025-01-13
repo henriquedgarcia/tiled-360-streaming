@@ -37,10 +37,10 @@ def main():
                         help=f'A int or slice of video range.')
     parser.add_argument('-tiling', default=None,
                         metavar=('TILING',),
-                        help=f'Force tiling.')
-    parser.add_argument('-quality', default=None,
-                        metavar=('QUALITY',),
-                        help=f'Force quality.')
+                        help=f'Force tiling. ["1x1", "3x2", "6x4", "9x6", "12x8"]')
+    parser.add_argument('-qslice', default=None,
+                        metavar=('QUALITY_SLICE',),
+                        help=f'Force quality. ["16", "22", "28", "34", "40", "46"]')
     args = parser.parse_args()
 
     if args.r is None:
@@ -71,8 +71,9 @@ def main():
     if videos_list_id == 0 and args.tiling is not None:
         config.tiling_list = [args.tiling]
 
-    if videos_list_id == 0 and args.quality is not None:
-        config.quality_list = [args.quality]
+    if videos_list_id == 0 and args.qslice is not None:
+        start, stop = args.qslice
+        config.quality_list = config.quality_list[start:stop]
 
     ctx = Context(config=config)
     app: Worker = worker(ctx)
