@@ -275,9 +275,6 @@ def percorrer_arvore_iterativo(dicionario):
 
 
 def draw_pixel_density():
-    import matplotlib.pyplot as plt
-    import numpy as np
-
     array = np.zeros([200, 200])
     n_array = np.zeros([199, 199])
     z = 1
