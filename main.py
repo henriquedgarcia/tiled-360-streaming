@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import matplotlib as mpl;
+import matplotlib as mpl
 
 mpl.use("Qt5Agg")
 import argparse
