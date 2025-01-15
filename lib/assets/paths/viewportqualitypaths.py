@@ -26,7 +26,7 @@ class ViewportQualityPaths(CtxInterface):
     @property
     def user_viewport_quality_json(self) -> Path:
         """
-        Need None
+        Need name tiling user quality chunk
         """
         return (self.viewport_quality_folder /
                 f'{self.name}' / f'{self.tiling}' / f'{self.user}' / f'{self.quality}' /
@@ -35,17 +35,21 @@ class ViewportQualityPaths(CtxInterface):
     @property
     def get_tiles_result_json(self) -> Path:
         """
-        Need None
+        Need name fov
         """
         return self.get_tiles_paths.get_tiles_result_json
 
     @property
     def decodable_chunk(self) -> Path:
         """
-        Need None
+        Need all
         """
         return self.decodable_paths.decodable_chunk
 
     @property
     def reference_chunk(self):
+        """
+        all minus quality
+        :return:
+        """
         return self.chunk_quality_paths.reference_chunk
