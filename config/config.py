@@ -1,8 +1,9 @@
 from pathlib import Path
 from typing import Union
 
-from lib.utils.util import load_json
 from py360tools.utils import LazyProperty
+
+from lib.utils.util import load_json
 
 
 class ConfigProps:
@@ -108,5 +109,3 @@ class Config(ConfigProps):
     # def cmp_face_resolution(self) -> str:
     #     h, w, _ = self.cmp_face_shape
     #     return f'{w}x{h}'
-
-
