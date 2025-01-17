@@ -73,7 +73,7 @@ def main():
 
     if videos_list_id == 0 and args.tiling is not None:
         config.tiling_list = [args.tiling]
-        
+
     if videos_list_id == 0 and args.quality is not None:
         config.quality_list = [args.quality]
 
