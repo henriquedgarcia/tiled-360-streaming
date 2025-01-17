@@ -106,8 +106,8 @@ class ViewportQuality(Worker, CtxInterface):
     def start_ui(self, total):
         self.ui = ProgressBar(total=total, desc=f'{self.__class__.__name__}: '
                                                 f'{self.name}_{self.tiling}_'
-                                                f'{self.user}_{self.chunk}_'
-                                                f'{self.quality}_')
+                                                f'user{self.user}_chunk{self.chunk}_'
+                                                f'qp{self.quality}_')
 
     def load_get_tiles(self):
         self.get_tiles: dict = load_json(self.viewport_quality_paths.get_tiles_result_json)
