@@ -31,7 +31,7 @@ class ProgressBar:
     t: tqdm
 
     def __init__(self, total, desc):
-        self.t = tqdm(total=total, desc=desc)
+        self.t = tqdm(total=total, desc=desc, ncols=0)
 
     def new(self, total, desc):
         self.t = tqdm(total=total, desc=desc)
