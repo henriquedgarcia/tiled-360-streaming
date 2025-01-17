@@ -71,13 +71,13 @@ def main():
         sliced_list = items_list[start:stop]
         config.videos_dict = dict(sliced_list)
 
-    if videos_list_id == 0 and args.tiling is not None:
+    if args.tiling is not None:
         config.tiling_list = [args.tiling]
 
-    if videos_list_id == 0 and args.quality is not None:
+    if args.quality is not None:
         config.quality_list = [args.quality]
 
-    if videos_list_id == 0 and args.qslice is not None:
+    if args.qslice is not None:
         start, stop = args.qslice
         config.quality_list = config.quality_list[start:stop]
 
