@@ -38,6 +38,9 @@ def main():
     parser.add_argument('-tiling', default=None,
                         metavar=('TILING',),
                         help=f'Force tiling. ["1x1", "3x2", "6x4", "9x6", "12x8"]')
+    parser.add_argument('-quality', default=None,
+                        metavar=('QUALITY',),
+                        help=f'Force quality.')
     parser.add_argument('-qslice', default=None, nargs=2, type=int,
                         metavar=('QUALITY_START', 'QUALITY_STOP',),
                         help=f'Force quality. ["16", "22", "28", "34", "40", "46"]')
@@ -70,6 +73,9 @@ def main():
 
     if videos_list_id == 0 and args.tiling is not None:
         config.tiling_list = [args.tiling]
+        
+    if videos_list_id == 0 and args.quality is not None:
+        config.quality_list = [args.quality]
 
     if videos_list_id == 0 and args.qslice is not None:
         start, stop = args.qslice
