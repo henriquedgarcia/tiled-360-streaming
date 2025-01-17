@@ -56,8 +56,8 @@ class ViewportQuality(Worker, CtxInterface):
                                 self.worker()
 
     def worker(self):
-        self.check_viewport_quality()
         self.start_ui(30)
+        self.check_viewport_quality()
 
         tile_ref_frame_reader = self.make_ref_vreader()
         tile_deg_frame_reader = self.make_deg_vreader()
@@ -125,7 +125,7 @@ class ViewportQuality(Worker, CtxInterface):
             self.results = defaultdict(list)
             yield
         except AbortError as e:
-            print_error(f'\t{e.args[0]}')
+            print_error(f'\n\t{e.args[0]}')
             return
 
         save_json(self.results,
