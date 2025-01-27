@@ -103,7 +103,7 @@ class ViewportQuality(Worker, CtxInterface):
         self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
         self.projection = 'cmp'
 
-    def start_ui(self, total):
+    def start_ui(self, total, desc):
         self.ui = ProgressBar(total=total, desc=f'{self.__class__.__name__}: '
                                                 f'{self.name}_{self.tiling}_'
                                                 f'user{self.user}_chunk{self.chunk}_'
