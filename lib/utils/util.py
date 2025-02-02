@@ -2,11 +2,11 @@ import json
 import os
 import pickle
 from collections import defaultdict
-from functools import reduce
+from collections.abc import Sequence, Hashable
 from pathlib import Path
 from subprocess import Popen, STDOUT, PIPE
 from time import time
-from typing import Union
+from typing import Union, Any, Optional
 
 import cv2
 import numpy as np
@@ -463,17 +463,19 @@ def make_decode_cmd(filename, threads: int = None, codec: str = 'hevc', benchmar
     return cmd
 
 
-def get_nested_value(data, keys):
+def get_nested_value(data: dict[Hashable, Any], keys: Sequence[Hashable]) -> Any:
     """Fetch value from nested dict using a list of keys."""
-    try:
-        return reduce(lambda d, key: d[key], keys, data)
-    except KeyError as e:
-        raise KeyError(f"Key not found: {e}")
-    except TypeError as e:
-        raise TypeError(f"Invalid structure: {e}")
+    results = data
+    for key in keys: results = results[key]
+    return results
 
 
-def run_command(cmd: str, folder: Path = None, log_file: Path = None, mode='w',
+def set_nested_value(data: dict[Hashable, Any], keys: Sequence, value: Any):
+    subtree = get_nested_value(data, keys[:-1])
+    subtree[keys[-1]] = value
+
+
+def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path] = None, mode='w',
                 ui_prefix='', ui_suffix='\n'):
     """
 
