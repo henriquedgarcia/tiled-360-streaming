@@ -58,7 +58,8 @@ class Worker(ABC, CtxInterface):
             with self.status.status_context(self.__class__.__name__):
                 self.init()
                 self.main()
-
+    def __str__(self):
+        return str(self.ctx)
     @abstractmethod
     def main(self):
         ...
