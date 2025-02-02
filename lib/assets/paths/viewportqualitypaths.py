@@ -33,6 +33,14 @@ class ViewportQualityPaths(CtxInterface):
                 f'user_viewport_quality_chunk{self.chunk}.json')
 
     @property
+    def user_viewport_quality_result_json(self) -> Path:
+        """
+        Need name tiling user quality chunk
+        """
+
+        return self.base_paths.results_folder / f'user_viewport_quality/user_viewport_quality_{self.name}.json'
+
+    @property
     def get_tiles_result_json(self) -> Path:
         """
         Need name fov
