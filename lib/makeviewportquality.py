@@ -7,12 +7,13 @@ import numpy as np
 from py360tools import ProjectionBase
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
+from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.mountframe import MountFrame
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.worker import Worker, ProgressBar
-from lib.utils.util import build_projection, print_error, save_json, load_json, get_nested_value
+from lib.utils.util import build_projection, print_error, save_json, load_json, get_nested_value, set_nested_value
 
 
 class ViewportQuality(Worker, CtxInterface):
@@ -33,10 +34,15 @@ class ViewportQuality(Worker, CtxInterface):
     yaw_pitch_roll_iter: Iterator
 
     def main(self):
+        """
+        uvfq = User Viewport Frame Quality
+        :return:
+        """
         self.init()
-        self.main_loop()
+        self.make_uvfq_by_chunk()
+        self.collect_result()
 
-    def main_loop(self):
+    def make_uvfq_by_chunk(self):
         for self.name in self.name_list:
             self.load_get_tiles()
 
@@ -55,8 +61,26 @@ class ViewportQuality(Worker, CtxInterface):
                             with self.task():
                                 self.worker()
 
+    def collect_result(self):
+        self.projection = 'cmp'
+        total = len(self.tiling_list) * 30 * len(self.quality_list) * 60
+        for self.name in self.name_list:
+            if self.viewport_quality_paths.user_viewport_quality_result_json.exists(): continue
+            result = AutoDict()
+            self.start_ui(total, self.name)
+            for self.tiling in self.tiling_list:
+                for self.user in self.users_list:
+                    for self.quality in self.quality_list:
+                        for self.chunk in self.chunk_list:
+                            self.update_ui('')
+                            chunk_results = load_json(self.viewport_quality_paths.user_viewport_quality_json)
+                            keys = (self.name, self.projection, self.tiling, self.user, self.quality, self.chunk)
+                            set_nested_value(result, keys, chunk_results)
+
+            save_json(result, self.viewport_quality_paths.user_viewport_quality_result_json)
+
     def worker(self):
-        self.start_ui(30)
+        self.start_ui(30, f'{self}')
         self.check_viewport_quality()
 
         tile_ref_frame_reader = self.make_ref_vreader()
@@ -104,10 +128,13 @@ class ViewportQuality(Worker, CtxInterface):
         self.projection = 'cmp'
 
     def start_ui(self, total, desc):
-        self.ui = ProgressBar(total=total, desc=f'{self.__class__.__name__}: '
-                                                f'{self.name}_{self.tiling}_'
-                                                f'user{self.user}_chunk{self.chunk}_'
-                                                f'qp{self.quality}')
+        self.ui = ProgressBar(total=total, desc=desc)
+
+    def update_ui(self, desc):
+        self.ui.update(desc)
+
+    def close_ui(self):
+        del self.ui
 
     def load_get_tiles(self):
         self.get_tiles: dict = load_json(self.viewport_quality_paths.get_tiles_result_json)
