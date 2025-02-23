@@ -91,9 +91,7 @@ path_config = Path('config')
 config_list = [
     Option(id=0, name='full_qp', obj=path_config / 'config_full_qp.json'),
     Option(id=1, name='reversed_qp', obj=path_config / 'config_reversed_qp.json'),
-    Option(id=2, name='full', obj=path_config / 'config_full.json'),
-    Option(id=3, name='reversed', obj=path_config / 'config_reversed.json'),
-    Option(id=5, name='test_qp', obj=path_config / 'config_test_qp.json'),
+    Option(id=2, name='test_qp', obj=path_config / 'config_test_qp.json'),
 ]
 
 videos_list = [
