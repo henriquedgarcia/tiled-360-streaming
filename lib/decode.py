@@ -3,7 +3,8 @@ from contextlib import contextmanager
 from lib.assets.autodict import AutoDict
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
-from lib.assets.worker import Worker, ProgressBar
+from lib.assets.progressbar import ProgressBar
+from lib.assets.worker import Worker
 from lib.utils.util import count_decoding, decode_video
 
 
