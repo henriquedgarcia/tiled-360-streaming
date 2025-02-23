@@ -8,7 +8,8 @@ from matplotlib import pyplot as plt
 from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
-from lib.assets.worker import Worker, ProgressBar
+from lib.assets.progressbar import ProgressBar
+from lib.assets.worker import Worker
 from lib.makequality import ChunkQualityPaths
 from lib.utils.util import print_error, save_json, load_json, get_nested_value
 
