@@ -12,7 +12,8 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.mountframe import MountFrame
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
-from lib.assets.worker import Worker, ProgressBar
+from lib.assets.progressbar import ProgressBar
+from lib.assets.worker import Worker
 from lib.utils.util import build_projection, print_error, save_json, load_json, get_nested_value, set_nested_value
 
 
