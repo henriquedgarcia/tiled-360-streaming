@@ -97,12 +97,12 @@ config_list = [
 videos_list = [
     Option(id=0, name='full', obj=path_config / 'videos_full.json'),  # 
     Option(id=1, name='reversed', obj=path_config / 'videos_reversed.json'),  # 
-    Option(id=2, name='lumine', obj=path_config / 'videos_lumine.json'),  # angel_falls-closet_tour
-    Option(id=3, name='container0', obj=path_config / 'videos_container0.json'),  # drone_chases_car-dubstep_dance
-    Option(id=4, name='container1', obj=path_config / 'videos_container1.json'),  # elevator_lift-nyc_drive
-    Option(id=5, name='fortrek', obj=path_config / 'videos_fortrek.json'),  # pac_man-sunset
-    Option(id=6, name='hp_elite', obj=path_config / 'videos_hp_elite.json'),  # three_peaks-video_22
-    Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # video_23-wingsuit_dubai
+    Option(id=2, name='lumine', obj=path_config / 'videos_lumine.json'),  # 100 angel_falls-closet_tour
+    Option(id=3, name='container0', obj=path_config / 'videos_container0.json'),  # 67 drone_chases_car-dubstep_dance
+    Option(id=4, name='container1', obj=path_config / 'videos_container1.json'),  # 70 elevator_lift-nyc_drive
+    Option(id=5, name='fortrek', obj=path_config / 'videos_fortrek.json'),  # 101 pac_man-sunset
+    Option(id=6, name='hp_elite', obj=path_config / 'videos_hp_elite.json'),  # 103 three_peaks-video_22
+    Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # 99 video_23-wingsuit_dubai
     Option(id=8, name='test', obj=path_config / 'videos_test.json'),  # 
 ]
 
