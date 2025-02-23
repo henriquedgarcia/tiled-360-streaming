@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from multiprocessing import Pool
 
-from tqdm import tqdm
-
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.logger import Logger
@@ -27,26 +25,6 @@ class Multi(ABC):
             pass
 
 
-class ProgressBar:
-    t: tqdm
-
-    def __init__(self, total, desc):
-        self.t = tqdm(total=total, desc=desc, ncols=0)
-
-    def new(self, total, desc):
-        self.t = tqdm(total=total, desc=desc)
-
-    def update(self, postfix_str):
-        self.set_postfix_str(postfix_str)
-        self.t.update()
-
-    def set_postfix_str(self, postfix_str):
-        self.t.set_postfix_str(postfix_str)
-
-    def __del__(self):
-        self.t.close()
-
-
 class Worker(ABC, CtxInterface):
     def __init__(self, ctx: Context):
         self.ctx = ctx
@@ -58,8 +36,10 @@ class Worker(ABC, CtxInterface):
             with self.status.status_context(self.__class__.__name__):
                 self.init()
                 self.main()
+
     def __str__(self):
         return str(self.ctx)
+
     @abstractmethod
     def main(self):
         ...
