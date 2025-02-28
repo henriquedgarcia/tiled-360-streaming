@@ -22,14 +22,43 @@ class MakeTiles(Worker, CtxInterface):
                 self.make_tile()
 
     def make_tile(self):
-        if self.tiles_is_ok():
-            return 'All OK'
+        self.assert_tiles()
+        self.assert_lossless()
 
         cmd = self.make_tile_cmd()
         run_command(cmd=cmd,
                     folder=self.tile_folder,
                     log_file=self.tile_log,
                     ui_prefix='\t')
+
+    def assert_tiles(self):
+        try:
+            self.check_tile_video()
+            raise AbortError('')
+        except FileNotFoundError:
+            self.clean_tile()
+
+    def check_tile_video(self):
+        compressed_file_size = self.tile_video.stat().st_size
+        compressed_log_text = self.tile_log.read_text()
+
+        if compressed_file_size == 0:
+            raise FileNotFoundError('Filesize is 0')
+
+        if 'encoded 1800 frames' not in compressed_log_text:
+            self.logger.register_log('Tile log is corrupt', self.tile_log)
+            raise FileNotFoundError
+
+        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
+            self.logger.register_log('Codec version is different.', self.tile_log)
+            raise FileNotFoundError
+
+    def assert_lossless(self):
+        try:
+            self.check_lossless()
+        except FileNotFoundError:
+            self.logger.register_log('lossless_video not found.', self.lossless_video)
+            raise AbortError(f'lossless_video not found.')
 
     def make_tile_cmd(self) -> str:
         lossless_file = self.lossless_video.as_posix()
@@ -58,66 +87,12 @@ class MakeTiles(Worker, CtxInterface):
 
         return cmd
 
-    def tiles_is_ok(self) -> bool:
-        print(f'\tChecking tiles')
-        try:
-            self.check_tile_log()
-            self.check_tile_video()
-            raise AbortError('Tiles are OK')
-        except FileNotFoundError:
-            self.clean_tile()
+    def check_lossless(self):
+        lossless_video_size = self.lossless_video.stat().st_size
+        if lossless_video_size == 0:
+            raise FileNotFoundError('lossless_video not found.')
 
-        try:
-            self.assert_lossless()
-        except FileNotFoundError:
-            raise AbortError('Lossless not found.')
-
-        return False
-
-    def check_tile_log(self):
-        compressed_log_text = self.tile_log.read_text()
-
-        if 'encoded 1800 frames' not in compressed_log_text:
-            self.logger.register_log('Tile log is corrupt', self.tile_log)
-            self.tile_log.unlink()
-            raise FileNotFoundError
-
-        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-            self.logger.register_log('Codec version is different.', self.tile_log)
-            self.tile_log.unlink(missing_ok=True)
-            raise FileNotFoundError
-
-    def check_tile_video(self):
-        compressed_file_size = self.tile_video.stat().st_size
-
-        if compressed_file_size == 0:
-            raise FileNotFoundError('Filesize is 0')
-
-        if self.decode_check:
-            print(f'\r\t\tDecoding check tile{self.tile}.', end='')
-            self.decode_tile()
-
-        return True
-
-    def decode_tile(self) -> None:
-        if self.status.get_status('decode_check'):
-            print_error(f'. OK')
-            return
-
-        stdout = decode_video(self.tile_video, ui_prefix='\t')
-        if "frame= 1800" not in stdout:
-            self.logger.register_log(f'Decode tile error.', self.tile_video)
-            raise FileNotFoundError('Decode Tile Error')
-        self.status.update_status('decode_check', True)
-        print_error(f'. OK')
-
-    def assert_lossless(self) -> None:
-        print(f'\tChecking lossless')
-        if not self.lossless_video.exists():
-            self.logger.register_log('lossless_video not found.', self.lossless_video)
-            raise AbortError(f'lossless_video not found.')
-
-    def clean_tile(self) -> None:
+    def clean_tile(self):
         self.tile_log.unlink(missing_ok=True)
         self.tile_video.unlink(missing_ok=True)
 
