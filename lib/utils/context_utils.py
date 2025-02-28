@@ -47,7 +47,9 @@ def task(self, verbose=True):
     try:
         yield
     except AbortError as e:
-        print_error(f'\t{e.args[0]}')
+        msg = e.args[0]
+        if msg:
+            print_error(f'\t{e.args[0]}')
     finally:
         pass
 
