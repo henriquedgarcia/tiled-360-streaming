@@ -24,24 +24,24 @@ class MakeDash(Worker, CtxInterface):
                 self.work()
 
     def work(self):
-        if self.dash_is_ok():
-            raise AbortError('Dash is ok. Skipping.')
+        self.assert_dash()
 
         print(f'\tTile ok. Creating chunks.')
         cmd = self.make_dash_cmd_mp4box()
         run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
 
-    def dash_is_ok(self):
-        print(f'\tChecking dash.')
+    def assert_dash(self):
+        # raise AbortError('Dash is ok. Skipping.')
         try:
             self.assert_segmenter_log()
-            return True
+            raise AbortError('')
         except FileNotFoundError:
             self.clean_dash()
 
         try:
             self.assert_tile_video()
         except FileNotFoundError:
+            self.logger.register_log('Tile video not found.', self.tile_video)
             raise AbortError(f'Tile video not found. Aborting.')
 
         return False
@@ -53,7 +53,7 @@ class MakeDash(Worker, CtxInterface):
     def assert_tile_video(self):
         if self.tile_video.stat().st_size == 0:
             self.tile_video.unlink()
-            raise FileNotFoundError()
+            raise FileNotFoundError
 
     def assert_segmenter_log(self):
         segment_log_txt = self.segmenter_log.read_text()
