@@ -19,7 +19,7 @@ class MakeDash(Worker, CtxInterface):
 
     def main(self):
         self.init()
-        for _ in self.iterate_name_projection_tiling_tile_quality():
+        for _ in self.iterate_name_projection_tiling_tile():
             with task(self):
                 self.work()
 
