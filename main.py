@@ -44,6 +44,9 @@ def main():
     parser.add_argument('-qslice', default=None, nargs=2, type=int,
                         metavar=('QUALITY_START', 'QUALITY_STOP',),
                         help=f'Force quality. ["16", "22", "28", "34", "40", "46"]')
+    parser.add_argument('-remove', default=0,
+                        metavar=('QUALITY',),
+                        help=f'Force remove.')
     args = parser.parse_args()
 
     if args.r is None:
@@ -64,6 +67,7 @@ def main():
         worker = get_option(worker_id, worker_list).obj
 
     config = Config(config_file, videos_file)
+    config.remove = bool(args.remove)
 
     if videos_list_id == 0 and args.slice is not None:
         start, stop = args.slice

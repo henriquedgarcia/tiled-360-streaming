@@ -47,12 +47,14 @@ class MakeDash(Worker, CtxInterface):
 
     def assert_tile_video(self):
         if self.tile_video.stat().st_size == 0:
-            self.tile_video.unlink()
+            if self.config.remove:
+                self.tile_video.unlink()
             raise FileNotFoundError
 
     def clean_dash(self):
-        shutil.rmtree(self.mpd_folder, ignore_errors=True)
-        self.segmenter_log.unlink(missing_ok=True)
+        if self.config.remove:
+            shutil.rmtree(self.mpd_folder, ignore_errors=True)
+            self.segmenter_log.unlink(missing_ok=True)
 
     def make_dash_cmd_mp4box(self):
         # test gop
@@ -90,7 +92,8 @@ class MakeDash(Worker, CtxInterface):
     def assert_segmenter_log(self):
         segment_log_txt = self.segmenter_log.read_text()
         if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
-            self.segmenter_log.unlink(missing_ok=True)
+            if self.config.remove:
+                self.segmenter_log.unlink(missing_ok=True)
             self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
             raise FileNotFoundError
 

@@ -76,6 +76,8 @@ class ConfigProps:
 
 
 class Config(ConfigProps):
+    remove = False
+
     def __init__(self, config_file, videos_file):
         """
 
