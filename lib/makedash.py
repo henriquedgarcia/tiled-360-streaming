@@ -30,37 +30,11 @@ class MakeDash(Worker, CtxInterface):
         cmd = self.make_dash_cmd_mp4box()
         run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
 
-    def assert_dash(self):
-        try:
-            self.assert_segmenter_log()
-            raise AbortError('')
-        except FileNotFoundError:
-            self.clean_dash()
-
-        try:
-            self.assert_tile_video()
-        except FileNotFoundError:
-            self.logger.register_log('Tile video not found.', self.tile_video)
-            raise AbortError(f'Tile video not found. Aborting.')
-
-        return False
-
-    def assert_tile_video(self):
-        if self.tile_video.stat().st_size == 0:
-            if self.config.remove:
-                self.tile_video.unlink()
-            raise FileNotFoundError
-
-    def clean_dash(self):
-        if self.config.remove:
-            shutil.rmtree(self.mpd_folder, ignore_errors=True)
-            self.segmenter_log.unlink(missing_ok=True)
-
     def make_dash_cmd_mp4box(self):
-        # test gop
-        # python3 /mnt/d/Henrique/Desktop/tiled-360-streaming/bin/gop/gop_all.py
+        # test gop: "python3 tiled-360-streaming/bin/gop/gop_all.py"
         filename = []
         for self.quality in self.quality_list:
+            self.assert_tile_video()
             filename.append(self.tile_video.as_posix())
         filename_ = ' '.join(filename)
 
@@ -76,6 +50,34 @@ class MakeDash(Worker, CtxInterface):
         self.quality = None
         return cmd
 
+    def assert_dash(self):
+        try:
+            self._assert_segmenter_log()
+            raise AbortError('')
+        except FileNotFoundError:
+            self._clean_dash()
+
+    def assert_tile_video(self):
+        try:
+            self._check_tile_video()
+        except FileNotFoundError:
+            self.logger.register_log('Tile video not found.', self.tile_video)
+            raise AbortError(f'Tile video not found. Aborting.')
+
+        return False
+
+    def _check_tile_video(self):
+        if self.tile_video.stat().st_size == 0:
+            if self.config.remove:
+                self.tile_video.unlink()
+            raise FileNotFoundError
+
+    def _clean_dash(self):
+        if self.config.remove:
+            shutil.rmtree(self.mpd_folder, ignore_errors=True)
+            self.segmenter_log.unlink(missing_ok=True)
+
+
     # def make_split_cmd_mp4box(self):
     #     compressed_file = self.tile_video.as_posix()
     #     chunks_folder = self.mpd_folder.as_posix()
@@ -89,7 +91,7 @@ class MakeDash(Worker, CtxInterface):
     #            '"')
     #     return cmd
 
-    def assert_segmenter_log(self):
+    def _assert_segmenter_log(self):
         segment_log_txt = self.segmenter_log.read_text()
         if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
             if self.config.remove:
