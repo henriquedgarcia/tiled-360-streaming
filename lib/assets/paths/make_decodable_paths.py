@@ -34,3 +34,23 @@ class MakeDecodablePaths(CtxInterface):
     @property
     def bitrate_result_json(self) -> Path:
         return self.make_dash_paths.bitrate_result_json
+
+
+class IfDecodablePaths(CtxInterface):
+    make_decodable_path: MakeDecodablePaths
+
+    @property
+    def decodable_folder(self):
+        return self.make_decodable_path.decodable_folder
+
+    @property
+    def dash_init(self):
+        return self.make_decodable_path.dash_init
+
+    @property
+    def dash_m4s(self):
+        return self.make_decodable_path.dash_m4s
+
+    @property
+    def decodable_chunk(self):
+        return self.make_decodable_path.decodable_chunk
