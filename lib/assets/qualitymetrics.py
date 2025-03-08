@@ -125,8 +125,7 @@ def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
 
     :return:
     """
-    project_folder: Path = ctx.config.project_folder
-    sph_points_mask_file = Path(f'datasets/{project_folder.name}/sph_points_mask.pickle')
+    sph_points_mask_file = Path(f'datasets/masks/sph_points_mask.pickle')
 
     try:
         sph_points_mask = load_pickle(sph_points_mask_file)
@@ -137,6 +136,17 @@ def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
 
 
 def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
+    """
+    O arquivo txt contem as coordenadas como ea (elevação, azimute).
+    Vamos identificar pontos na esfera (r=1) com essas coordenadas e marcar nas
+    faces da projeção estes pontos. A projeção deve ter a mesma resolução dos
+    vídeos, (2160, 3240) para CMP. Este mapa é guardado e usado como máscara
+    para selecionar quais pixeis devem ser considerados no cálculo do s-mse.
+
+
+    :param ctx:
+    :return:
+    """
     sph_file = Path('datasets/sphere_655362.txt')
     sph_file_lines = sph_file.read_text().splitlines()[1:]
     ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
