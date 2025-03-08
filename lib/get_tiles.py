@@ -60,7 +60,8 @@ class GetTiles(Worker):
         self.projection_dict = AutoDict()
         for tiling in self.tiling_list:
             for proj_str in self.projection_list:
-                proj = build_projection(proj_name=proj_str, tiling=tiling,
+                proj = build_projection(proj_name=proj_str,
+                                        tiling=tiling,
                                         proj_res=self.config.config_dict['scale'][proj_str], vp_res='1320x1080',
                                         fov_res=self.fov)
                 self.projection_dict[proj_str][tiling] = proj
