@@ -1,6 +1,6 @@
 import numpy as np
 
-from py360tools.utils.util import get_tile_borders
+from py360tools.utils.util_transform import get_tile_borders
 
 
 class Tile:
