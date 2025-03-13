@@ -1,75 +1,75 @@
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from lib.assets.autodict import AutoDict
+from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import get_times, get_nested_value, save_pickle
+from lib.utils.util import get_times, get_nested_value, save_pickle, load_pickle, print_error
 
 
 class GetDectime(Worker, CtxInterface):
     dectime_result: list
     dectime_paths: DectimePaths
     progress_bar: ProgressBar
+    status: AutoDict
+
+    def __init__(self, ctx: Context):
+        super().__init__(ctx)
+        self.status_file = None
 
     def iter_name_proj_tiling_tile_qlt_chunk(self):
         for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.tile in self.tile_list:
-                        for self.quality in self.quality_list:
-                            for self.chunk in self.chunk_list:
-                                self.progress_bar.update(f'{self.ctx}')
-                                yield
+            for self.tiling in self.tiling_list:
+                for self.tile in self.tile_list:
+                    for self.quality in self.quality_list:
+                        for self.chunk in self.chunk_list:
+                            self.progress_bar.update(f'{self.ctx}')
+                            yield
 
     def init(self):
-        self.dectime_result = []
+        self.status_file = Path(f'log/status_{self.__class__.__name__}.pickle')
+        if self.dectime_paths.dectime_result_pickle.exists():
+            print('file exists')
+            exit(0)
+        self.status = (load_pickle(self.status_file)
+                       if self.status_file.exists()
+                       else AutoDict())
+
+        self.projection = 'cmp'
         self.dectime_paths = DectimePaths(self.ctx)
         self.progress_bar = ProgressBar(total=(181
-                                               * len(self.projection_list)
                                                * len(self.quality_list)
                                                * len(self.chunk_list)),
                                         desc=f'{self.__class__.__name__}')
 
     def main(self):
-        if self.dectime_paths.dectime_result_pickle.exists():
-            print('file exists')
-            return
+        dectime_result = []
         for _ in self.iter_name_proj_tiling_tile_qlt_chunk():
-            times = self.get_times()
-            # self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), np.std(times)))
-            self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), np.average(times)))
-        result = pd.DataFrame(self.dectime_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'dectime'])
+            dectime = self.get_dectime()
+            self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), dectime))
+
+        result = pd.DataFrame(dectime_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'dectime'])
         result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
         save_pickle(result['dectime'], self.dectime_paths.dectime_result_pickle)
         print('finished')
 
-    def get_times(self):
+    def get_dectime(self):
         try:
             times = get_times(self.dectime_paths.dectime_log)
         except FileNotFoundError:
-            msg = f'    {self.dectime_paths.dectime_log} not found.'
+            times = []
+
+        if len(times) < self.config.decoding_num:
+            msg = f'Chunk is not decoded enough. {len(times)} times.'
+            print_error(msg)
             self.logger.register_log(msg, self.dectime_paths.dectime_log)
             raise AbortError(msg)
 
-        decoded = len(times)
-        if decoded < self.config.decoding_num:
-            msg = f'Chunk is not decoded enough. {decoded} times.'
-            self.logger.register_log(msg, self.dectime_paths.dectime_log)
-            raise AbortError(msg)
-
-        return times
-
-    def set_dectime(self, dectime: Any):
-        if isinstance(dectime, dict):
-            keys = [self.name, self.projection, self.tiling, self.tile, self.quality, self.chunk]
-            result = get_nested_value(self.dectime_result, keys)
-            result.update(dectime)
-        else:
-            keys = [self.name, self.projection, self.tiling, self.tile, self.quality]
-            result = get_nested_value(self.dectime_result, keys)
-            result.update({self.chunk: dectime})
+        return np.average(times)
