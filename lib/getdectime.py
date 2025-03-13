@@ -50,7 +50,7 @@ class GetDectime(Worker, CtxInterface):
         dectime_result = []
         for _ in self.iter_name_proj_tiling_tile_qlt_chunk():
             dectime = self.get_dectime()
-            self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), dectime))
+            dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), dectime))
 
         result = pd.DataFrame(dectime_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'dectime'])
         result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
