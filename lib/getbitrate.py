@@ -1,11 +1,13 @@
+import pandas as pd
 from tqdm import tqdm
 
 from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
+from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
 from lib.makedash import MakeDashPaths
 from lib.utils.context_utils import task
-from lib.utils.util import print_error, save_json, get_nested_value
+from lib.utils.util import print_error, save_json, get_nested_value, save_pickle
 
 
 class GetBitrate(Worker, CtxInterface):
@@ -16,49 +18,36 @@ class GetBitrate(Worker, CtxInterface):
                                   ['dash_m4s'][self.quality][self.chunk]
     :return:
     """
-    video_bitrate: AutoDict
     decodable_paths: MakeDashPaths
-    t: tqdm
+    progress_bar: ProgressBar
+
+    def iter_name_proj_tiling_tile_qlt_chunk(self):
+        self.projection = 'cmp'
+        self.progress_bar = ProgressBar(total=(len(self.name_list)
+                                               * 181
+                                               ),
+                                        desc=f'{self.__class__.__name__}')
+        for self.name in self.name_list:
+            for self.tiling in self.tiling_list:
+                for self.tile in self.tile_list:
+                    self.progress_bar.update(f'{self.ctx}')
+                    for self.quality in self.quality_list:
+                        for self.chunk in self.chunk_list:
+                            yield
+
+    def init(self):
+        self.decodable_paths = MakeDashPaths(self.ctx)
+        if self.decodable_paths.bitrate_result_pickle.exists():
+            print('file exists')
+            exit(0)
 
     def main(self):
-        self.decodable_paths = MakeDashPaths(self.ctx)
+        bitrate_result = []
+        for _ in self.iter_name_proj_tiling_tile_qlt_chunk():
+            bitrate = self.decodable_paths.dash_m4s.stat().st_size * 8
+            bitrate_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), bitrate))
 
-        for self.name in self.name_list:
-            print(f'==== {self.__class__.__name__} {self.name} ====')
-            if self.decodable_paths.bitrate_result_json.exists():
-                print_error(f'\tThe bitrate_result_json exist.')
-                continue
-
-            self.video_bitrate = AutoDict()
-            self.t = tqdm(total=(181
-                                 * len(self.projection_list)
-                                 * len(self.quality_list)
-                                 * len(self.chunk_list)),
-                          desc=f'    {self.__class__.__name__}')
-            for _ in self.iterate_projection_tiling_tile():
-                with task(self, verbose=False):
-                    self.work()
-            self.t.close()
-
-            print(f'\tSaving video_bitrate for {self.name}.')
-            save_json(self.video_bitrate,
-                      self.decodable_paths.bitrate_result_json)
-
-    def work(self):
-        bitrate = AutoDict()
-
-        for self.quality in self.quality_list:
-            for self.chunk in self.chunk_list:
-                self.t.set_postfix_str(f'{self.ctx}')
-                self.t.update()
-                bitrate[self.quality][self.chunk]['dash_m4s'] = self.decodable_paths.dash_m4s.stat().st_size * 8
-            bitrate[self.quality]['dash_init'] = self.decodable_paths.dash_init.stat().st_size * 8
-        bitrate['dash_mpd'] = self.decodable_paths.dash_mpd.stat().st_size * 8
-
-        self.set_bitrate(bitrate)
-        self.quality = self.chunk = None
-
-    def set_bitrate(self, value: dict):
-        keys = [self.name, self.projection, self.tiling, self.tile]
-        tile_bitrate = get_nested_value(self.video_bitrate, keys)
-        tile_bitrate.update(value)
+        result = pd.DataFrame(bitrate_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'bitrate'])
+        result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
+        save_pickle(result['bitrate'], self.decodable_paths.bitrate_result_pickle)
+        print('finished')
