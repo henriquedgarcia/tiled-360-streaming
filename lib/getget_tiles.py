@@ -1,68 +1,52 @@
 from contextlib import contextmanager
 from typing import Any
 
+import pandas as pd
+
 from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
 from lib.get_tiles import GetTilesPaths
-from lib.utils.util import print_error, save_json, load_json, get_nested_value
+from lib.utils.util import print_error, save_json, load_json, get_nested_value, save_pickle
 
 
 class GetGetTiles(Worker, CtxInterface):
-    get_tiles_result: AutoDict
     get_tiles_paths: GetTilesPaths
+    progress_bar: ProgressBar
 
-    def iter_proj_tiling_tile_qlt_chunk(self):
-        class_name = self.__class__.__name__
-        self.total = (len(self.projection_list)
-                      * len(self.tiling_list) * len(self.users_list))
-        t = ProgressBar(total=self.total, desc=class_name)
-        for self.projection in self.projection_list:
+    def iter_name_tiling_user(self):
+        self.projection = 'cmp'
+        self.progress_bar = ProgressBar(total=(len(self.name_list)
+                                               * len(self.tiling_list)
+                                               * 30),
+                                        desc=self.__class__.__name__)
+        for self.name in self.name_list:
             for self.tiling in self.tiling_list:
                 for self.user in self.users_list:
-                    t.update(f'{self.ctx}')
+                    self.progress_bar.update(f'{self.ctx}')
                     self.ctx.iterations += 1
                     yield
 
-    total: int
-
     def init(self):
         self.get_tiles_paths = GetTilesPaths(self.ctx)
-
-    @contextmanager
-    def task(self):
-        class_name = self.__class__.__name__
-        print(f'==== {class_name} {self.ctx} ====')
-        self.get_tiles_result = AutoDict()
-
-        try:
-            yield
-        except FileNotFoundError as e:
-            print_error('Chunk not Found.')
-            return
-        except AbortError as e:
-            print_error(f'\t{e.args[0]}')
-            return
-
-        save_json(self.get_tiles_result, self.get_tiles_paths.get_tiles_result_json)
+        if self.get_tiles_paths.get_tiles_result_pickle.exists():
+            print('file exists')
+            exit(0)
 
     def main(self):
-        for self.name in self.name_list:
-            if self.get_tiles_paths.get_tiles_result_json.exists():
-                print_error(f'\tThe get_tiles_result_json exist.')
-                continue
+        get_tiles_result = []
+        for _ in self.iter_name_tiling_user():
+            user_tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
+            for self.chunk in self.chunk_list:
+                get_tiles = user_tiles_seen['chunks'][self.chunk]
+                get_tiles = list(map(int, get_tiles))
+                get_tiles_result.append(
+                    (self.name, self.projection, self.tiling, int(self.user),
+                     int(self.chunk), get_tiles))
 
-            with self.task():
-                for _ in self.iter_proj_tiling_tile_qlt_chunk():
-                    user_tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
-                    self.set_get_tiles(user_tiles_seen)
-
-            save_json(self.get_tiles_result, self.get_tiles_paths.get_tiles_result_json)
-
-    def set_get_tiles(self, value: Any):
-        if isinstance(value, dict):
-            keys = [self.name, self.projection, self.tiling, self.user]
-            result = get_nested_value(self.get_tiles_result, keys)
-            result.update(value)
+        result = pd.DataFrame(get_tiles_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'get_tiles'])
+        result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
+        save_pickle(result['get_tiles'], self.get_tiles_paths.get_tiles_result_pickle)
+        print('finished')
