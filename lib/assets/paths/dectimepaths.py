@@ -28,3 +28,7 @@ class DectimePaths(CtxInterface):
     @property
     def dectime_result_json(self) -> Path:
         return self.base_paths.results_folder / f'dectime/time_{self.ctx.name}.json'
+
+    @property
+    def dectime_result_pickle(self) -> Path:
+        return self.base_paths.results_folder / f'dectime/dectime.pickle'
