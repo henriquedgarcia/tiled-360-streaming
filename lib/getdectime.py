@@ -1,62 +1,52 @@
-from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
-from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import print_error, save_json, get_times, get_nested_value
+from lib.utils.util import get_times, get_nested_value, save_pickle
 
 
 class GetDectime(Worker, CtxInterface):
-    dectime_result: AutoDict
+    dectime_result: list
     dectime_paths: DectimePaths
+    progress_bar: ProgressBar
 
-    def iter_proj_tiling_tile_qlt_chunk(self):
-        total = (181 * len(self.projection_list)
-                 * len(self.quality_list) * len(self.chunk_list))
-        t = ProgressBar(total=total, desc=f'{self.__class__.__name__}')
-
-        for self.projection in self.projection_list:
-            for self.tiling in self.tiling_list:
-                for self.tile in self.tile_list:
-                    for self.quality in self.quality_list:
-                        for self.chunk in self.chunk_list:
-                            t.update(f'{self.ctx}')
-                            yield
+    def iter_name_proj_tiling_tile_qlt_chunk(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.tile in self.tile_list:
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                self.progress_bar.update(f'{self.ctx}')
+                                yield
 
     def init(self):
+        self.dectime_result = []
         self.dectime_paths = DectimePaths(self.ctx)
-
-    @contextmanager
-    def task(self):
-        print(f'==== {self.__class__.__name__} {self.name} ====')
-        self.dectime_result = AutoDict()
-
-        try:
-            yield
-            save_json(self.dectime_result, self.dectime_paths.dectime_result_json)
-        except AbortError as e:
-            print_error(f'    {e.args[0]}')
-            return
+        self.progress_bar = ProgressBar(total=(181
+                                               * len(self.projection_list)
+                                               * len(self.quality_list)
+                                               * len(self.chunk_list)),
+                                        desc=f'{self.__class__.__name__}')
 
     def main(self):
-        for self.name in self.name_list:
-            with self.task():
-                if self.dectime_paths.dectime_result_json.exists():
-                    raise AbortError('The dectime_result_json exist.')
-
-                for _ in self.iter_proj_tiling_tile_qlt_chunk():
-                    times = self.get_times()
-                    self.set_dectime({'dectime': times,
-                                      'dectime_avg': np.mean(times),
-                                      'dectime_std': np.std(times),
-                                      'dectime_med': np.median(times),
-                                      })
+        if self.dectime_paths.dectime_result_pickle.exists():
+            print('file exists')
+            return
+        for _ in self.iter_name_proj_tiling_tile_qlt_chunk():
+            times = self.get_times()
+            # self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), np.std(times)))
+            self.dectime_result.append((self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk), np.average(times)))
+        result = pd.DataFrame(self.dectime_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'dectime'])
+        result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
+        save_pickle(result['dectime'], self.dectime_paths.dectime_result_pickle)
+        print('finished')
 
     def get_times(self):
         try:
