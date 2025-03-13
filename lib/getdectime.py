@@ -67,6 +67,5 @@ class GetDectime(Worker, CtxInterface):
             msg = f'Chunk is not decoded enough. {len(times)} times.'
             print_error(msg)
             self.logger.register_log(msg, self.dectime_paths.dectime_log)
-            raise AbortError(msg)
 
         return np.average(times)
