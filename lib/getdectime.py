@@ -35,15 +35,12 @@ class GetDectime(Worker, CtxInterface):
 
     def init(self):
         self.status_file = Path(f'log/status_{self.__class__.__name__}.pickle')
+        self.dectime_paths = DectimePaths(self.ctx)
         if self.dectime_paths.dectime_result_pickle.exists():
             print('file exists')
             exit(0)
-        self.status = (load_pickle(self.status_file)
-                       if self.status_file.exists()
-                       else AutoDict())
 
         self.projection = 'cmp'
-        self.dectime_paths = DectimePaths(self.ctx)
         self.progress_bar = ProgressBar(total=(181
                                                * len(self.quality_list)
                                                * len(self.chunk_list)),
