@@ -39,3 +39,7 @@ class MakeDashPaths(CtxInterface):
     @property
     def bitrate_result_json(self) -> Path:
         return self.base_paths.results_folder / f'bitrate/bitrate_{self.name}.json'
+
+    @property
+    def bitrate_result_pickle(self) -> Path:
+        return self.base_paths.results_folder / f'bitrate/bitrate.pickle'
