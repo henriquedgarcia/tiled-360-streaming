@@ -13,7 +13,37 @@ do
     done
 done
 
+# CONFIG_ID:
+# 0 - full_qp
+# 1 - reversed_qp
+# 2 - test_qp
 
+# VIDEOS_LIST_ID
+# 0 - full
+# 1 - reversed
+# 2 - lumine
+# 3 - container0
+# 4 - container1
+# 5 - fortrek
+# 6 - hp_elite
+# 7 - alambique
+# 8 - test
+
+# WORKER_ID
+# 0 - MakeTiles
+# 1 - MakeDash
+# 2 - MakeDecodable
+# 3 - Decode
+# 4 - TileQuality
+# 5 - GetTiles
+# 6 - MakeSiti
+# 7 - GetBitrate
+# 8 - GetDectime
+# 9 - GetQuality
+# 10 - GetGetTiles
+# 11 - ViewportQuality
+
+# NAMES_LIST
 # Lumine
 # 0 - angel_falls
 # 1 - blue_angels
