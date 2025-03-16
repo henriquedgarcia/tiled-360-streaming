@@ -7,7 +7,7 @@ do
     do
       for qlt in 16 22 28 34 40
         do
-          python main.py -r 0 0 2 -slice $i $j -tiling $tiling -quality $qlt &
+          python main.py -r "$1" "$2" "$3" -slice $i $j -tiling $tiling -quality $qlt &
         done
       wait
     done
