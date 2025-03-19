@@ -26,11 +26,12 @@ class GetDectime(Worker, CtxInterface):
                     for self.quality in self.quality_list:
                         for self.chunk in self.chunk_list:
                             yield
+                    self.quality = self.chunk = None
 
     def init(self):
         self.dectime_paths = DectimePaths(self.ctx)
         if self.dectime_paths.dectime_result_pickle.exists():
-            print('file exists')
+            print_error('file exists')
             exit(0)
 
     def main(self):
