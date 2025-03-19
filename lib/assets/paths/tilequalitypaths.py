@@ -28,6 +28,10 @@ class ChunkQualityPaths(CtxInterface):
         return self.base_paths.results_folder / f'quality/chunk_quality_{self.name}.json'
 
     @property
+    def chunk_quality_result_pickle(self) -> Path:
+        return self.base_paths.results_folder / f'quality/chunk_quality_{self.metric}.pickle'
+
+    @property
     def chunk_quality_folder(self) -> Path:
         folder = self.base_paths.quality_folder / self.base_paths.basename_lv4
         return folder
