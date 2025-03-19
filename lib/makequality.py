@@ -1,4 +1,6 @@
+import json
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
@@ -18,10 +20,36 @@ class TileQuality(Worker, CtxInterface):
 
     def main(self):
         self.init()
+        # self.check()
 
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             with task(self):
                 self.work()
+
+    def check(self):
+        check_data = defaultdict(list)
+
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.tile in self.tile_list:
+                        for self.quality in self.quality_list:
+                            msg = f'{self.name}_{self.projection}_{self.tiling}_tile{self.tile}_qp{self.quality}'
+                            print(f'\r{msg}', end='')
+                            try:
+                                for self.chunk in self.chunk_list:
+                                    if not self.chunk_quality_paths.chunk_quality_json.exists(): raise FileNotFoundError
+                                    # size = self.chunk_quality_paths.chunk_quality_json.stat().st_size
+                                    # if not size > 0: raise ValueError
+                            except FileNotFoundError:
+                                print(f'\n\tFileNotFoundError')
+                                check_data['not_exist'].append(msg)
+                            except ValueError:
+                                print(f'\n\t0_size')
+                                check_data['0_size'].append(msg)
+
+        print(json.dumps(check_data, indent=2))
+        Path('chunk_quality_errors.json').write_text(json.dumps(check_data, indent=2))
 
     def init(self):
         self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
