@@ -1,5 +1,4 @@
 from pathlib import Path
-from pathlib import Path
 from typing import Callable
 
 import numpy as np
@@ -34,41 +33,45 @@ class GetQuality(Worker, CtxInterface):
     chunk_quality_paths: ChunkQualityPaths
     progress_bar: ProgressBar
 
-    def iter_name_proj_tiling_tile_qlt_chunk(self):
+    def iter_proj_tiling_tile_qlt_chunk(self):
         self.projection = 'cmp'
-        self.progress_bar = ProgressBar(total=(len(self.name_list)
+        self.progress_bar = ProgressBar(total=(len(self.quality_list)
                                                * 181
                                                ),
                                         desc=f'{self.__class__.__name__}')
 
-        for self.name in self.name_list:
-            for self.tiling in self.tiling_list:
-                for self.tile in self.tile_list:
+        for self.tiling in self.tiling_list:
+            for self.tile in self.tile_list:
+                for self.quality in self.quality_list:
                     self.progress_bar.update(f'{self.ctx}')
-                    for self.quality in self.quality_list:
-                        for self.chunk in self.chunk_list:
-                            yield
-                    self.quality = self.chunk = None
+                    for self.chunk in self.chunk_list:
+                        yield
+                    self.chunk = None
 
     def init(self):
         self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
-        if self.chunk_quality_paths.chunk_quality_result_pickle.exists():
-            print_error('file exists')
-            exit(0)
 
     def main(self):
-        chunk_quality_result = []
-        for _ in self.iter_name_proj_tiling_tile_qlt_chunk():
-            tile_chunk_quality_dict = self.get_chunk_quality()
-            metric_values = list(tile_chunk_quality_dict.values())
-            key = [self.name, self.projection, self.tiling,
-                   int(self.tile), int(self.quality),
-                   int(self.chunk) - 1] + metric_values
-            chunk_quality_result.append(key)
-        result = pd.DataFrame(chunk_quality_result, columns=['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'ssim', 'mse', 's-mse', 'ws-mse'])
-        result.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk'], inplace=True)
-        for self.metric in self.metric_list:
-            save_pickle(result[self.metric], self.chunk_quality_paths.chunk_quality_result_pickle)
+        for self.name in self.name_list:
+            if self.chunk_quality_paths.chunk_quality_result_pickle.exists():
+                print_error(f'{self.chunk_quality_paths.chunk_quality_result_pickle} exists')
+                continue
+
+            chunk_quality_result = []
+
+            for _ in self.iter_proj_tiling_tile_qlt_chunk():
+                tile_chunk_quality_dict = self.get_chunk_quality()
+                self.set_chunk_quality(chunk_quality_result,
+                                       tile_chunk_quality_dict)
+
+            result = pd.DataFrame(chunk_quality_result,
+                                  columns=['name', 'projection', 'tiling',
+                                           'tile', 'quality', 'chunk', 'ssim',
+                                           'mse', 's-mse', 'ws-mse'])
+            result.set_index(['name', 'projection', 'tiling', 'tile',
+                              'quality', 'chunk'], inplace=True)
+            for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
+                save_pickle(result[self.metric], self.chunk_quality_paths.chunk_quality_result_pickle)
 
     def get_chunk_quality(self):
         try:
@@ -77,6 +80,13 @@ class GetQuality(Worker, CtxInterface):
             self.logger.register_log('chunk_quality_json not found', self.chunk_quality_paths.chunk_quality_json)
             raise AbortError(f'{self.chunk_quality_paths.chunk_quality_json} not found.')
         return tile_chunk_quality_dict
+
+    def set_chunk_quality(self, chunk_quality_result, tile_chunk_quality_dict):
+        metric_values = list(tile_chunk_quality_dict.values())
+        key = [self.name, self.projection, self.tiling,
+               int(self.tile), int(self.quality),
+               int(self.chunk) - 1] + metric_values
+        chunk_quality_result.append(key)
 
 
 class MakePlot(GetQuality):
