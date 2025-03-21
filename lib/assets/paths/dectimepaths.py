@@ -31,4 +31,4 @@ class DectimePaths(CtxInterface):
 
     @property
     def dectime_result_pickle(self) -> Path:
-        return self.base_paths.results_folder / f'dectime/dectime.pickle'
+        return self.base_paths.results_folder / f'dectime/dectime_{self.name}.pickle'
