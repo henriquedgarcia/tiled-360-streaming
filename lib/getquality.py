@@ -53,6 +53,7 @@ class GetQuality(Worker, CtxInterface):
 
     def main(self):
         for self.name in self.name_list:
+            self.metric = 'mse'
             if self.chunk_quality_paths.chunk_quality_result_pickle.exists():
                 print_error(f'{self.chunk_quality_paths.chunk_quality_result_pickle} exists')
                 continue
