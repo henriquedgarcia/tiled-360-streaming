@@ -61,7 +61,7 @@ class BasePaths:
         return self.project_path / 'siti'
 
     @property
-    def get_tiles_folder(self):
+    def seen_tiles_folder(self):
         return self.project_path / 'get_tiles'
 
     @property
