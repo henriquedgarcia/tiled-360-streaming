@@ -9,7 +9,7 @@ from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
 from lib.assets.errors import GetTilesOkError, HMDDatasetError, AbortError
-from lib.assets.paths.gettilespaths import GetTilesPaths
+from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task, timer
 from lib.utils.util import build_projection, print_error, save_json, load_json, splitx, get_nested_value
@@ -23,7 +23,7 @@ from lib.utils.util import build_projection, print_error, save_json, load_json, 
 
 class GetTiles(Worker):
     projection_dict: dict['str', dict['str', ProjectionBase]]
-    get_tiles_paths: GetTilesPaths
+    get_tiles_paths: SeenTilesPaths
     tiles_seen: dict
 
     def main(self):
@@ -31,7 +31,7 @@ class GetTiles(Worker):
         self.process()
 
     def init(self):
-        self.get_tiles_paths = GetTilesPaths(self.ctx)
+        self.get_tiles_paths = SeenTilesPaths(self.ctx)
         self.create_projections_dict()
 
     def process(self):
@@ -54,7 +54,7 @@ class GetTiles(Worker):
                                'chunks': tiles_seen_by_chunk}
 
     def save_tiles_seen(self):
-        save_json(self.tiles_seen, self.get_tiles_paths.user_tiles_seen_json)
+        save_json(self.tiles_seen, self.get_tiles_paths.user_seen_tiles_json)
 
     def create_projections_dict(self):
         self.projection_dict = AutoDict()
@@ -87,12 +87,12 @@ class GetTiles(Worker):
 
     def check_get_tiles(self):
         try:
-            size = self.get_tiles_paths.user_tiles_seen_json.stat().st_size
+            size = self.get_tiles_paths.user_seen_tiles_json.stat().st_size
         except FileNotFoundError:
             return
 
         if size == 0:
-            self.get_tiles_paths.user_tiles_seen_json.unlink(missing_ok=True)
+            self.get_tiles_paths.user_seen_tiles_json.unlink(missing_ok=True)
             return
 
         raise AbortError('Get tiles is OK.')
@@ -139,7 +139,7 @@ class GetTiles(Worker):
     def count_tiles(self):
         if self.get_tiles_paths.counter_tiles_json.exists(): return
 
-        self.results = load_json(self.get_tiles_paths.get_tiles_result_json)
+        self.results = load_json(self.get_tiles_paths.seen_tiles_result_json)
         result = {}
 
         for self.tiling in self.tiling_list:
@@ -220,7 +220,7 @@ class TestGetTiles(GetTiles):
 
     def init(self):
         super().init()
-        self.results = load_json(self.get_tiles_paths.get_tiles_result_json)
+        self.results = load_json(self.get_tiles_paths.seen_tiles_result_json)
         pass
 
     seen_tiles_metric: dict
