@@ -70,11 +70,11 @@ class CreateJson(GetTiles):
                 for self.tiling in self.tiling_list:
                     for self.user in self.users_list:
                         self.for_each_user()
-            save_json(self.results, self.get_tiles_paths.get_tiles_result_json)
+            save_json(self.results, self.get_tiles_paths.seen_tiles_result_json)
 
     def for_each_user(self):
         print(f'==== CreateJson {self.ctx} ====')
-        tiles_seen = load_json(self.get_tiles_paths.user_tiles_seen_json)
+        tiles_seen = load_json(self.get_tiles_paths.user_seen_tiles_json)
         self.results.update(tiles_seen)
 
 
@@ -93,7 +93,7 @@ class HeatMap(GetTiles):
 
         filename = (f'heatmap_tiling_nasrabadi_28videos_{self.projection}_{self.name}_'
                     f'{self.tiling}_fov{self.config.fov}.png')
-        heatmap_tiling = (self.get_tiles_paths.get_tiles_folder / filename)
+        heatmap_tiling = (self.get_tiles_paths.seen_tiles_folder / filename)
         if heatmap_tiling.exists(): return
 
         tiling_result = results[self.tiling]
@@ -123,7 +123,7 @@ class TestGetTiles(GetTiles):
 
     def init(self):
         super().init()
-        self.results = load_json(self.get_tiles_paths.get_tiles_result_json)
+        self.results = load_json(self.get_tiles_paths.seen_tiles_result_json)
         pass
 
     seen_tiles_metric: dict
@@ -181,7 +181,7 @@ class TestGetTiles(GetTiles):
         fig.suptitle(f'{self.name} {self.projection} {self.tiling} - user {self.user}')
         fig.tight_layout()
         # fig.show()
-        img_name = self.get_tiles_paths.get_tiles_folder / f'{self.tiling}_user{self.user}.png'
+        img_name = self.get_tiles_paths.seen_tiles_folder / f'{self.tiling}_user{self.user}.png'
         fig.savefig(img_name)
         plt.close(fig)
 
