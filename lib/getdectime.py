@@ -42,8 +42,7 @@ class GetDectime(Worker, CtxInterface):
             dectime_result = []
             for _ in self.iter_proj_tiling_tile_qlt_chunk():
                 dectime = self.get_dectime()
-                self.set_dectime(dectime_result,
-                                 dectime)
+                self.set_dectime(dectime_result, dectime)
 
             result = pd.DataFrame(dectime_result,
                                   columns=['name', 'projection', 'tiling', 'tile',
