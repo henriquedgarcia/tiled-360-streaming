@@ -40,7 +40,7 @@ done
 # 7 - GetBitrate
 # 8 - GetDectime
 # 9 - GetQuality
-# 10 - GetGetTiles
+# 10 - GetSeenTiles
 # 11 - ViewportQuality
 
 # NAMES_LIST
