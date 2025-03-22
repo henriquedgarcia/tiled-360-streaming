@@ -3,7 +3,7 @@ from pathlib import Path
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
-from lib.assets.paths.gettilespaths import GetTilesPaths
+from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 
@@ -13,7 +13,7 @@ class ViewportQualityPaths(CtxInterface):
         self.ctx = ctx
         self.base_paths = BasePaths(ctx)
         self.decodable_paths = MakeDecodablePaths(ctx)
-        self.get_tiles_paths = GetTilesPaths(self.ctx)
+        self.get_tiles_paths = SeenTilesPaths(self.ctx)
         self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
 
     @property
@@ -45,7 +45,7 @@ class ViewportQualityPaths(CtxInterface):
         """
         Need name fov
         """
-        return self.get_tiles_paths.get_tiles_result_json
+        return self.get_tiles_paths.seen_tiles_result_json
 
     @property
     def decodable_chunk(self) -> Path:
