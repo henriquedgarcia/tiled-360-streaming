@@ -44,6 +44,7 @@ class ViewportQuality(Worker, CtxInterface):
         self.collect_result()
 
     def make_uvfq_by_chunk(self):
+        self.projection = 'cmp'
         for self.name in self.name_list:
             self.load_get_tiles()
 
@@ -126,7 +127,6 @@ class ViewportQuality(Worker, CtxInterface):
 
     def init(self):
         self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
-        self.projection = 'cmp'
 
     def start_ui(self, total, desc):
         self.ui = ProgressBar(total=total, desc=desc)
