@@ -26,45 +26,50 @@ class MakeSiti(Worker, CtxInterface):
 
     def main(self):
         self.init()
-        for self.name in self.name_list:
-            with task(self):
-                self.calc_siti()
+        # for self.name in self.name_list:
+        #     with task(self):
+        #         self.calc_siti()
 
         for self.name in self.name_list:
-            with task(self):
-                self.calc_stats()
+            self.tiling = '3x2'
+            for self.tile in self.tile_list:
+                with task(self):
+                    self.calc_siti()
 
-        for self.name in self.name_list:
-            with task(self):
-                self.scatter_plot_siti()
-                self.plot_siti()
+        # for self.name in self.name_list:
+        #     with task(self):
+        #         self.calc_stats()
+        #
+        # for self.name in self.name_list:
+        #     with task(self):
+        #         self.scatter_plot_siti()
+        #         self.plot_siti()
 
     def init(self):
         self.make_siti_paths = MakeSitiPaths(self.ctx)
         self.projection = 'cmp'
         self.tiling = '1x1'
         self.tile = '0'
-        self.quality = '0'
+        self.quality = '28'
 
     def calc_siti(self):
-        if self.siti_results.exists():
-            new_name = self.siti_stats.with_suffix('.json')
-            self.siti_stats.rename(new_name)
-            return
+        if self.siti_csv_results.exists():
+            raise AbortError(f'{self.name} siti_csv_results exist. Skipping.')
 
         if not self.tile_video.exists():
             self.logger.register_log('compressed_file NOT_FOUND', self.tile_video)
             raise AbortError(f'compressed_file not exist. Skipping.')
 
         siti = SiTi(self.tile_video)
-        save_json(siti.siti, self.siti_results)
+        df = pd.DataFrame(siti.siti)
+        df.to_csv(self.siti_csv_results, index_label='frame')
 
     def calc_stats(self):
         if self.siti_stats.exists():
             print(f'{self.siti_stats} - the file exist')
             return
 
-        siti_results = load_json(self.siti_results)
+        siti_results = load_json(self.siti_csv_results)
 
         si = siti_results['si']
         ti = siti_results['ti']
@@ -106,7 +111,7 @@ class MakeSiti(Worker, CtxInterface):
                                                figsize=(8, 6),
                                                dpi=300)
 
-            siti_results = load_json(self.siti_results)
+            siti_results = load_json(self.siti_csv_results)
             name = self.name.replace('_nas',
                                      '')
             si = siti_results[self.name]['si']
@@ -146,7 +151,7 @@ class MakeSiti(Worker, CtxInterface):
                     self.video = name.replace('_nas',
                                               f'_{proj}_nas')
 
-                    siti_results_df = pd.read_csv(self.siti_results)
+                    siti_results_df = pd.read_csv(self.siti_csv_results)
                     si = siti_results_df['si']
                     ti = siti_results_df['ti']
                     ax1.plot(si,
@@ -241,15 +246,15 @@ class MakeSiti(Worker, CtxInterface):
 
     @property
     def siti_plot(self):
-        return self.make_siti_paths.siti_plot
+        return self.make_siti_paths.siti_all_plot
 
     @property
     def siti_folder(self):
         return self.make_siti_paths.siti_folder
 
     @property
-    def siti_results(self):
-        return self.make_siti_paths.siti_results
+    def siti_csv_results(self):
+        return self.make_siti_paths.siti_csv_results
 
     @property
     def siti_stats(self):
