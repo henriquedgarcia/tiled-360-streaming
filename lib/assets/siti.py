@@ -38,8 +38,16 @@ class SiTi:
         :param frame: A luma video frame in numpy ndarray format.
         :return: spatial information and sobel frame.
         """
+        from PIL import Image
         sob_y = ndimage.sobel(frame, axis=0)
         sob_x = ndimage.sobel(frame, axis=1, mode="wrap")
+
+        def f(sob):
+            pos = sob - sob.min()
+            nor = pos / pos.max()
+            img = nor * 255
+            Image.fromarray(img).show()
+
         sobel = np.hypot(sob_y, sob_x)
         si = sobel.std()
         return si
