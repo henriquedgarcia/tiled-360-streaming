@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import matplotlib as mpl
 
-mpl.use("Qt5Agg")
+# mpl.use("Qt5Agg")
 import argparse
 from pathlib import Path
 
