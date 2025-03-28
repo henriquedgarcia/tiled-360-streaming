@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import matplotlib as mpl
 
 # mpl.use("Qt5Agg")
 import argparse
@@ -9,16 +8,16 @@ from config.config import Config
 from lib.assets.context import Context
 from lib.assets.worker import Worker
 from lib.decode import Decode
+from lib.get_bitrate import GetBitrate
+from lib.get_seen_tiles import GetSeenTiles
 from lib.get_tiles import GetTiles
+from lib.getdectime import GetDectime
+from lib.getquality import GetQuality
+from lib.make_siti import MakeSiti
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
-from lib.maketiles import MakeTiles
 from lib.makequality import TileQuality
-from lib.make_siti import MakeSiti
-from lib.getdectime import GetDectime
-from lib.get_bitrate import GetBitrate
-from lib.getquality import GetQuality
-from lib.get_seen_tiles import GetSeenTiles
+from lib.maketiles import MakeTiles
 from lib.makeviewportquality import ViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
