@@ -1,16 +1,14 @@
 from pathlib import Path
 
 from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.utils.context_utils import context_quality
 
 
-class ChunkQualityPaths(CtxInterface):
+class ChunkQualityPaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.base_paths = BasePaths(context)
         self.make_decodable_paths = MakeDecodablePaths(context)
 
     @property
@@ -25,15 +23,15 @@ class ChunkQualityPaths(CtxInterface):
 
     @property
     def chunk_quality_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'quality/chunk_quality_{self.name}.json'
+        return self.results_folder / f'quality/chunk_quality_{self.name}.json'
 
     @property
     def chunk_quality_result_pickle(self) -> Path:
-        return self.base_paths.results_folder / f'quality/{self.metric}_{self.name}.pickle'
+        return self.results_folder / f'quality/{self.metric}_{self.name}.pickle'
 
     @property
     def chunk_quality_folder(self) -> Path:
-        folder = self.base_paths.quality_folder / self.base_paths.basename_lv4
+        folder = self.quality_folder / self.folder_name_proj_tiling_tile
         return folder
 
     @property
@@ -43,5 +41,5 @@ class ChunkQualityPaths(CtxInterface):
 
     @property
     def quality_result_img(self) -> Path:
-        folder = self.base_paths.quality_folder / '_metric plots' / f'{self.name}'
+        folder = self.quality_folder / '_metric plots' / f'{self.name}'
         return folder / f'{self.tiling}_crf{self.quality}.png'
