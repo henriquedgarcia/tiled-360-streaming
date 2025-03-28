@@ -1,15 +1,13 @@
 from pathlib import Path
 
 from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.maketilespaths import MakeTilesPaths
 
 
-class MakeDashPaths(CtxInterface):
+class MakeDashPaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.base_paths = BasePaths(context)
         self.make_tiles_paths = MakeTilesPaths(context)
 
     @property
@@ -18,11 +16,11 @@ class MakeDashPaths(CtxInterface):
 
     @property
     def mp4box_log(self) -> Path:
-        return self.base_paths.dash_folder / self.base_paths.basename_lv3 / f'tile{self.tile}_segmenter.log'
+        return self.dash_folder / self.folder_name_proj_tiling / f'tile{self.tile}_segmenter.log'
 
     @property
     def mpd_folder(self) -> Path:
-        return self.base_paths.dash_folder / self.base_paths.basename_lv4
+        return self.dash_folder / self.folder_name_proj_tiling_tile
 
     @property
     def dash_mpd(self) -> Path:
@@ -38,8 +36,8 @@ class MakeDashPaths(CtxInterface):
 
     @property
     def bitrate_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'bitrate/bitrate_{self.name}.json'
+        return self.results_folder / f'bitrate/bitrate_{self.name}.json'
 
     @property
     def bitrate_result_pickle(self) -> Path:
-        return self.base_paths.results_folder / f'bitrate/bitrate_{self.name}.pickle'
+        return self.results_folder / f'bitrate/bitrate_{self.name}.pickle'
