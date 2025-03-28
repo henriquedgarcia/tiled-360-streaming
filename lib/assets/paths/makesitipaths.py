@@ -1,24 +1,19 @@
 from pathlib import Path
-from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
+
 from lib.assets.paths.basepaths import BasePaths
-from lib.assets.paths.maketilespaths import MakeTilesPaths
 
 
-class MakeSitiPaths(CtxInterface):
-    def __init__(self, ctx: Context):
-        self.ctx = ctx
-        self.base_paths = BasePaths(ctx)
-        self.make_tiles_paths = MakeTilesPaths(ctx)
-
-    @property
-    def siti_folder(self) -> Path:
-        self.base_paths.siti_folder.mkdir(exist_ok=True, parents=True)
-        return self.base_paths.siti_folder
-
+class MakeSitiPaths(BasePaths):
     @property
     def siti_stats(self) -> Path:
-        return self.siti_folder / f'siti_stats.csv'
+        folder = self.siti_folder / 'siti_stats'
+        folder.mkdir(exist_ok=True, parents=True)
+        return folder / f'siti_stats.csv'
+
+    @property
+    def siti_result_pickle(self) -> Path:
+        folder = self.results_folder
+        return folder / f'siti.pickle'
 
     @property
     def siti_all_plot(self) -> Path:
