@@ -1,10 +1,10 @@
 {
+  "closet_tour": {
+    "offset": "0:07",
+    "group": "FS"
+  },
   "nyc_drive": {
     "offset": "0:12",
     "group": "HM"
-  },
-  "penthouse": {
-    "offset": "0:04",
-    "group": "RS"
   }
 }
