@@ -1,21 +1,17 @@
 from pathlib import Path
 
-import pandas as pd
 
 from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
-from lib.assets.ctxinterface import CtxInterface
 
 
-class UserQualityPaths(CtxInterface):
+class UserQualityPaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.config = context.config
-        self.base_paths = BasePaths(context)
 
     @property
     def user_quality_folder(self) -> Path:
-        folder = (self.base_paths.user_quality_folder / 'user_quality'
+        folder = (self.user_quality_folder / 'user_quality'
                   / self.name / self.projection / self.quality / self.tiling)
         return folder
 
@@ -26,7 +22,7 @@ class UserQualityPaths(CtxInterface):
 
     @property
     def counter_tiles_folder(self) -> Path:
-        folder = (self.base_paths.user_quality_folder / 'counter_tiles'
+        folder = (self.user_quality_folder / 'counter_tiles'
                   / self.name / self.projection / self.quality / self.tiling)
         return folder
 
@@ -37,18 +33,18 @@ class UserQualityPaths(CtxInterface):
 
     @property
     def heatmap_folder(self) -> Path:
-        folder = (self.base_paths.user_quality_folder / 'heatmap'
+        folder = (self.user_quality_folder / 'heatmap'
                   / self.name / self.projection / self.quality / self.tiling)
         return folder
 
     @property
     def heatmap_tiling(self):
-        filename = f'heatmap_tiling_fov{self.config.fov}.png'
+        filename = f'heatmap_tiling_fov{self.fov}.png'
         return self.heatmap_folder / filename
 
     @property
     def video_test_folder(self):
-        folder = (self.base_paths.user_quality_folder / 'video_test'
+        folder = (self.user_quality_folder / 'video_test'
                   / self.name / self.projection / self.quality / self.tiling)
         return folder
 
