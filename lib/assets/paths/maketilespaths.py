@@ -1,18 +1,16 @@
 from pathlib import Path
 
 from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
 
 
-class MakeTilesPaths(CtxInterface):
+class MakeTilesPaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.base_paths = BasePaths(context)
 
     @property
     def lossless_video(self) -> Path:
-        return self.base_paths.lossless_folder / self.projection / f'{self.name}.mp4'
+        return self.lossless_folder / self.projection / f'{self.name}.mp4'
 
     @property
     def lossless_log(self) -> Path:
@@ -20,7 +18,7 @@ class MakeTilesPaths(CtxInterface):
 
     @property
     def tile_folder(self) -> Path:
-        folder = self.base_paths.tiles_folder / self.base_paths.basename_lv4
+        folder = self.tiles_folder / self.folder_name_proj_tiling_tile
         return folder
 
     @property
