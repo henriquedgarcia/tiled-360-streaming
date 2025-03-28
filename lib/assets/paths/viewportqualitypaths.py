@@ -1,27 +1,18 @@
 from pathlib import Path
 
 from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.paths.basepaths import BasePaths
-from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
+from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 
 
-class ViewportQualityPaths(CtxInterface):
+class ViewportQualityPaths(BasePaths):
     def __init__(self, ctx: Context):
         self.ctx = ctx
-        self.base_paths = BasePaths(ctx)
         self.decodable_paths = MakeDecodablePaths(ctx)
         self.get_tiles_paths = SeenTilesPaths(self.ctx)
         self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
-
-    @property
-    def viewport_quality_folder(self) -> Path:
-        """
-        Need None
-        """
-        return self.base_paths.viewport_quality_folder
 
     @property
     def user_viewport_quality_json(self) -> Path:
@@ -38,7 +29,7 @@ class ViewportQualityPaths(CtxInterface):
         Need name tiling user quality chunk
         """
 
-        return self.base_paths.results_folder / f'user_viewport_quality/user_viewport_quality_{self.name}.json'
+        return self.results_folder / f'user_viewport_quality/user_viewport_quality_{self.name}.json'
 
     @property
     def get_tiles_result_json(self) -> Path:
