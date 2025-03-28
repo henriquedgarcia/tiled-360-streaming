@@ -522,7 +522,7 @@ def build_projection(proj_name, proj_res, tiling, vp_res, fov_res) -> Projection
     return projection
 
 
-def iter_video(video_path: Path, gray=True, dtype=float):
+def iter_video(video_path: Path, gray=True, dtype='float64'):
     cap = cv2.VideoCapture(f'{video_path}')
     while True:
         ok, frame = cap.read()
