@@ -1,12 +1,11 @@
 from pathlib import Path
 
-from lib.assets.context import Context
+from config.config import Config
+from lib.assets.ctxinterface import CtxInterface
 
 
-class BasePaths:
-    def __init__(self, ctx: Context):
-        self.ctx = ctx
-        self.config = ctx.config
+class BasePaths(CtxInterface):
+    config: Config
 
     @property
     def project_path(self):
@@ -25,7 +24,7 @@ class BasePaths:
         return self.project_path / 'dash'
 
     @property
-    def decodable_folder(self):
+    def decodable_folder0(self):
         return self.project_path / 'decodable'
 
     @property
@@ -65,21 +64,21 @@ class BasePaths:
         return self.project_path / 'get_tiles'
 
     @property
-    def basename_lv1(self):
-        return Path(f'{self.ctx.name}')
+    def folder_name(self):
+        return Path(f'{self.name}')
 
     @property
-    def basename_lv2(self):
-        return self.basename_lv1 / Path(f'{self.ctx.projection}')
+    def folder_name_proj(self):
+        return self.folder_name / Path(f'{self.projection}')
 
     @property
-    def basename_lv3(self):
-        return self.basename_lv2 / Path(f'{self.ctx.tiling}')
+    def folder_name_proj_tiling(self):
+        return self.folder_name_proj / Path(f'{self.tiling}')
 
     @property
-    def basename_lv4(self):
-        return self.basename_lv3 / Path(f'tile{self.ctx.tile}')
+    def folder_name_proj_tiling_tile(self):
+        return self.folder_name_proj_tiling / Path(f'tile{self.tile}')
 
     @property
-    def basename_lv5(self):
-        return self.basename_lv4 / Path(f'{self.config.rate_control}{self.ctx.quality}')
+    def folder_name_proj_tiling_tile_qlt(self):
+        return self.folder_name_proj_tiling_tile / Path(f'{self.config.rate_control}{self.quality}')
