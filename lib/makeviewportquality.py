@@ -82,14 +82,14 @@ class ViewportQuality(Worker, CtxInterface):
             save_json(result, self.viewport_quality_paths.user_viewport_quality_result_json)
 
     def worker(self):
-        self.start_ui(30, f'{self}')
         self.check_viewport_quality()
+        self.start_ui(30, f'{self.__class__.__name__}')
 
         tile_ref_frame_reader = self.make_ref_vreader()
         tile_deg_frame_reader = self.make_deg_vreader()
 
         for self.frame in range(30):
-            self.ui.update(f'frame{self.frame:02d}')
+            self.ui.update(f'{self}')
 
             _mse, _ssim = self.calc_error(tile_deg_frame_reader,
                                           tile_ref_frame_reader)
