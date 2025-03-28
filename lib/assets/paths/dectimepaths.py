@@ -3,18 +3,16 @@ from pathlib import Path
 from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
-from lib.assets.ctxinterface import CtxInterface
 
 
-class DectimePaths(CtxInterface):
+class DectimePaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.base_paths = BasePaths(context)
         self.decodable_paths = MakeDecodablePaths(context)
 
     @property
     def dectime_folder(self) -> Path:
-        return self.base_paths.dectime_folder / self.base_paths.basename_lv5
+        return self.dectime_folder / self.folder_name_proj_tiling_tile_qlt
 
     @property
     def dectime_log(self) -> Path:
@@ -27,8 +25,8 @@ class DectimePaths(CtxInterface):
 
     @property
     def dectime_result_json(self) -> Path:
-        return self.base_paths.results_folder / f'dectime/time_{self.ctx.name}.json'
+        return self.results_folder / f'dectime/time_{self.ctx.name}.json'
 
     @property
     def dectime_result_pickle(self) -> Path:
-        return self.base_paths.results_folder / f'dectime/dectime_{self.name}.pickle'
+        return self.results_folder / f'dectime/dectime_{self.name}.pickle'
