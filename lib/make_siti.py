@@ -1,58 +1,68 @@
-import json
 from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.makesitipaths import MakeSitiPaths
+from lib.assets.paths.maketilespaths import MakeTilesPaths
+from lib.assets.siti import SiTi
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.assets.siti import SiTi
-from lib.utils.util import save_json, load_json
+from lib.utils.util import load_json
 
 
-def save_siti(results, results_file):
-    if not results_file.parent.exists(): results_file.parent.mkdir(exist_ok=True, parents=True)
-    results_file.write_text(json.dumps(results, indent=2))
-
-
-class MakeSiti(Worker, CtxInterface):
+class MakeSiti(Worker, MakeSitiPaths, MakeTilesPaths):
     siti: SiTi = None
-    make_siti_paths: MakeSitiPaths = None
     siti_results_df: pd.DataFrame = None
 
+    def init(self):
+        self.projection = 'cmp'
+        self.tiling = '3x2'
+        self.tile = '0'
+        self.quality = '28'
+        self.make_tiles_paths = MakeTilesPaths(self.ctx)
+
     def main(self):
-        self.init()
         # for self.name in self.name_list:
         #     with task(self):
         #         self.calc_siti()
 
         for self.name in self.name_list:
-            self.tiling = '3x2'
             for self.tile in self.tile_list:
                 with task(self):
                     self.calc_siti()
 
+        siti_stats = defaultdict(list)
+        self.dict = defaultdict(list)
+        for self.name in self.name_list:
+            for self.tile in self.tile_list:
+                with task(self):
+                    self.calc_stats(siti_stats)
+        pd.DataFrame(siti_stats).to_csv(self.siti_stats, index=False)
+        new_df = pd.DataFrame(self.dict)
+        new_df.set_index(['name', 'projection', 'tiling', 'tile', 'quality', 'frame'], inplace=True)
+        new_df.to_pickle(self.siti_result_pickle)
         # for self.name in self.name_list:
         #     with task(self):
         #         self.calc_stats()
-        #
+
         # for self.name in self.name_list:
         #     with task(self):
         #         self.scatter_plot_siti()
         #         self.plot_siti()
 
-    def init(self):
-        self.make_siti_paths = MakeSitiPaths(self.ctx)
-        self.projection = 'cmp'
-        self.tiling = '1x1'
-        self.tile = '0'
-        self.quality = '28'
+    make_tiles_paths: MakeTilesPaths
 
     def calc_siti(self):
+        self.assert_requisites()
+
+        siti = SiTi(self.tile_video)
+        df = pd.DataFrame(siti.siti)
+        df.to_csv(self.siti_csv_results, index_label='frame')
+
+    def assert_requisites(self):
         if self.siti_csv_results.exists():
             raise AbortError(f'{self.name} siti_csv_results exist. Skipping.')
 
@@ -60,26 +70,29 @@ class MakeSiti(Worker, CtxInterface):
             self.logger.register_log('compressed_file NOT_FOUND', self.tile_video)
             raise AbortError(f'compressed_file not exist. Skipping.')
 
-        siti = SiTi(self.tile_video)
-        df = pd.DataFrame(siti.siti)
-        df.to_csv(self.siti_csv_results, index_label='frame')
+    def calc_stats(self, siti_stats):
+        # if self.siti_stats.exists():
+        #     print(f'{self.siti_stats} - the file exist')
+        #     return
 
-    def calc_stats(self):
-        if self.siti_stats.exists():
-            print(f'{self.siti_stats} - the file exist')
-            return
-
-        siti_results = load_json(self.siti_csv_results)
+        siti_results = pd.read_csv(self.siti_csv_results, index_col=0)
 
         si = siti_results['si']
         ti = siti_results['ti']
+        for frame, (si_, ti_) in enumerate(zip(si, ti)):
+            self.dict['name'].append(self.name)
+            self.dict['projection'].append(self.projection)
+            self.dict['tiling'].append(self.tiling)
+            self.dict['tile'].append(self.tile)
+            self.dict['quality'].append(self.quality)
+            self.dict['frame'].append(frame)
+            self.dict['si'].append(si_)
+            self.dict['ti'].append(ti_)
         bitrate = self.tile_video.stat().st_size * 8 / 60
 
-        siti_stats = defaultdict(list)
         siti_stats['group'].append(self.group)
-        siti_stats['proj'].append(self.projection)
-        siti_stats['video'].append(self.name)
         siti_stats['name'].append(self.name)
+        siti_stats['proj'].append(self.projection)
         siti_stats['tiling'].append(self.tiling)
         siti_stats['tile'].append(self.tile)
         siti_stats['quality'].append(self.quality)
@@ -95,9 +108,7 @@ class MakeSiti(Worker, CtxInterface):
         siti_stats['ti_max'].append(np.max(ti))
         siti_stats['ti_min'].append(np.min(ti))
         siti_stats['ti_med'].append(np.median(ti))
-
-        if self.name == self.name_list[-1]:
-            pd.DataFrame(siti_stats).to_csv(self.siti_stats, index=False)
+        siti_stats['corr'].append(np.corrcoef(si, ti)[0, 1])
 
     def plot_siti(self):
         def plot1():
@@ -137,7 +148,7 @@ class MakeSiti(Worker, CtxInterface):
                            fontsize='small')
                 fig.tight_layout()
                 fig.subplots_adjust(right=0.78)
-                fig.savefig(self.siti_plot)
+                fig.savefig(self.siti_all_plot)
                 fig.show()
 
         def plot2():
@@ -245,21 +256,5 @@ class MakeSiti(Worker, CtxInterface):
         fig_cmp.savefig(self.siti_folder / 'scatter_CMP.png')
 
     @property
-    def siti_plot(self):
-        return self.make_siti_paths.siti_all_plot
-
-    @property
-    def siti_folder(self):
-        return self.make_siti_paths.siti_folder
-
-    @property
-    def siti_csv_results(self):
-        return self.make_siti_paths.siti_csv_results
-
-    @property
-    def siti_stats(self):
-        return self.make_siti_paths.siti_stats
-
-    @property
     def tile_video(self):
-        return self.make_siti_paths.make_tiles_paths.tile_video
+        return self.make_tiles_paths.tile_video
