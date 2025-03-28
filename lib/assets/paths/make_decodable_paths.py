@@ -6,15 +6,14 @@ from lib.assets.paths.basepaths import BasePaths
 from lib.assets.paths.makedashpaths import MakeDashPaths
 
 
-class MakeDecodablePaths(CtxInterface):
+class MakeDecodablePaths(BasePaths):
     def __init__(self, context: Context):
         self.ctx = context
-        self.base_paths = BasePaths(context)
         self.make_dash_paths = MakeDashPaths(context)
 
     @property
     def decodable_folder(self) -> Path:
-        return self.base_paths.decodable_folder / self.base_paths.basename_lv5
+        return self.decodable_folder0 / self.folder_name_proj_tiling_tile_qlt
 
     @property
     def decodable_chunk(self) -> Path:
