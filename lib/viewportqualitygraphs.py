@@ -156,10 +156,12 @@ class ViewportQualityGraphs(ViewportQualityProps):
 
         for self.name in self.name_list:
             self._get_tiles_data = load_json(self.get_tiles_json)
-            self.erp_list = {tiling: ERP(tiling=tiling,
-                                         proj_res=self.resolution,
-                                         fov=self.fov)
-                             for tiling in self.tiling_list}
+            self.erp_list = {}
+            for tiling in self.tiling_list:
+                self.erp_list = {tiling: ERP(tiling=tiling,
+                                             proj_res=self.resolution,
+                                             fov=self.fov)
+                                 for tiling in self.tiling_list}
             for self.tiling in self.tiling_list:
                 self.projection_obj = self.erp_list[self.tiling]
                 self.tile_h, self.tile_w = self.erp.tile_shape[:2]
