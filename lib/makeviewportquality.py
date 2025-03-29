@@ -1,25 +1,25 @@
+from abc import ABC
 from collections import defaultdict
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Iterable
 
 import numpy as np
 from py360tools import ProjectionBase
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
 from lib.assets.autodict import AutoDict
-from lib.assets.ctxinterface import CtxInterface
-from lib.assets.errors import AbortError
 from lib.assets.mountframe import MountFrame
+from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
+from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
+from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import build_projection, print_error, save_json, load_json, get_nested_value, set_nested_value
+from lib.utils.util import build_projection, save_json, load_json, get_nested_value, set_nested_value
 
 
-class ViewportQuality(Worker, CtxInterface):
-    viewport_quality_paths: ViewportQualityPaths
-
+class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
+            SeenTilesPaths, ChunkQualityPaths, ABC):
     results: dict
 
     proj_obj: ProjectionBase
@@ -32,70 +32,95 @@ class ViewportQuality(Worker, CtxInterface):
     seen_tiles_ref_path: dict[str, Path]
     canvas: np.ndarray
     ui: ProgressBar
-    yaw_pitch_roll_iter: Iterator
+    projection = 'cmp'
+    get_tiles: dict
+    proj_obj: dict[str, ProjectionBase]
+    results: defaultdict
+    yaw_pitch_roll_iter: Iterable
+    hmd_dataset = None
+
+    @property
+    def yaw_pitch_roll_by_frame(self) -> list:
+        chunk = int(self.chunk) - 1
+        start = chunk * 30
+        return self.user_hmd_data[slice(start, start + 30)]
+
+    @property
+    def seen_tiles(self):
+        keys = [self.name, self.projection, self.tiling, self.user]
+        return get_nested_value(self.get_tiles, keys)['chunks'][self.chunk]
+
+    @property
+    def user_hmd_data(self):
+        return self.hmd_dataset[self.name + '_nas'][self.user]
+
+
+class ViewportQuality(Props):
+    def init(self):
+        self.hmd_dataset = load_json(self.config.dataset_file)
+        self.get_tiles = load_json(self.seen_tiles_result_pickle)
+
+        self.proj_obj = {}
+        for self.tiling in self.tiling_list:
+            self.proj_obj[self.tiling] = build_projection(proj_name=self.projection,
+                                                          tiling=self.tiling,
+                                                          proj_res=self.config.config_dict['scale'][self.projection],
+                                                          vp_res='1320x1080',
+                                                          fov_res=self.fov)
 
     def main(self):
         """
         uvfq = User Viewport Frame Quality
         :return:
         """
-        self.init()
-        self.make_uvfq_by_chunk()
+        for _ in self.iter_name_user_tiling_chunk():
+            if self.user_viewport_quality_json.exists():
+                continue
+
+            self.results = defaultdict(list)
+            for self.quality in self.quality_list:
+                self.worker()
+            save_json(self.results, self.user_viewport_quality_json)
         self.collect_result()
 
-    def make_uvfq_by_chunk(self):
-        self.projection = 'cmp'
+    def iter_name_user_tiling_chunk(self):
         for self.name in self.name_list:
-            self.load_get_tiles()
-
-            for self.tiling in self.tiling_list:
-                self.create_projections()
-
-                for self.user in self.users_list:
-                    self.yaw_pitch_roll_iter = iter(self.user_hmd_data)
-
+            for self.user in self.users_list:
+                for self.tiling in self.tiling_list:
                     for self.chunk in self.chunk_list:
-                        self.update_seen_tiles()
-                        self.yaw_pitch_roll_by_frame = [next(self.yaw_pitch_roll_iter)
-                                                        for self.frame in range(30)]
+                        yield
 
-                        for self.quality in self.quality_list:
-                            with self.task():
-                                self.worker()
+    def worker(self):
+        tile_ref_frame_reader = self.make_ref_vreader()
+        tile_deg_frame_reader = self.make_deg_vreader()
+        self.ui = ProgressBar(total=30, desc=self.__class__.__name__)
+
+        for self.frame in range(30):
+            self.ui.update(f'{self}')
+            _mse, _ssim = self.calc_error(tile_deg_frame_reader,
+                                          tile_ref_frame_reader)
+            self.results['mse'].append(_mse)
+            self.results['ssim'].append(_ssim)
+
+        self.frame = None
 
     def collect_result(self):
-        self.projection = 'cmp'
         total = len(self.tiling_list) * 30 * len(self.quality_list) * 60
         for self.name in self.name_list:
-            if self.viewport_quality_paths.user_viewport_quality_result_json.exists(): continue
+            ui = ProgressBar(total=total, desc=self.__class__.__name__)
+            if self.user_viewport_quality_result_json.exists(): continue
+
             result = AutoDict()
-            self.start_ui(total, self.name)
             for self.tiling in self.tiling_list:
                 for self.user in self.users_list:
                     for self.quality in self.quality_list:
                         for self.chunk in self.chunk_list:
-                            self.update_ui('')
-                            chunk_results = load_json(self.viewport_quality_paths.user_viewport_quality_json)
+                            ui.update(f'{self}')
+                            chunk_results = load_json(self.user_viewport_quality_json)
                             keys = (self.name, self.projection, self.tiling, self.user, self.quality, self.chunk)
                             set_nested_value(result, keys, chunk_results)
 
-            save_json(result, self.viewport_quality_paths.user_viewport_quality_result_json)
-
-    def worker(self):
-        self.check_viewport_quality()
-        self.start_ui(30, f'{self.__class__.__name__}')
-
-        tile_ref_frame_reader = self.make_ref_vreader()
-        tile_deg_frame_reader = self.make_deg_vreader()
-
-        for self.frame in range(30):
-            self.ui.update(f'{self}')
-
-            _mse, _ssim = self.calc_error(tile_deg_frame_reader,
-                                          tile_ref_frame_reader)
-
-            self.results['mse'].append(_mse)
-            self.results['ssim'].append(_ssim)
+            save_json(result, self.user_viewport_quality_result_json)
 
     def calc_error(self, tile_deg_frame_reader, tile_ref_frame_reader):
         frame_proj_ref = tile_ref_frame_reader.get_frame()
@@ -114,61 +139,13 @@ class ViewportQuality(Worker, CtxInterface):
         return viewport_frame_deg, viewport_frame_ref
 
     def make_ref_vreader(self):
-        tiles_path = {self.tile: self.viewport_quality_paths.reference_chunk
+        tiles_path = {self.tile: self.reference_chunk
                       for self.tile in self.seen_tiles}
         tile_frame_reader = MountFrame(tiles_path, self.ctx)
         return tile_frame_reader
 
     def make_deg_vreader(self):
-        tiles_path = {self.tile: self.viewport_quality_paths.decodable_chunk
+        tiles_path = {self.tile: self.decodable_chunk
                       for self.tile in self.seen_tiles}
         tile_frame_reader = MountFrame(tiles_path, self.ctx)
         return tile_frame_reader
-
-    def init(self):
-        self.viewport_quality_paths = ViewportQualityPaths(self.ctx)
-
-    def start_ui(self, total, desc):
-        self.ui = ProgressBar(total=total, desc=desc)
-
-    def update_ui(self, desc):
-        self.ui.update(desc)
-
-    def close_ui(self):
-        del self.ui
-
-    def load_get_tiles(self):
-        self.get_tiles: dict = load_json(self.viewport_quality_paths.get_tiles_result_json)
-
-    def create_projections(self):
-        self.proj_obj = build_projection(proj_name=self.projection,
-                                         tiling=self.tiling,
-                                         proj_res=self.config.config_dict['scale'][self.projection],
-                                         vp_res='1320x1080',
-                                         fov_res=self.fov)
-
-    @contextmanager
-    def task(self):
-        try:
-            self.results = defaultdict(list)
-            yield
-        except AbortError as e:
-            print_error(f'\n\t{e.args[0]}')
-            return
-
-        save_json(self.results,
-                  self.viewport_quality_paths.user_viewport_quality_json)
-
-    def check_viewport_quality(self):
-        try:
-            size = self.viewport_quality_paths.user_viewport_quality_json.stat().st_size
-            if size == 0:
-                self.viewport_quality_paths.user_viewport_quality_json.unlink()
-                raise FileNotFoundError()
-            raise AbortError(f'The user_viewport_quality_json exist. Skipping')
-        except FileNotFoundError:
-            pass
-
-    def update_seen_tiles(self):
-        keys = [self.name, self.projection, self.tiling, self.user]
-        self.seen_tiles = get_nested_value(self.get_tiles, keys)['chunks'][self.chunk]
