@@ -1,10 +1,12 @@
 from pathlib import Path
 
 from config.config import Config
+from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 
 
 class BasePaths(CtxInterface):
+    ctx: Context
     config: Config
 
     @property
