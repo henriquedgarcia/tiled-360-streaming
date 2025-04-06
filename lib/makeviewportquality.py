@@ -7,7 +7,6 @@ import numpy as np
 from py360tools import ProjectionBase
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
-from lib.assets.autodict import AutoDict
 from lib.assets.mountframe import MountFrame
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
@@ -15,7 +14,7 @@ from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import build_projection, save_json, load_json, get_nested_value, set_nested_value
+from lib.utils.util import build_projection, save_json, load_json, get_nested_value, print_error
 
 
 class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
@@ -81,7 +80,6 @@ class ViewportQuality(Props):
             for self.quality in self.quality_list:
                 self.worker()
             save_json(self.results, self.user_viewport_quality_json)
-        self.collect_result()
 
     def iter_name_user_tiling_chunk(self):
         for self.name in self.name_list:
@@ -103,24 +101,6 @@ class ViewportQuality(Props):
             self.results['ssim'].append(_ssim)
 
         self.frame = None
-
-    def collect_result(self):
-        total = len(self.tiling_list) * 30 * len(self.quality_list) * 60
-        for self.name in self.name_list:
-            ui = ProgressBar(total=total, desc=self.__class__.__name__)
-            if self.user_viewport_quality_result_json.exists(): continue
-
-            result = AutoDict()
-            for self.tiling in self.tiling_list:
-                for self.user in self.users_list:
-                    for self.quality in self.quality_list:
-                        for self.chunk in self.chunk_list:
-                            ui.update(f'{self}')
-                            chunk_results = load_json(self.user_viewport_quality_json)
-                            keys = (self.name, self.projection, self.tiling, self.user, self.quality, self.chunk)
-                            set_nested_value(result, keys, chunk_results)
-
-            save_json(result, self.user_viewport_quality_result_json)
 
     def calc_error(self, tile_deg_frame_reader, tile_ref_frame_reader):
         frame_proj_ref = tile_ref_frame_reader.get_frame()
@@ -149,3 +129,17 @@ class ViewportQuality(Props):
                       for self.tile in self.seen_tiles}
         tile_frame_reader = MountFrame(tiles_path, self.ctx)
         return tile_frame_reader
+
+
+class CheckViewportQuality(ViewportQuality):
+    def init(self):
+        pass
+
+    def main(self):
+        total = len(self.tiling_list) * 30 * len(self.quality_list) * 60
+        ui = ProgressBar(total=total, desc=self.__class__.__name__)
+        for _ in self.iter_name_user_tiling_chunk():
+            ui.update(f'{self}')
+            if self.user_viewport_quality_json.exists(): continue
+            if self.chunk > '1': continue
+            print_error(f'Missing {self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}')
