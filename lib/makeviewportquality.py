@@ -4,17 +4,16 @@ from pathlib import Path
 from typing import Generator, Union, Any
 
 import numpy as np
-from numpy import ndarray
 from py360tools import CMP
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
-from lib.assets.videoprojectionreader import VideoProjectionReader
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
+from lib.assets.videoprojectionreader import VideoProjectionReader
 from lib.assets.worker import Worker
 from lib.utils.util import save_json, load_json, get_nested_value, print_error
 
@@ -78,11 +77,9 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
         for self.tile in self.seen_tiles:
             if not self.decodable_chunk.exists(): raise FileNotFoundError
             deg_tiles_path[self.tile] = self.decodable_chunk
-        return VideoProjectionReader(deg_tiles_path, projection=self.projection,
-                                     tiling=self.tiling,
-                                     proj_res=self.config.proj_res,
-                                     fov_res=self.config.fov_res,
-                                     vp_res='1320x1080')
+
+        return VideoProjectionReader(deg_tiles_path,
+                                     tiling=self.tiling, proj=self.)
 
     def make_data_generator(self,
                             proj_obj,
@@ -96,8 +93,7 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
         :return: None
         """
         data = {}
-        proj_obj = CMP(tiling=self.tiling, proj_res=self.proj_res,
-                       vp_res='1320x1080', fov_res=self.fov)
+
         self.results = defaultdict(list)
 
         ref_proj_frame_vreader = self.make_ref_vreader()
@@ -106,7 +102,7 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
 
             data['ref_proj_frame_vreader'] = ref_proj_frame_vreader
             data['deg_proj_frame_vreader'] = deg_proj_frame_vreader
-            data['proj_obj'] = proj_obj
+            data['proj_obj'] = self.proj_obj
             data['yaw_pitch_roll_by_frame'] = self.yaw_pitch_roll_by_frame
             data['user_viewport_quality_json'] = self.user_viewport_quality_json
             yield data
@@ -147,10 +143,13 @@ class ViewportQuality(Props):
         self.projection = 'cmp'
 
     def iter_name_user_tiling_chunk(self):
+        self.proj_obj = {}
         for self.name in self.name_list:
             self.seen_tiles_result = load_json(self.seen_tiles_result_json)
             for self.user in self.users_list:
                 for self.tiling in self.tiling_list:
+                    self.proj_obj[self.projection] = CMP(tiling=self.tiling, proj_res=self.config.proj_res,
+                                               vp_res='1320x1080', fov_res=self.config.fov_res)
                     for self.chunk in self.chunk_list:
                         yield
 
