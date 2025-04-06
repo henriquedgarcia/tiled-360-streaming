@@ -2,7 +2,7 @@ from math import prod
 from pathlib import Path
 
 import numpy as np
-from py360tools import CMP, ERP
+from py360tools import CMP, ERP, ProjectionBase
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
@@ -16,24 +16,16 @@ class VideoProjectionReader:
 
     def __init__(self,
                  seen_tiles: dict[str, Path],
-                 projection: str,
                  tiling: str,
-                 proj_res: str,
-                 fov_res: str,
-                 vp_res: str,
+                 proj: ProjectionBase
                  ):
         """
 
         :param seen_tiles: by chunk
-        :param ctx:
         """
         self.seen_tiles = seen_tiles
         self.tile_list = list(map(str, range(prod(splitx(tiling)))))
-        if projection == 'erp':
-            self.proj = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-        elif projection == 'cmp':
-            self.proj = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
-
+        self.proj = proj
         self.reset_readers()
         self.clear_frame()
         self.make_tile_positions()
