@@ -18,7 +18,7 @@ from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
 from lib.makequality import TileQuality
 from lib.maketiles import MakeTiles
-from lib.makeviewportquality import ViewportQuality
+from lib.makeviewportquality import ViewportQuality, CheckViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -122,6 +122,7 @@ worker_list = [
     Option(id=9, name='GetQuality', obj=GetQuality),
     Option(id=10, name='GetSeenTiles', obj=GetSeenTiles),
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
+    Option(id=12, name='CheckViewportQuality', obj=CheckViewportQuality),
 ]
 
 names = ["angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
