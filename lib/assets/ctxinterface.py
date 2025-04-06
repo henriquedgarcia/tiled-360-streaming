@@ -157,7 +157,7 @@ class CtxInterface(Factors, Lists):
 
     @property
     def proj_res(self):
-        return self.config.config_dict['scale'][self.projection]
+        return self.ctx.scale
 
     @property
     def fov(self):
