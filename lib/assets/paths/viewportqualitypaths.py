@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
 
 
