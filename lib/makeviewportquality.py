@@ -177,7 +177,7 @@ class ViewportQuality(Props):
         self.results = list of Result [FrameResult, ...]
         :return:
         """
-        with multiprocessing.Pool(1) as pool:
+        with multiprocessing.Pool(5) as pool:
             pool.map(self.processa_elemento,
                      self.make_data_generator())
 
