@@ -9,22 +9,21 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.utils.util import build_projection, idx2xy, iter_video, splitx
 
 
-class VideoProjectionReader:
+class ChunkProjectionReader:
     tiles_reader: dict
     tile_positions: dict
     canvas: np.ndarray
 
     def __init__(self,
                  seen_tiles: dict[str, Path],
-                 tiling: str,
                  proj: ProjectionBase
                  ):
         """
 
-        :param seen_tiles: by chunk
+        :param seen_tiles: Um dicionário do tipo {seen_tile: tile_file_path, ...} by chunk
         """
         self.seen_tiles = seen_tiles
-        self.tile_list = list(map(str, range(prod(splitx(tiling)))))
+        self.tile_list = list(map(str, range(prod(splitx(proj.tiling.tiling)))))
         self.proj = proj
         self.reset_readers()
         self.clear_frame()
@@ -47,6 +46,11 @@ class VideoProjectionReader:
             tile_frame = next(self.tiles_reader[tile])
             self.canvas[y_ini:y_end, x_ini:x_end] = tile_frame
         return self.canvas
+
+    def extract_viewport(self, yaw_pitch_roll) -> np.ndarray:
+        canvas = self.get_frame()
+        viewport = self.proj.extract_viewport(canvas, yaw_pitch_roll)
+        return viewport
 
     def make_tile_positions(self):
         self.tile_positions = {}
