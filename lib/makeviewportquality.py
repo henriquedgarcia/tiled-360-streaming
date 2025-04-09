@@ -1,5 +1,4 @@
 import json
-import multiprocessing
 from abc import ABC
 from collections import defaultdict
 from pathlib import Path
@@ -105,6 +104,7 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
                                     'user_viewport_quality_json': self.user_viewport_quality_json,
                                     }
                             yield data
+                            del proj_obj
 
     @staticmethod
     def processa_elemento(data: dict):
@@ -160,13 +160,13 @@ class ViewportQuality(Props):
         self.results = list of Result [FrameResult, ...]
         :return:
         """
-        with multiprocessing.Pool() as pool:
-            pool.map(self.processa_elemento,
-                     self.make_data_generator())
-        print('the end?')
+        # with multiprocessing.Pool() as pool:
+        # pool.map(self.processa_elemento,
+        #          self.make_data_generator())
 
-        # data_generator = self.make_data_generator()
-        # self.processa_elemento(next(data_generator))
+        data_generator = self.make_data_generator()
+        for data in data_generator:
+            self.processa_elemento(data)
 
 
 class CheckViewportQuality(ViewportQuality):
