@@ -156,6 +156,10 @@ class CtxInterface(Factors, Lists):
         return self.ctx.scale
 
     @property
+    def fov_res(self):
+        return self.ctx.config.fov_res
+
+    @property
     def proj_res(self):
         return self.ctx.scale
 

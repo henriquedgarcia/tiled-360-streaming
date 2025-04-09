@@ -67,6 +67,10 @@ class ConfigProps:
         return self.config_dict['fov']
 
     @LazyProperty
+    def fov_res(self):
+        return self.config_dict['fov_res']
+
+    @LazyProperty
     def quality_list(self) -> list[str]:
         return self.config_dict['quality_list']
 
