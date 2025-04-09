@@ -79,12 +79,12 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
                     for self.chunk in self.chunk_list:
                         chunk_yaw_pitch_roll_per_frame = None
                         for self.quality in self.quality_list:
-                            print(f'{self.name}_{self.projection}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}.', end='')
                             try:
                                 if self.user_viewport_quality_json.stat().st_size == 0:
                                     self.user_viewport_quality_json.unlink()
                                     raise FileNotFoundError
-                                print(f' File exists. skipping.')
+                                print(f'{self.name}_{self.projection}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}.', end='')
+                                print_error(f' File exists. skipping.')
                                 continue
                             except FileNotFoundError:
                                 pass
@@ -119,27 +119,21 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
         salvar tabela
         :return:
         """
-        ref_proj_frame_vreader: ChunkProjectionReader
-        deg_proj_frame_vreader: ChunkProjectionReader
-        yaw_pitch_roll_by_frame: list[tuple[float, float, float]]
-        user_viewport_quality_json: Path
-
         proj_obj: ProjectionBase = data['proj_obj']
-        ref_tiles_path = data['ref_tiles_path']
-        deg_tiles_path = data['deg_tiles_path']
-        yaw_pitch_roll_by_frame = data['yaw_pitch_roll_by_frame']
-        user_viewport_quality_json = data['user_viewport_quality_json']
+        ref_tiles_path: dict[str, Path] = data['ref_tiles_path']
+        deg_tiles_path: dict[str, Path] = data['deg_tiles_path']
+        yaw_pitch_roll_by_frame: list[tuple[float, float, float]] = data['yaw_pitch_roll_by_frame']
+        user_viewport_quality_json: Path = data['user_viewport_quality_json']
         results = defaultdict(list)
 
-        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path,
-                                                       proj=proj_obj)
-        deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path,
-                                                       proj=proj_obj)
+        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path, proj=proj_obj)
+        deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, proj=proj_obj)
         ctx = f'{user_viewport_quality_json.as_posix()}'.split('/')[-5:]
         ctx[-1] = ctx[-1].replace('user_viewport_quality_', '').replace('.json', '')
         ctx[-2] = f'qp{ctx[-2]}'
         ctx[-3] = f'user{ctx[-3]}'
         ctx = '_'.join(ctx)
+
         for frame, yaw_pitch_roll in enumerate(yaw_pitch_roll_by_frame):
             print(f'{ctx}_frame{frame:02}/30')
             viewport_frame_ref = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
@@ -154,17 +148,6 @@ class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
             results['ssim'].append(_ssim)
         save_json(results, user_viewport_quality_json)
 
-    def iter_name_user_tiling_chunk(self):
-        self.proj_obj = {}
-        for self.name in self.name_list:
-            self.seen_tiles_result = load_json(self.seen_tiles_result_json)
-            for self.user in self.users_list:
-                for self.tiling in self.tiling_list:
-                    self.proj_obj[self.projection] = CMP(tiling=self.tiling, proj_res=self.scale,
-                                                         vp_res='1320x1080', fov_res=self.fov_res)
-                    for self.chunk in self.chunk_list:
-                        yield
-
 
 class ViewportQuality(Props):
     def init(self):
@@ -177,15 +160,27 @@ class ViewportQuality(Props):
         self.results = list of Result [FrameResult, ...]
         :return:
         """
-        with multiprocessing.Pool(5) as pool:
+        with multiprocessing.Pool() as pool:
             pool.map(self.processa_elemento,
                      self.make_data_generator())
+        print('the end?')
 
         # data_generator = self.make_data_generator()
         # self.processa_elemento(next(data_generator))
 
 
 class CheckViewportQuality(ViewportQuality):
+    def iter_name_user_tiling_chunk(self):
+        self.proj_obj = {}
+        for self.name in self.name_list:
+            self.seen_tiles_result = load_json(self.seen_tiles_result_json)
+            for self.user in self.users_list:
+                for self.tiling in self.tiling_list:
+                    self.proj_obj[self.projection] = CMP(tiling=self.tiling, proj_res=self.scale,
+                                                         vp_res='1320x1080', fov_res=self.fov_res)
+                    for self.chunk in self.chunk_list:
+                        yield
+
     def main(self):
         resume = AutoDict()
         for _ in self.iter_name_user_tiling_chunk():
