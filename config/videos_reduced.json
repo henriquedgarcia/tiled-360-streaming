@@ -1,0 +1,26 @@
+{
+  "cable_cam": {
+    "offset": "0:15",
+    "group": "HS"
+  },
+  "closet_tour": {
+    "offset": "0:07",
+    "group": "FS"
+  },
+  "drone_chases_car": {
+    "offset": "2:11",
+    "group": "MS"
+  },
+  "motorsports_park": {
+    "offset": "0:15",
+    "group": "HS"
+  },
+  "penthouse": {
+    "offset": "0:04",
+    "group": "RS"
+  },
+  "video_22": {
+    "offset": "0",
+    "group": "RS"
+  }
+}
