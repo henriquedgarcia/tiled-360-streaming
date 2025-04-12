@@ -1,18 +1,16 @@
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
-from lib.assets.paths.make_decodable_paths import MakeDecodablePaths, IfDecodablePaths
+from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
 from lib.utils.util import run_command
 
 
-class MakeDecodable(Worker, IfDecodablePaths, CtxInterface):
-    make_decodable_path: MakeDecodablePaths
+class MakeDecodable(Worker, MakeDecodablePaths):
     quality_list: list[str] = None
     decode_check = False
 
     def init(self):
-        self.make_decodable_path = MakeDecodablePaths(self.ctx)
         self.quality_list = ['0'] + self.ctx.quality_list
 
     def main(self):
