@@ -29,14 +29,13 @@ class MakeSitiPaths(BasePaths):
     def siti_csv_results(self) -> Path:
         folder = self.siti_folder / 'siti_csv'
         folder.mkdir(exist_ok=True, parents=True)
-        name = ''
-        if self.name is not None:
-            name += f'{self.name}'
-        if self.tiling is not None:
-            name += f'_{self.tiling}'
-        if self.tile is not None:
-            name += f'_tile{self.tile}'
-        if self.quality is not None:
-            name += f'{self.rate_control}{self.quality}'
+        name = f'{self.name}_{self.tiling}_tile{self.tile}{self.rate_control}{self.quality}'
 
         return folder / f"{name}.csv"
+
+    @property
+    def siti_pickle_results(self) -> Path:
+        folder = self.results_folder / 'siti'
+        folder.mkdir(exist_ok=True, parents=True)
+        return folder / f"siti_{self.name}.pickle"
+
