@@ -5,9 +5,6 @@ from lib.assets.paths.basepaths import BasePaths
 
 
 class MakeTilesPaths(BasePaths):
-    def __init__(self, context: Context):
-        self.ctx = context
-
     @property
     def lossless_video(self) -> Path:
         return self.lossless_folder / self.projection / f'{self.name}.mp4'
