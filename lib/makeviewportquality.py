@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Generator, Union, Any, Optional
 
 import numpy as np
+import pandas as pd
 from py360tools import CMP, ProjectionBase
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
@@ -17,7 +18,7 @@ from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, get_nested_value, print_error
+from lib.utils.util import save_json, load_json, get_nested_value, print_error, save_pickle
 
 Tiling = str
 Tile = str
@@ -170,38 +171,51 @@ class ViewportQuality(Props):
 
 
 class CheckViewportQuality(ViewportQuality):
-    def iter_name_user_tiling_chunk(self):
-        self.proj_obj = {}
-        for self.name in self.name_list:
-            self.seen_tiles_result = load_json(self.seen_tiles_result_json)
-            for self.user in self.users_list:
-                for self.tiling in self.tiling_list:
-                    self.proj_obj[self.projection] = CMP(tiling=self.tiling, proj_res=self.scale,
-                                                         vp_res='1320x1080', fov_res=self.fov_res)
-                    for self.chunk in self.chunk_list:
-                        yield
-
     def main(self):
         resume = AutoDict()
-        for _ in self.iter_name_user_tiling_chunk():
-            for self.quality in self.quality_list:
-                print(f'\r{self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}', end='')
-                if self.user_viewport_quality_json.exists():
-                    continue
-                resume[self.name][f'user{self.user}'][self.tiling][f'chunk{self.chunk}'][f'qp{self.quality}'] = {}
-                print_error(f'Missing')
+        self.proj_obj = {}
+        for self.name in self.name_list:
+            for self.user in self.users_list:
+                for self.tiling in self.tiling_list:
+                    print(f'{self.name}_user{self.user}_{self.tiling}')
+                    for self.chunk in self.chunk_list:
+                        for self.quality in self.quality_list:
+                            if self.user_viewport_quality_json.exists():
+                                continue
+                            print_error(f'MISSING: {self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}')
+                            try:
+                                resume[self.name][f'user{self.user}'][self.tiling][f'chunk{self.chunk}'].append(f'qp{self.quality}')
+                            except AttributeError:
+                                resume[self.name][f'user{self.user}'][self.tiling][f'chunk{self.chunk}'] = [f'qp{self.quality}']
+        print('Chunks que faltam:')
         print(json.dumps(resume, indent=2))
         Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
 
 
 class GetViewportQuality(ViewportQuality):
     def main(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.user in self.users_list:
-                    for self.tiling in self.tiling_list:
-                        for self.chunk in self.chunk_list:
-                            for self.quality in self.quality_list:
-                                # user_viewport_quality = load_json(self.user_viewport_quality_json)
 
-                                print(f'\r{self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}', end='')
+        typos = {'name': str, 'projection': str, 'tiling': str,
+                 'quality': int, 'user': int, 'chunk': int,
+                 'mse': float, 'ssim': float}
+        for self.name in self.name_list:
+            new_data = []
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.quality in self.quality_list:
+                        for self.user in self.users_list:
+                            for self.chunk in self.chunk_list:
+                                print(f'\r{self.name}_{self.tiling}_qp{self.quality}_user{self.user}_chunk{self.chunk}', end='')
+                                # user_viewport_quality é um dicionário de listas. As chaves são 'ssim' e 'mse'.
+                                # As listas contem as métricas usando float64 para cada frame do chunk (30 frames)
+                                user_viewport_quality = load_json(self.user_viewport_quality_json)
+                                mse_ = user_viewport_quality['mse']
+                                ssim_ = user_viewport_quality['ssim']
+                                data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk)-1, mse_, ssim_)
+                                new_data.append(data)
+                            # break
+            keys = list(typos.keys())
+
+            df = pd.DataFrame(new_data, columns=keys)
+            df.set_index(keys[:-2], inplace=True)
+            save_pickle(df, self.user_viewport_quality_result_pickle)
