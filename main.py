@@ -11,14 +11,14 @@ from lib.decode import Decode
 from lib.get_bitrate import GetBitrate
 from lib.get_seen_tiles import GetSeenTiles
 from lib.get_tiles import GetTiles
-from lib.getdectime import GetDectime
+from lib.get_dectime import GetDectime
 from lib.getquality import GetQuality
-from lib.make_siti import MakeSiti
+from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
 from lib.makequality import TileQuality
 from lib.maketiles import MakeTiles
-from lib.makeviewportquality import ViewportQuality, CheckViewportQuality
+from lib.makeviewportquality import ViewportQuality, CheckViewportQuality, GetViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -107,6 +107,7 @@ videos_list = [
     Option(id=6, name='hp_elite', obj=path_config / 'videos_hp_elite.json'),  # 103 three_peaks-video_22
     Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # 99 video_23-wingsuit_dubai
     Option(id=8, name='test', obj=path_config / 'videos_test.json'),  # 
+    Option(id=9, name='reduced', obj=path_config / 'videos_reduced.json'),  #
 ]
 
 worker_list = [
@@ -123,6 +124,8 @@ worker_list = [
     Option(id=10, name='GetSeenTiles', obj=GetSeenTiles),
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
     Option(id=12, name='CheckViewportQuality', obj=CheckViewportQuality),
+    Option(id=13, name='GetViewportQuality', obj=GetViewportQuality),
+    Option(id=14, name='GetMakeSiti', obj=GetMakeSiti),
 ]
 
 names = ["angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",
