@@ -172,24 +172,29 @@ class ViewportQuality(Props):
 
 class CheckViewportQuality(ViewportQuality):
     def main(self):
-        miss = 0
-        ok = 0
+
         result = AutoDict()
         for self.name in self.name_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     print(f'\r{self.name}_{self.tiling}_{self.quality}  ', end='')
-                    result[self.name][self.tiling][self.quality]['ok'] = 0
-                    result[self.name][self.tiling][self.quality]['miss'] = 0
+                    miss = 0
+                    ok = 0
                     for self.user in self.users_list:
                         for self.chunk in self.chunk_list:
                             if self.user_viewport_quality_json.exists():
-                                result[self.name][self.tiling][self.quality]['ok'] += 1
                                 ok += 1
                                 continue
-                            result[self.name][self.tiling][self.quality]['miss'] += 1
-        print(f'\nChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
-        print(json.dumps(result, indent=2))
+                            miss += 1
+                    if miss == 0:
+                        print(' OK!')
+                        continue
+
+                    result[self.name][self.tiling][self.quality]['ok'] = ok
+                    result[self.name][self.tiling][self.quality]['miss'] = miss
+                    print('')
+                    print(json.dumps(result, indent=2))
+                    print(f'\nChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
         # Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
 
 
