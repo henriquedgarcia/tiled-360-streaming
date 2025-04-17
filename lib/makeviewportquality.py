@@ -172,24 +172,22 @@ class ViewportQuality(Props):
 
 class CheckViewportQuality(ViewportQuality):
     def main(self):
-        resume = AutoDict()
-        self.proj_obj = {}
+        miss = 0
+        ok = 0
         for self.name in self.name_list:
             for self.user in self.users_list:
                 for self.tiling in self.tiling_list:
-                    print(f'{self.name}_user{self.user}_{self.tiling}')
+                    print(f'\r{self.name}_user{self.user}_{self.tiling}  ', end='')
                     for self.chunk in self.chunk_list:
                         for self.quality in self.quality_list:
                             if self.user_viewport_quality_json.exists():
+                                ok += 1
                                 continue
-                            print_error(f'MISSING: {self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}')
-                            try:
-                                resume[self.name][f'user{self.user}'][self.tiling][f'chunk{self.chunk}'].append(f'qp{self.quality}')
-                            except AttributeError:
-                                resume[self.name][f'user{self.user}'][self.tiling][f'chunk{self.chunk}'] = [f'qp{self.quality}']
-        print('Chunks que faltam:')
-        print(json.dumps(resume, indent=2))
-        Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
+                            # print_error(f'MISSING: {self.name}_user{self.user}_{self.tiling}_chunk{self.chunk}_qp{self.quality}')
+                            miss += 1
+        print(f'\nChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss+ok}')
+        # print(json.dumps(resume, indent=2))
+        # Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
 
 
 class GetViewportQuality(ViewportQuality):
@@ -211,7 +209,7 @@ class GetViewportQuality(ViewportQuality):
                                 user_viewport_quality = load_json(self.user_viewport_quality_json)
                                 mse_ = user_viewport_quality['mse']
                                 ssim_ = user_viewport_quality['ssim']
-                                data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk)-1, mse_, ssim_)
+                                data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk) - 1, mse_, ssim_)
                                 new_data.append(data)
                             # break
             keys = list(typos.keys())
