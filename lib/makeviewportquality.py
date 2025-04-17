@@ -193,6 +193,8 @@ class CheckViewportQuality(ViewportQuality):
                         print(' OK!')
                         continue
                     print(f' Chunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
+                    miss_total += miss
+                    ok_total += ok
 
                     result[self.name][self.tiling][self.quality]['ok'] = ok
                     result[self.name][self.tiling][self.quality]['miss'] = miss
