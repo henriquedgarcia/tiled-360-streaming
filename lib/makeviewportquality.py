@@ -174,6 +174,8 @@ class CheckViewportQuality(ViewportQuality):
     def main(self):
 
         result = AutoDict()
+        miss_total = 0
+        ok_total = 0
         for self.name in self.name_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
@@ -186,15 +188,17 @@ class CheckViewportQuality(ViewportQuality):
                                 ok += 1
                                 continue
                             miss += 1
+
                     if miss == 0:
                         print(' OK!')
                         continue
+                    print(f' Chunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
 
                     result[self.name][self.tiling][self.quality]['ok'] = ok
                     result[self.name][self.tiling][self.quality]['miss'] = miss
-                    print('')
-                    print(json.dumps(result, indent=2))
-                    print(f'\nChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
+                    # print('')
+        print(json.dumps(result, indent=2))
+        print(f'\nChunks que faltam: {miss_total}, Chunks ok: {ok_total}. Total: {miss_total + ok_total}')
         # Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
 
 
