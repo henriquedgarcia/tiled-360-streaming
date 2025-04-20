@@ -1,3 +1,4 @@
+from collections import defaultdict
 from math import prod
 
 from py360tools.utils import LazyProperty
@@ -102,10 +103,26 @@ class Context:
 
     @property
     def users_list(self):
+        return list(map(str, range(60)))
+
+    @property
+    def users_list_by_name(self):
         users_str = self.hmd_dataset[self.name + '_nas'].keys()
         sorted_users_int = sorted(map(int, users_str))
         sorted_users_str = list(map(str, sorted_users_int))
         return sorted_users_str
+
+    _name_list_by_user: dict = None
+
+    @property
+    def name_list_by_user(self):
+        if self._name_list_by_user is None:
+            self._name_list_by_user = defaultdict(list)
+            for name in self.name_list:
+                for user in self.hmd_dataset[name + '_nas']:
+                    self._name_list_by_user[user].append(name)
+
+        return self._name_list_by_user[self.user]
 
     @property
     def frame_list(self) -> list[str]:
