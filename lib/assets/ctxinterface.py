@@ -128,8 +128,12 @@ class Lists:
         return ['time', 'rate', "ssim", "mse", "s-mse", "ws-mse"]
 
     @property
-    def users_list(self):
-        return self.ctx.users_list
+    def users_list_by_name(self):
+        return self.ctx.users_list_by_name
+
+    @property
+    def name_list_by_user(self):
+        return self.ctx.name_list_by_user
 
     @LazyProperty
     def group_list(self):
