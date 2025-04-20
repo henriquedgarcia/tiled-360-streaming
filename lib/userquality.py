@@ -82,7 +82,7 @@ class UserQuality(UserProjectionMetricsProps):
             for self.projection in self.projection_list:
                 for self.quality in self.quality_list:
                     for self.tiling in self.tiling_list:
-                        for self.user in self.users_list:
+                        for self.user in self.users_list_by_name:
                             yield
 
     def get_metrics(self):
@@ -128,7 +128,7 @@ class UserQuality(UserProjectionMetricsProps):
             for self.name in self.name_list:
                 for self.projection in self.projection_list:
                     for self.tiling in self.tiling_list:
-                        for self.user in self.users_list:
+                        for self.user in self.users_list_by_name:
                             yield
 
         for _ in loop_video_tiling_user():
@@ -235,7 +235,7 @@ class UserQuality(UserProjectionMetricsProps):
             for self.quality in self.quality_list:
                 result_lv2 = defaultdict(list)  # By chunk
 
-                for self.user in self.users_list:
+                for self.user in self.users_list_by_name:
                     result_lv1 = defaultdict(list)  # By chunk
 
                     for self.chunk in self.chunk_list:
