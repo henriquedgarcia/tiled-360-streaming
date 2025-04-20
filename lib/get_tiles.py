@@ -148,7 +148,7 @@ class GetTiles(Worker):
             # <editor-fold desc="Count tiles">
             tiles_counter_chunks = Counter()  # Collect tiling count
 
-            for self.user in self.users_list:
+            for self.user in self.users_list_by_name:
                 result_chunks = self.results[self.projection][self.name]
                 result_chunks = result_chunks[self.tiling][self.user]
                 result_chunks = result_chunks['chunks']
