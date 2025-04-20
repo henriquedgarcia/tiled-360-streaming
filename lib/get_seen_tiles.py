@@ -29,7 +29,7 @@ class GetSeenTiles(Worker, CtxInterface):
             self.seen_tiles_result = []
 
             for self.tiling in self.tiling_list:
-                for self.user in self.users_list:
+                for self.user in self.users_list_by_name:
                     self.progress_bar.update(f'{self.ctx}')
                     self.process_user_seen_tiles()
 
