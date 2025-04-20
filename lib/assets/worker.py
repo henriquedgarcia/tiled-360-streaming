@@ -112,12 +112,12 @@ class Worker(ABC, CtxInterface):
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
-                    for self.user in self.users_list:
+                    for self.user in self.users_list_by_name:
                         self.ctx.iterations += 1
                         yield
 
     def iterate_name_user(self):
         for self.name in self.name_list:
-            for self.user in self.users_list:
+            for self.user in self.users_list_by_name:
                 self.ctx.iterations += 1
                 yield
