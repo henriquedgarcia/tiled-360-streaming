@@ -61,7 +61,7 @@ class ViewportQualityProps(CtxInterface):
         # yaw_pitch_roll_frames = self.dataset[self.name][self.user]
 
         def debug_img() -> Path:
-            folder = self.viewport_quality_paths.viewport_quality_folder / f'{self.projection}_{self.name}' / f"user{self.users_list[0]}_{self.tiling}"
+            folder = self.viewport_quality_paths.viewport_quality_folder / f'{self.projection}_{self.name}' / f"user{self.users_list_by_name[0]}_{self.tiling}"
             folder.mkdir(parents=True, exist_ok=True)
             return folder / f"frame_{self.video_frame_idx}.jpg"
 
@@ -165,7 +165,7 @@ class ViewportQualityGraphs(ViewportQualityProps):
             for self.tiling in self.tiling_list:
                 self.projection_obj = self.erp_list[self.tiling]
                 self.tile_h, self.tile_w = self.erp.tile_shape[:2]
-                for self.user in self.users_list:
+                for self.user in self.users_list_by_name:
                     self.yaw_pitch_roll_frames = self.dataset[self.name][self.user]
                     if self.output_exist(False): continue
                     # sse_frame = load_json(self.viewport_psnr_file)
