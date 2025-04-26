@@ -8,14 +8,13 @@ from lib.utils.context_utils import task
 from lib.utils.util import run_command
 
 
-class MakeDash(Worker, CtxInterface):
+class MakeDash(Worker, MakeDashPaths, CtxInterface):
     quality_list: list[str] = None
-    make_decodable_path: MakeDashPaths
     decode_check = False
 
     def init(self):
-        self.make_decodable_path = MakeDashPaths(self.ctx)
         self.quality_list = ['0'] + self.ctx.quality_list
+        self.remove = self.config.remove
 
     def main(self):
         self.init()
@@ -68,12 +67,11 @@ class MakeDash(Worker, CtxInterface):
 
     def _check_tile_video(self):
         if self.tile_video.stat().st_size == 0:
-            if self.config.remove:
-                self.tile_video.unlink()
+            self.tile_video.unlink()
             raise FileNotFoundError
 
     def _clean_dash(self):
-        if self.config.remove:
+        if self.remove:
             shutil.rmtree(self.mpd_folder, ignore_errors=True)
             self.segmenter_log.unlink(missing_ok=True)
 
@@ -90,11 +88,11 @@ class MakeDash(Worker, CtxInterface):
     #            f"-out {chunks_folder}/tile{self.tile}_'$'num%03d$.mp4"
     #            '"')
     #     return cmd
-
+    remove = False
     def _assert_segmenter_log(self):
         segment_log_txt = self.segmenter_log.read_text()
         if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
-            if self.config.remove:
+            if self.remove:
                 self.segmenter_log.unlink(missing_ok=True)
             self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
             raise FileNotFoundError
@@ -112,19 +110,19 @@ class MakeDash(Worker, CtxInterface):
 
     @property
     def tile_video(self):
-        return self.make_decodable_path.tile_video
+        return self.tile_video
 
     @property
     def mpd_folder(self):
-        return self.make_decodable_path.mpd_folder
+        return self.mpd_folder
 
     @property
     def dash_mpd(self):
-        return self.make_decodable_path.dash_mpd
+        return self.dash_mpd
 
     @property
     def segmenter_log(self):
-        return self.make_decodable_path.mp4box_log
+        return self.mp4box_log
 
 # def prepare(self):
 #     """
