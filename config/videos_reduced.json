@@ -1,26 +1,54 @@
 {
+  "angel_falls": {
+    "offset": "5:30",
+    "group": "MN"
+  },
   "cable_cam": {
     "offset": "0:15",
     "group": "HS"
   },
-  "closet_tour": {
-    "offset": "0:07",
+  "chariot_race": {
+    "offset": "0:00",
+    "group": "HM"
+  },
+  "drone_video": {
+    "offset": "0:15",
+    "group": "VM"
+  },
+  "glass_elevator": {
+    "offset": "0:14",
+    "group": "VN"
+  },
+  "montana": {
+    "offset": "0:00",
+    "group": "FN"
+  },
+  "nyc_drive": {
+    "offset": "0:12",
+    "group": "HM"
+  },
+  "pac_man": {
+    "offset": "0",
+    "group": "MM"
+  },
+  "rhinos": {
+    "offset": "0:18",
+    "group": "FM"
+  },
+  "sunset": {
+    "offset": "0:40",
+    "group": "FN"
+  },
+  "video_04": {
+    "offset": "0",
     "group": "FS"
   },
-  "drone_chases_car": {
-    "offset": "2:11",
-    "group": "MS"
-  },
-  "motorsports_park": {
-    "offset": "0:15",
-    "group": "HS"
-  },
-  "penthouse": {
-    "offset": "0:04",
-    "group": "RS"
-  },
-  "video_22": {
+  "video_24": {
     "offset": "0",
-    "group": "RS"
+    "group": "RM"
+  },
+  "wingsuit_dubai": {
+    "offset": "0:00",
+    "group": "MS"
   }
 }
