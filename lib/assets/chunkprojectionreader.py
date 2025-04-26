@@ -12,7 +12,7 @@ from lib.utils.util import build_projection, idx2xy, iter_video, splitx
 class ChunkProjectionReader:
     tiles_reader: dict
     tile_positions: dict
-    canvas: np.ndarray
+    frame: np.ndarray
 
     def __init__(self,
                  seen_tiles: dict[str, Path],
@@ -36,20 +36,19 @@ class ChunkProjectionReader:
 
     def clear_frame(self):
         proj_h, proj_w = self.proj.canvas.shape
-        self.canvas = np.zeros((proj_h, proj_w), dtype='uint8')
+        self.frame = np.zeros((proj_h, proj_w), dtype='uint8')
 
-    def get_frame(self) -> np.ndarray:
-        self.canvas[:] = 0
+    def mount_frame(self):
+        self.frame[:] = 0
 
         for tile in self.seen_tiles:
             x_ini, x_end, y_ini, y_end = self.tile_positions[tile]
             tile_frame = next(self.tiles_reader[tile])
-            self.canvas[y_ini:y_end, x_ini:x_end] = tile_frame
-        return self.canvas
+            self.frame[y_ini:y_end, x_ini:x_end] = tile_frame
 
     def extract_viewport(self, yaw_pitch_roll) -> np.ndarray:
-        canvas = self.get_frame()
-        viewport = self.proj.extract_viewport(canvas, yaw_pitch_roll)
+        self.mount_frame()
+        viewport = self.proj.extract_viewport(self.frame, yaw_pitch_roll)
         return viewport
 
     def make_tile_positions(self):
