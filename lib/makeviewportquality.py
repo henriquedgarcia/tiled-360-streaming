@@ -167,7 +167,7 @@ class CheckViewportQuality(ViewportQuality):
                     # print('')
         print(json.dumps(result, indent=2))
         print(f'\nChunks que faltam: {miss_total}, Chunks ok: {ok_total}. Total: {miss_total + ok_total}')
-        # Path(f'CheckViewportQuality.json').write_text(json.dumps(resume, indent=2))
+        Path(f'CheckViewportQuality.json').write_text(json.dumps(result, indent=2))
 
 
 class GetViewportQuality(ViewportQuality):
