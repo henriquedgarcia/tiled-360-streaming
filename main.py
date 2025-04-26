@@ -68,7 +68,7 @@ def main():
     config = Config(config_file, videos_file)
     config.remove = bool(args.remove)
 
-    if videos_list_id == 0 and args.slice is not None:
+    if videos_list_id in [0, 9] and args.slice is not None:
         start, stop = args.slice
         items_list = list(config.videos_dict.items())
         sliced_list = items_list[start:stop]
