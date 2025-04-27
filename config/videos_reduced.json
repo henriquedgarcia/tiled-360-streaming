@@ -1,51 +1,31 @@
 {
-  "angel_falls": {
-    "offset": "5:30",
-    "group": "MN"
-  },
   "cable_cam": {
     "offset": "0:15",
     "group": "HS"
   },
-  "chariot_race": {
-    "offset": "0:00",
-    "group": "HM"
+  "closet_tour": {
+    "offset": "0:07",
+    "group": "FS"
   },
-  "drone_video": {
-    "offset": "0:15",
+  "drop_tower": {
+    "offset": "1:11",
     "group": "VM"
   },
   "glass_elevator": {
     "offset": "0:14",
     "group": "VN"
   },
-  "montana": {
-    "offset": "0:00",
-    "group": "FN"
-  },
-  "nyc_drive": {
-    "offset": "0:12",
-    "group": "HM"
-  },
   "pac_man": {
     "offset": "0",
     "group": "MM"
   },
-  "rhinos": {
-    "offset": "0:18",
-    "group": "FM"
+  "penthouse": {
+    "offset": "0:04",
+    "group": "RS"
   },
   "sunset": {
     "offset": "0:40",
     "group": "FN"
-  },
-  "video_04": {
-    "offset": "0",
-    "group": "FS"
-  },
-  "video_24": {
-    "offset": "0",
-    "group": "RM"
   },
   "wingsuit_dubai": {
     "offset": "0:00",
