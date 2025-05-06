@@ -97,11 +97,18 @@ class ViewportQuality(Props):
                             save_json(results, self.user_viewport_quality_json)
 
     def check_json(self):
-        if self.user_viewport_quality_json.exists():
+        def check():
+            size = self.user_viewport_quality_json.stat().st_size
+            if size < 10:
+                raise FileNotFoundError
             msg = f'{self.ctx}. File exists. skipping.'
             print_error(f'{msg:<90}')
-            return True
-        return False
+
+        try:
+            check()
+        except FileNotFoundError:
+            return False
+        return True
 
     def calc_chunk_error_per_frame(self, ):
         deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.seen_tiles}
@@ -150,7 +157,7 @@ class CheckViewportQuality(ViewportQuality):
                     ok = 0
                     for self.user in self.users_list_by_name:
                         for self.chunk in self.chunk_list:
-                            if self.user_viewport_quality_json.exists():
+                            if self.check_json():
                                 ok += 1
                                 continue
                             miss += 1
@@ -174,7 +181,7 @@ class GetViewportQuality(ViewportQuality):
     def main(self):
 
         typos = {'name': str, 'projection': str, 'tiling': str,
-                 'quality': int, 'user': int, 'chunk': int,
+                 'quality': int, 'user': int, 'chunk': int, 'frame': int,
                  'mse': float, 'ssim': float}
         for self.name in self.name_list:
             new_data = []
@@ -182,6 +189,7 @@ class GetViewportQuality(ViewportQuality):
                 for self.tiling in self.tiling_list:
                     for self.quality in self.quality_list:
                         for self.user in self.users_list_by_name:
+                            frame = 0
                             for self.chunk in self.chunk_list:
                                 print(f'\r{self.name}_{self.tiling}_qp{self.quality}_user{self.user}_chunk{self.chunk}', end='')
                                 # user_viewport_quality é um dicionário de listas. As chaves são 'ssim' e 'mse'.
@@ -189,8 +197,10 @@ class GetViewportQuality(ViewportQuality):
                                 user_viewport_quality = load_json(self.user_viewport_quality_json)
                                 mse_ = user_viewport_quality['mse']
                                 ssim_ = user_viewport_quality['ssim']
-                                data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk) - 1, mse_, ssim_)
-                                new_data.append(data)
+                                for (m, s) in zip(mse_, ssim_):
+                                    data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk) - 1, frame, m, s)
+                                    new_data.append(data)
+                                    frame += 1
                             # break
             keys = list(typos.keys())
 
