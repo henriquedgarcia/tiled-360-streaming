@@ -6,13 +6,11 @@ from lib.utils.context_utils import task
 from lib.utils.util import print_error, decode_video, run_command
 
 
-class MakeTiles(Worker, CtxInterface):
-    make_tiles_paths: MakeTilesPaths
+class MakeTiles(Worker, MakeTilesPaths, CtxInterface):
     quality_list: list[str] = None
     decode_check = False
 
     def init(self):
-        self.make_tiles_paths = MakeTilesPaths(self.ctx)
         self.quality_list = ['0'] + self.ctx.quality_list
 
     def main(self):
@@ -95,19 +93,3 @@ class MakeTiles(Worker, CtxInterface):
     def clean_tile(self):
         self.tile_log.unlink(missing_ok=True)
         self.tile_video.unlink(missing_ok=True)
-
-    @property
-    def tile_folder(self):
-        return self.make_tiles_paths.tile_folder
-
-    @property
-    def tile_log(self):
-        return self.make_tiles_paths.tile_log
-
-    @property
-    def tile_video(self):
-        return self.make_tiles_paths.tile_video
-
-    @property
-    def lossless_video(self):
-        return self.make_tiles_paths.lossless_video
