@@ -27,7 +27,7 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
 
         print(f'\tTile ok. Creating chunks.')
         cmd = self.make_dash_cmd_mp4box()
-        run_command(cmd, self.mpd_folder, self.segmenter_log, ui_prefix='\t')
+        run_command(cmd, self.mpd_folder, self.mp4box_log, ui_prefix='\t')
 
     def make_dash_cmd_mp4box(self):
         # test gop: "python3 tiled-360-streaming/bin/gop/gop_all.py"
@@ -73,7 +73,7 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     def _clean_dash(self):
         if self.remove:
             shutil.rmtree(self.mpd_folder, ignore_errors=True)
-            self.segmenter_log.unlink(missing_ok=True)
+            self.mp4box_log.unlink(missing_ok=True)
 
 
     # def make_split_cmd_mp4box(self):
@@ -90,11 +90,11 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     #     return cmd
     remove = False
     def _assert_segmenter_log(self):
-        segment_log_txt = self.segmenter_log.read_text()
+        segment_log_txt = self.mp4box_log.read_text()
         if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
             if self.remove:
-                self.segmenter_log.unlink(missing_ok=True)
-            self.logger.register_log('Segmenter log is corrupt.', self.segmenter_log)
+                self.mp4box_log.unlink(missing_ok=True)
+            self.logger.register_log('Segmenter log is corrupt.', self.mp4box_log)
             raise FileNotFoundError
 
     # def make_segment_cmd_ffmpeg(self):
@@ -108,21 +108,6 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     #            '"')
     #     return cmd
 
-    @property
-    def tile_video(self):
-        return self.tile_video
-
-    @property
-    def mpd_folder(self):
-        return self.mpd_folder
-
-    @property
-    def dash_mpd(self):
-        return self.dash_mpd
-
-    @property
-    def segmenter_log(self):
-        return self.mp4box_log
 
 # def prepare(self):
 #     """
