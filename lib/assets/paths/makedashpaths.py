@@ -30,4 +30,4 @@ class MakeDashPaths(MakeTilesPaths):
 
     @property
     def bitrate_result_pickle(self) -> Path:
-        return self.results_folder / f'bitrate/bitrate_{self.name}.pickle'
+        return self.results_folder / f'bitrate/bitrate.pickle'
