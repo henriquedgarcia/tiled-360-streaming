@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas import MultiIndex
 
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.progressbar import ProgressBar
@@ -6,7 +7,7 @@ from lib.assets.worker import Worker
 from lib.makedash import MakeDashPaths
 
 
-class GetBitrate(Worker, CtxInterface):
+class GetBitrate(Worker, MakeDashPaths, CtxInterface):
     """
     self.video_bitrate[name][projection][tiling][tile]  |
                                   ['dash_mpd'] |
@@ -14,49 +15,33 @@ class GetBitrate(Worker, CtxInterface):
                                   ['dash_m4s'][self.quality][self.chunk]
     :return:
     """
-    decodable_paths: MakeDashPaths
-    progress_bar: ProgressBar
+    result_data: pd.DataFrame
 
     def init(self):
         self.projection = 'cmp'
 
-    def iter_proj_tiling_tile_qlt_chunk(self):
-        self.progress_bar = ProgressBar(total=(len(self.quality_list) * 181),
-                                        desc=f'{self.__class__.__name__}')
-        for self.tiling in self.tiling_list:
-            for self.tile in self.tile_list:
-                self.progress_bar.update(f'{self.ctx}')
-                for self.quality in self.quality_list:
-                    for self.chunk in self.chunk_list:
-                        yield
-
     def main(self):
-        columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'bitrate']
+        self.data = []
         for self.name in self.name_list:
-            if self.decodable_paths.bitrate_result_pickle.exists():
-                print('file exists')
-                continue
+            progress_bar = ProgressBar(total=181,
+                                       desc=f'{self.__class__.__name__}')
+            for self.tiling in self.tiling_list:
+                for self.tile in self.tile_list:
+                    progress_bar.update(f'{self.name}_{self.tiling}_tile{self.tile}')
+                    for self.quality in self.quality_list:
+                        for self.chunk in self.chunk_list:
+                            bitrate = self.dash_m4s.stat().st_size * 8
+                            key = (self.name, self.projection, self.tiling,
+                                   int(self.tile), int(self.quality),
+                                   int(self.chunk) - 1, bitrate)
+                            self.data.append(key)
 
-            bitrate_result = self.get_results()
+        print('Saving Pickle')
+        cools_names = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'bitrate']
+        df = pd.DataFrame(self.data, columns=cools_names)
+        df.set_index(cools_names[:-1], inplace=True)
+        df.sort_index(inplace=True)
+        pd.to_pickle(df, self.bitrate_result_pickle)
+        print('finished')
 
-            result = pd.DataFrame(bitrate_result, columns=columns)
-            result.set_index(columns[:-1], inplace=True)
-            result['bitrate'].to_pickle(self.decodable_paths.bitrate_result_pickle)
-            print('finished')
-
-    def get_results(self):
-        bitrate_result = []
-        self.progress_bar = ProgressBar(total=(len(self.quality_list) * 181),
-                                        desc=f'{self.__class__.__name__}')
-
-        for self.tiling in self.tiling_list:
-            for self.tile in self.tile_list:
-                self.progress_bar.update(f'{self.ctx}')
-                for self.quality in self.quality_list:
-                    for self.chunk in self.chunk_list:
-                        bitrate = self.decodable_paths.dash_m4s.stat().st_size * 8
-                        key = [self.name, self.projection, self.tiling,
-                               int(self.tile), int(self.quality),
-                               int(self.chunk) - 1, bitrate]
-                        bitrate_result.append(key)
-        return bitrate_result
+        # raise KeyboardInterrupt
