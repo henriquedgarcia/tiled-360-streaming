@@ -4,7 +4,7 @@ from pandas import MultiIndex
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.makedash import MakeDashPaths
+from lib.make_dash import MakeDashPaths
 
 
 class GetBitrate(Worker, MakeDashPaths, CtxInterface):

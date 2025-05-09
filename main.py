@@ -14,7 +14,7 @@ from lib.get_seen_tiles import GetSeenTiles
 from lib.get_tiles import GetTiles
 from lib.get_dectime import GetDectime
 from lib.make_siti import MakeSiti, GetMakeSiti
-from lib.makedash import MakeDash
+from lib.make_dash import MakeDash
 from lib.makedecodable import MakeDecodable
 from lib.make_chunk_quality import MakeChunkQuality
 from lib.maketiles import MakeTiles

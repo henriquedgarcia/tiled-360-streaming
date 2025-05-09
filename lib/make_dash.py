@@ -75,7 +75,6 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
             shutil.rmtree(self.mpd_folder, ignore_errors=True)
             self.mp4box_log.unlink(missing_ok=True)
 
-
     # def make_split_cmd_mp4box(self):
     #     compressed_file = self.tile_video.as_posix()
     #     chunks_folder = self.mpd_folder.as_posix()
@@ -89,6 +88,7 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     #            '"')
     #     return cmd
     remove = False
+
     def _assert_segmenter_log(self):
         segment_log_txt = self.mp4box_log.read_text()
         if f'Dashing P1 AS#1.1(V) done (60 segs)' not in segment_log_txt:
@@ -107,7 +107,6 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     #            f'{chunks_folder}/tile{self.tile}_%03d.hevc'
     #            '"')
     #     return cmd
-
 
 # def prepare(self):
 #     """
