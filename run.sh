@@ -34,12 +34,12 @@ done
 # 1 - MakeDash
 # 2 - MakeDecodable
 # 3 - Decode
-# 4 - TileQuality
+# 4 - MakeChunkQuality
 # 5 - GetTiles
 # 6 - MakeSiti
 # 7 - GetBitrate
 # 8 - GetDectime
-# 9 - GetQuality
+# 9 - MakeChunkQuality
 # 10 - GetSeenTiles
 # 11 - ViewportQuality
 

@@ -7,16 +7,16 @@ from pathlib import Path
 from config.config import Config
 from lib.assets.context import Context
 from lib.assets.worker import Worker
+from lib.check import Check
 from lib.decode import Decode
 from lib.get_bitrate import GetBitrate
 from lib.get_seen_tiles import GetSeenTiles
 from lib.get_tiles import GetTiles
 from lib.get_dectime import GetDectime
-from lib.getquality import GetQuality
 from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.makedash import MakeDash
 from lib.makedecodable import MakeDecodable
-from lib.makequality import TileQuality
+from lib.make_chunk_quality import MakeChunkQuality
 from lib.maketiles import MakeTiles
 from lib.makeviewportquality import ViewportQuality, CheckViewportQuality, GetViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
@@ -115,17 +115,18 @@ worker_list = [
     Option(id=1, name='MakeDash', obj=MakeDash),
     Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='Decode', obj=Decode),
-    Option(id=4, name='TileQuality', obj=TileQuality),
+    Option(id=4, name='MakeChunkQuality', obj=MakeChunkQuality),
     Option(id=5, name='GetTiles', obj=GetTiles),
     Option(id=6, name='MakeSiti', obj=MakeSiti),
     Option(id=7, name='GetBitrate', obj=GetBitrate),
     Option(id=8, name='GetDectime', obj=GetDectime),
-    Option(id=9, name='GetQuality', obj=GetQuality),
+    Option(id=9, name='MakeChunkQuality', obj=MakeChunkQuality),
     Option(id=10, name='GetSeenTiles', obj=GetSeenTiles),
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
     Option(id=12, name='CheckViewportQuality', obj=CheckViewportQuality),
     Option(id=13, name='GetViewportQuality', obj=GetViewportQuality),
     Option(id=14, name='GetMakeSiti', obj=GetMakeSiti),
+    Option(id=99, name='Check', obj=Check),
 ]
 
 names = ["angel_falls", "blue_angels", "cable_cam", "chariot_race", "closet_tour", "drone_chases_car", "drone_footage", "drone_video", "drop_tower", "dubstep_dance",

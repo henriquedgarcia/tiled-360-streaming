@@ -14,7 +14,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.chunkprojectionreader import ChunkProjectionReader
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
-from lib.assets.paths.tilequalitypaths import ChunkQualityPaths
+from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
@@ -25,8 +25,8 @@ Tile = str
 NumpyArray = np.ndarray
 
 
-class Props(Worker, ViewportQualityPaths, MakeDecodablePaths,
-            SeenTilesPaths, ChunkQualityPaths, ABC):
+class Props(Worker, ViewportQualityPaths,
+            SeenTilesPaths, MakeChunkQualityPaths, ABC):
     seen_tiles_deg_path: dict[Tile, Path]
     seen_tiles_ref_path: dict[Tile, Path]
     seen_tiles_result: Optional[dict]

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from py360tools.transform import ea2nm, ea2nm_face
-from py360tools.utils import LazyProperty, splitx
+from py360tools.utils import splitx
 from skimage.metrics import mean_squared_error, structural_similarity
 
 from lib.assets.context import Context
@@ -13,6 +13,8 @@ from lib.utils.util import save_pickle, load_pickle
 class QualityMetrics(CtxInterface):
     def __init__(self, ctx: Context):
         self.ctx = ctx
+        self.sph_points_mask_dict = self.make_sph_points_mask_dict()
+        self.weight_ndarray = make_weight_ndarray_dict(self.ctx)
 
     @staticmethod
     def mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
@@ -79,44 +81,42 @@ class QualityMetrics(CtxInterface):
         smse_nn = sqr_dif.sum() / np.sum(tile_mask)
         return smse_nn
 
-    # segmenter_paths: SegmenterPaths
-    #
-    # def _collect_ffmpeg_psnr(self) -> dict[str, float]:
-    #     # deprecated
-    #     def get_psnr(line_txt):
-    #         return float(line_txt.strip().split(',')[3].split(':')[1])
-    #
-    #     def get_qp(line_txt):
-    #         return float(line_txt.strip().split(',')[2].split(':')[1])
-    #
-    #     psnr = None
-    #     compressed_log = self.segmenter_paths.segmenter_log
-    #     content = compressed_log.read_text(encoding='utf-8')
-    #     content = content.splitlines()
-    #
-    #     for line in content:
-    #         if 'Global PSNR' in line:
-    #             psnr = {'psnr': get_psnr(line), 'qp_avg': get_qp(line)}
-    #             break
-    #     return psnr
+    def make_sph_points_mask_dict(self) -> dict[str, np.ndarray]:
+        proj_str = ', '.join(self.projection_list)
+        sph_points_mask_file = Path(f'datasets/masks/sph_points_mask_{proj_str}.pickle')
+        sph_file = Path('datasets/sphere_655362.txt')
 
-    @LazyProperty
-    def sph_points_mask_dict(self):
+        if sph_points_mask_file.exists():
+            return load_pickle(sph_points_mask_file)
+
+        sph_points_mask = {self.projection: self.process_sphere_file(sph_file, self.projection)
+                           for self.projection in self.projection_list}
+        save_pickle(sph_points_mask, sph_points_mask_file)
+        return sph_points_mask
+
+    def process_sphere_file(self, sph_file, proj) -> np.ndarray:
         """
-        sph_points_mask[projection: str]
+        O arquivo txt contem as coordenadas como ea (elevação, azimute).
+        Vamos identificar pontos na esfera (r=1) com essas coordenadas e marcar nas
+        faces da projeção estes pontos. A projeção deve ter a mesma resolução dos
+        vídeos, (2160, 3240) para CMP. Este mapa é guardado e usado como máscara
+        para selecionar quais pixeis devem ser considerados no cálculo do s-mse.
+
         :return:
         """
-        print(f'\r\tMaking sphere points mask')
-        return make_sph_points_mask_dict(self.ctx)
+        sph_file_lines = sph_file.read_text().splitlines()[1:]
+        ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
 
-    @LazyProperty
-    def weight_ndarray(self):
-        """
-        weight_ndarray[projection: str]
-        :return:
-        """
-        print(f'\r\tMaking weight array')
-        return make_weight_ndarray_dict(self.ctx)
+        if proj == 'cmp':
+            nm = ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
+        elif proj == 'erp':
+            nm = ea2nm(ea=ea_array, proj_shape=self.video_shape)
+        else:
+            nm = np.ndarray([])
+
+        sph_points_mask = np.zeros(self.video_shape)
+        sph_points_mask[proj][nm[0], nm[1]] = 1
+        return sph_points_mask
 
 
 def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:

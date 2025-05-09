@@ -9,11 +9,11 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.makequality import ChunkQualityPaths
+from lib.make_chunk_quality import MakeChunkQualityPaths
 from lib.utils.util import print_error, load_json, save_pickle
 
 
-class GetQuality(Worker, CtxInterface):
+class MakeChunkQuality(Worker, CtxInterface, MakeChunkQualityPaths):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
@@ -30,7 +30,7 @@ class GetQuality(Worker, CtxInterface):
         'WS-MSE': float
         'S-MSE': float
     """
-    chunk_quality_paths: ChunkQualityPaths
+    chunk_quality_paths: MakeChunkQualityPaths
     progress_bar: ProgressBar
 
     def iter_proj_tiling_tile_qlt_chunk(self):
@@ -49,7 +49,7 @@ class GetQuality(Worker, CtxInterface):
                     self.chunk = None
 
     def init(self):
-        self.chunk_quality_paths = ChunkQualityPaths(self.ctx)
+        self.chunk_quality_paths = MakeChunkQualityPaths(self.ctx)
 
     def main(self):
         for self.name in self.name_list:
@@ -90,7 +90,7 @@ class GetQuality(Worker, CtxInterface):
         chunk_quality_result.append(key)
 
 
-class MakePlot(GetQuality):
+class MakePlot(MakeChunkQuality):
     _skip: bool
     change_flag: bool
     folder: Path

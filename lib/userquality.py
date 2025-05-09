@@ -13,7 +13,7 @@ from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.paths.userqualitypaths import UserQualityPaths
-from .assets.paths.tilequalitypaths import ChunkQualityPaths
+from .assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from .assets.errors import AbortError
 # import lib.erp as v360
 from .utils.util import print_error, save_json, load_json, get_nested_value
@@ -31,7 +31,7 @@ class UserProjectionMetricsProps(CtxInterface):
     dectime_paths: DectimePaths
     segmenter_paths: SegmenterPaths
     get_tiles_paths: SeenTilesPaths
-    tile_chunk_quality_paths: ChunkQualityPaths
+    tile_chunk_quality_paths: MakeChunkQualityPaths
     user_quality_paths: UserQualityPaths
 
     @property
@@ -60,7 +60,7 @@ class UserProjectionMetricsProps(CtxInterface):
 class UserQuality(UserProjectionMetricsProps):
 
     def init(self):
-        self.tile_chunk_quality_paths = ChunkQualityPaths(self.ctx)
+        self.tile_chunk_quality_paths = MakeChunkQualityPaths(self.ctx)
         self.dectime_paths = DectimePaths(self.ctx)
         self.segmenter_paths = SegmenterPaths(self.ctx)
         self.get_tiles_paths = SeenTilesPaths(self.ctx)

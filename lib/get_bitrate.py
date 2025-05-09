@@ -23,11 +23,9 @@ class GetBitrate(Worker, MakeDashPaths, CtxInterface):
     def main(self):
         self.data = []
         for self.name in self.name_list:
-            progress_bar = ProgressBar(total=181,
-                                       desc=f'{self.__class__.__name__}')
             for self.tiling in self.tiling_list:
                 for self.tile in self.tile_list:
-                    progress_bar.update(f'{self.name}_{self.tiling}_tile{self.tile}')
+                    print(f'{self.__class__.__name__} - {self.name}_{self.tiling}_tile{self.tile}')
                     for self.quality in self.quality_list:
                         for self.chunk in self.chunk_list:
                             bitrate = self.dash_m4s.stat().st_size * 8
@@ -43,5 +41,3 @@ class GetBitrate(Worker, MakeDashPaths, CtxInterface):
         df.sort_index(inplace=True)
         pd.to_pickle(df, self.bitrate_result_pickle)
         print('finished')
-
-        # raise KeyboardInterrupt

@@ -80,4 +80,4 @@ class Decode(Worker):
 
     @property
     def dectime_folder(self):
-        return self.dectime_paths.dectime_folder
+        return self.dectime_paths.dectime_folder0
