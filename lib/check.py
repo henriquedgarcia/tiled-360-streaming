@@ -44,3 +44,5 @@ class Check(Worker, MakeChunkQualityPaths):
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
         df.to_csv(f'check_{self.__class__.__name__}_{now}.csv')
+        pd.options.display.max_columns = len(df.columns)
+        print(df)
