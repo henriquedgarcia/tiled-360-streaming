@@ -1,15 +1,15 @@
 from datetime import datetime
 
 import pandas as pd
-
-from lib.assets.worker import Worker
+from tqdm import tqdm
 
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
+from lib.assets.worker import Worker
 
 
 class Check(Worker, MakeChunkQualityPaths):
     def main(self):
-        func = [self.CheckChunkQuality]
+        func = [self.CheckChunkQuality, self.CheckMakeDecodable]
         options = ''.join(f'{n} - {c.__name__}\n' for n, c in enumerate(func))
         print(options)
         n = input('Choose option: ')
@@ -43,17 +43,15 @@ class Check(Worker, MakeChunkQualityPaths):
                                     check_data.append(context + (err,))
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
-        df.to_csv(f'check_{self.__class__.__name__}_{now}.csv')
+        df.to_csv(f'check_{self.__name__}_{now}.csv')
         pd.options.display.max_columns = len(df.columns)
         print(df)
 
-
-    def CheckChunkQuality(self):
+    def CheckMakeDecodable(self):
         check_data = []
         total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
-        n = iter(range(total))
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
-
+        bar = tqdm(total=total, desc='CheckMakeDecodable')
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
@@ -63,19 +61,20 @@ class Check(Worker, MakeChunkQualityPaths):
                                 context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                                            f'qp{self.quality}', f'chunk{self.chunk}')
                                 context_str = '_'.join(context)
-                                msg = f'{next(n)}/{total} - {self.__class__.__name__} - {context_str}'
-                                print(f'\r{msg}', end='')
+                                bar.update()
+                                bar.set_postfix_str(context_str)
                                 err = ''
                                 try:
-                                    size = self.chunk_quality_json.stat().st_size
+                                    size = self.decodable_chunk.stat().st_size
                                     if size == 0:
                                         err = 'size == 0'
                                 except FileNotFoundError:
                                     err = 'FileNotFoundError'
                                 if err:
                                     check_data.append(context + (err,))
+
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
-        df.to_csv(f'check_{self.__class__.__name__}_{now}.csv')
+        df.to_csv(f'check_{self.__name__}_{now}.csv')
         pd.options.display.max_columns = len(df.columns)
         print(df)

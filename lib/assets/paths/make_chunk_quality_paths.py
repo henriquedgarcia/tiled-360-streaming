@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from lib.assets.context import Context
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.utils.context_utils import context_quality
 
@@ -11,10 +10,6 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
         with context_quality(self.ctx, '0', 'qp'):
             chunk_video_paths = self.decodable_chunk
         return chunk_video_paths
-
-    @property
-    def decodable_chunk(self):
-        return self.decodable_chunk
 
     @property
     def chunk_quality_result_json(self) -> Path:
