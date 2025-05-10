@@ -17,7 +17,7 @@ from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.make_dash import MakeDash
 from lib.make_decodable import MakeDecodable
 from lib.make_chunk_quality import MakeChunkQuality
-from lib.maketiles import MakeTiles
+from lib.make_tiles import MakeTiles
 from lib.makeviewportquality import ViewportQuality, CheckViewportQuality, GetViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
