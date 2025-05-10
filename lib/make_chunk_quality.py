@@ -14,8 +14,6 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
 
     def main(self):
-        # self.check()
-
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             with task(self):
                 self.work()
