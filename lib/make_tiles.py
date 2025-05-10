@@ -6,7 +6,7 @@ from lib.utils.context_utils import task
 from lib.utils.util import print_error, decode_video, run_command
 
 
-class MakeTiles(Worker, MakeTilesPaths, CtxInterface):
+class MakeTiles(Worker, MakeTilesPaths):
     quality_list: list[str] = None
     decode_check = False
 
