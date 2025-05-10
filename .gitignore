@@ -11,3 +11,4 @@ __pycache__
 /lib/images
 CheckViewportQuality.json
 *.csv
+/.run
