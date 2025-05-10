@@ -15,15 +15,17 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
     def main(self):
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
-            with task(self):
+            with task(self, verbose=True):
                 self.work()
 
     def init(self):
         self.quality_metrics = QualityMetrics(self.ctx)
 
     def work(self):
-        if self.chunk_quality_pickle_ok():
-            raise AbortError('chunk_quality_pickle is ok')
+        if self.chunk_quality_json_ok():
+            raise AbortError('chunk_quality_json is ok')
+
+        self.assert_chunk_and_reference()
 
         reference_frames = iter_video(self.reference_chunk)
         tile_frame = iter_video(self.decodable_chunk)
@@ -31,6 +33,7 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
         frame1 = frame2 = np.array([])
         chunk_quality = []
 
+        print('')
         for _ in tqdm(range(self.gop), desc='Chunk frame'):
             try:
                 frame1 = next(reference_frames)
@@ -58,19 +61,21 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
         cols_name = ['ssim', 'mse', 's-mse', 'ws-mse']
         df = pd.DataFrame(chunk_quality, columns=cols_name)
-        df.to_pickle(self.chunk_quality_pickle)
+        df.to_json(self.chunk_quality_json)
 
-    def chunk_quality_pickle_ok(self) -> bool:
-        try:
-            chunk_quality = pd.read_pickle(self.chunk_quality_pickle)
-            if len(chunk_quality['mse']) != int(self.gop):
+    def chunk_quality_json_ok(self) -> bool:
+        def read_chunk_quality_json():
+            chunk_quality = pd.read_json(self.chunk_quality_json)
+            if chunk_quality.size != int(self.gop) * 4:
                 self.chunk_quality_json.unlink()
                 self.logger.register_log(f'MISSING_FRAMES', self.chunk_quality_json)
                 raise FileNotFoundError()
+
+        try:
+            read_chunk_quality_json()
+            return True  # All OK
         except FileNotFoundError:
-            self.assert_chunk_and_reference()
             return False
-        return True  # All OK
 
     def assert_chunk_and_reference(self):
         error = []
