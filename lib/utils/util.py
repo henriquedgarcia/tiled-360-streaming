@@ -490,17 +490,16 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
 
-    with tqdm(desc=f'{ui_prefix}Running Command', total=float("inf")) as bar:
-        process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
-        stdout_lines = [cmd + '\n']
-        while True:
-            out = process.stdout.readline()
-            if not out: break
-            stdout_lines.append(out)
-            bar.update(len(stdout_lines))
-        process.wait()
-        stdout = ''.join(stdout_lines)
-        print(ui_suffix, end='')
+    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
+    stdout_lines = [cmd + '\n']
+    while True:
+        out = process.stdout.readline()
+        if not out: break
+        stdout_lines.append(out)
+        print('.', end='')
+    process.wait()
+    stdout = ''.join(stdout_lines)
+    print(' finish', end='')
 
     if log_file is not None:
         with open(log_file, mode) as f:
