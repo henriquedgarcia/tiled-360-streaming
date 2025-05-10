@@ -115,7 +115,7 @@ class QualityMetrics(CtxInterface):
             nm = np.ndarray([])
 
         sph_points_mask = np.zeros(self.video_shape)
-        sph_points_mask[proj][nm[0], nm[1]] = 1
+        sph_points_mask[nm[0], nm[1]] = 1
         return sph_points_mask
 
 
