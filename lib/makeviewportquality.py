@@ -13,7 +13,7 @@ from skimage.metrics import mean_squared_error as mse, structural_similarity as 
 from lib.assets.autodict import AutoDict
 from lib.assets.chunkprojectionreader import ChunkProjectionReader
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
-from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
@@ -26,7 +26,7 @@ NumpyArray = np.ndarray
 
 
 class Props(Worker, ViewportQualityPaths,
-            SeenTilesPaths, MakeChunkQualityPaths, ABC):
+            TilesSeenPaths, MakeChunkQualityPaths, ABC):
     seen_tiles_deg_path: dict[Tile, Path]
     seen_tiles_ref_path: dict[Tile, Path]
     seen_tiles_result: Optional[dict]
