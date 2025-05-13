@@ -5,12 +5,14 @@ from tqdm import tqdm
 
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.paths.makesitipaths import MakeSitiPaths
+from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.worker import Worker
 
 
-class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths):
+class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, SeenTilesPaths):
     def main(self):
-        func = [self.CheckChunkQuality, self.CheckMakeDecodable, self.CheckMakeDash, self.CheckMakeSITI]
+        func = [self.CheckChunkQuality, self.CheckMakeDecodable, self.CheckMakeDash,
+                self.CheckMakeSITI, self.CheckMakeTilesSeen]
         options = ''.join(f'{n} - {c.__name__}\n' for n, c in enumerate(func))
         print(options)
         n = input('Choose option: ')
@@ -80,7 +82,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths):
                 check_data.append(context + (err,))
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
-        df.to_csv(f'check_{self.__name__}_{now}.csv')
+        df.to_csv(f'{self.CheckChunkQuality.__name__}_{now}.csv')
         pd.options.display.max_columns = len(df.columns)
         print(df)
 
@@ -206,4 +208,34 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths):
         now = f'{datetime.now()}'.replace(':', '-')
         df.to_csv(f'check_{name}_{now}.csv')
         pd.options.display.max_columns = len(df.columns)
+        print(df)
+
+    def CheckMakeTilesSeen(self):
+        check_data = []
+        total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
+        n = iter(range(total))
+        columns = ['name', 'projection', 'tiling', 'user', 'err']
+
+        for _ in self.iterate_name_projection_tiling_user():
+            context = (f'{self.name}', f'{self.projection}', f'{self.tiling}',
+                       f'user{self.user}')
+            context_str = '_'.join(context)
+            msg = f'{next(n)}/{total} - {self.CheckMakeTilesSeen.__name__} - {context_str}'
+            print(f'\r{msg}', end='')
+
+            err = ''
+            try:
+                size = self.user_seen_tiles_json.stat().st_size
+                if size < 10:
+                    err = 'size < 10'
+            except FileNotFoundError:
+                err = 'FileNotFoundError'
+            if err:
+                check_data.append(context + (err,))
+
+        df = pd.DataFrame(check_data, columns=columns)
+        now = f'{datetime.now()}'.replace(':', '-')
+        df.to_csv(f'{self.CheckMakeTilesSeen.__name__}_{now}.csv')
+        pd.options.display.max_columns = len(df.columns)
+        print('')
         print(df)
