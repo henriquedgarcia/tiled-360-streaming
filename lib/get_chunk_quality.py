@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
@@ -13,7 +12,7 @@ from lib.make_chunk_quality import MakeChunkQualityPaths
 from lib.utils.util import print_error, load_json, save_pickle
 
 
-class MakeChunkQuality(Worker, CtxInterface, MakeChunkQualityPaths):
+class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
@@ -30,7 +29,6 @@ class MakeChunkQuality(Worker, CtxInterface, MakeChunkQualityPaths):
         'WS-MSE': float
         'S-MSE': float
     """
-    chunk_quality_paths: MakeChunkQualityPaths
     progress_bar: ProgressBar
 
     def iter_proj_tiling_tile_qlt_chunk(self):
@@ -49,13 +47,13 @@ class MakeChunkQuality(Worker, CtxInterface, MakeChunkQualityPaths):
                     self.chunk = None
 
     def init(self):
-        self.chunk_quality_paths = MakeChunkQualityPaths(self.ctx)
+        pass
 
     def main(self):
         for self.name in self.name_list:
             self.metric = 'mse'
-            if self.chunk_quality_paths.chunk_quality_result_pickle.exists():
-                print_error(f'{self.chunk_quality_paths.chunk_quality_result_pickle} exists')
+            if self.chunk_quality_result_pickle.exists():
+                print_error(f'{self.chunk_quality_result_pickle} exists')
                 continue
 
             chunk_quality_result = []
@@ -72,14 +70,14 @@ class MakeChunkQuality(Worker, CtxInterface, MakeChunkQualityPaths):
             result.set_index(['name', 'projection', 'tiling', 'tile',
                               'quality', 'chunk'], inplace=True)
             for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
-                save_pickle(result[self.metric], self.chunk_quality_paths.chunk_quality_result_pickle)
+                save_pickle(result[self.metric], self.chunk_quality_result_pickle)
 
     def get_chunk_quality(self):
         try:
-            tile_chunk_quality_dict = load_json(self.chunk_quality_paths.chunk_quality_json)
+            tile_chunk_quality_dict = load_json(self.chunk_quality_json)
         except FileNotFoundError:
-            self.logger.register_log('chunk_quality_json not found', self.chunk_quality_paths.chunk_quality_json)
-            raise AbortError(f'{self.chunk_quality_paths.chunk_quality_json} not found.')
+            self.logger.register_log('chunk_quality_json not found', self.chunk_quality_json)
+            raise AbortError(f'{self.chunk_quality_json} not found.')
         return tile_chunk_quality_dict
 
     def set_chunk_quality(self, chunk_quality_result, tile_chunk_quality_dict):
@@ -104,9 +102,9 @@ class MakePlot(MakeChunkQuality):
             return [np.average(results[value2][chunk][value1]) for chunk in self.chunk_list]
 
         for self.video in self.name_list:
-            folder = self.chunk_quality_paths.base_paths.quality_folder / '_metric plots' / f'{self.name}'
+            folder = self.quality_folder / '_metric plots' / f'{self.name}'
             folder.mkdir(parents=True, exist_ok=True)
-            self.results = load_json(self.chunk_quality_paths.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_result_json)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     # self.get_tile_image()
@@ -116,7 +114,7 @@ class MakePlot(MakeChunkQuality):
 
     def main2(self):
         for self.name in self.name_list:
-            self.results = load_json(self.chunk_quality_paths.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_result_json)
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.quality in self.quality_list:
@@ -143,11 +141,13 @@ class MakePlot(MakeChunkQuality):
         fig.suptitle(f'{self.ctx}')
         fig.tight_layout()
         # fig.show()
-        fig.savefig(self.chunk_quality_paths.quality_result_img)
+        fig.savefig(self.quality_result_img)
         plt.close()
 
+    chunk_results: dict
+
     def get_tile_image(self):
-        if self.chunk_quality_paths.quality_result_img.exists():
+        if self.quality_result_img.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
 
@@ -166,5 +166,5 @@ class MakePlot(MakeChunkQuality):
         fig.suptitle(f'{self.ctx}')
         fig.tight_layout()
         # fig.show()
-        fig.savefig(self.chunk_quality_paths.quality_result_img)
+        fig.savefig(self.quality_result_img)
         plt.close()
