@@ -49,7 +49,7 @@ def task(self, verbose=True):
     except AbortError as e:
         msg = e.args[0]
         if msg and verbose:
-            print_error(f'\t{e.args[0]}', end='')
+            print_error(f'\t{e.args[0]}')
     finally:
         pass
 
