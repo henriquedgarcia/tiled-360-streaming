@@ -92,8 +92,8 @@ def main():
 path_config = Path('config')
 
 config_list = [
-    Option(id=0, name='full_qp', obj=path_config / 'config_full_qp.json'),
-    Option(id=1, name='reversed_qp', obj=path_config / 'config_reversed_qp.json'),
+    Option(id=0, name='cmp_qp', obj=path_config / 'config_cmp_qp.json'),
+    Option(id=1, name='erp_qp', obj=path_config / 'config_erp_qp.json'),
     Option(id=2, name='test_qp', obj=path_config / 'config_test_qp.json'),
     Option(id=3, name='erp_cmp', obj=path_config / 'config_erp_cmp_qp_.json'),
 ]

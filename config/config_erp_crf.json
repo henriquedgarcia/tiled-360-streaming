@@ -1,0 +1,25 @@
+{
+  "project_folder": "../results/nasrabadi_erp_qp",
+  "sph_file": "datasets/sphere_655362.txt",
+  "dataset_file": "datasets/nasrabadi_28videos.json",
+
+  "duration": 60,
+  "fps": 30,
+  "gop": 30,
+  "fov_res": "110x90",
+  "scale": {"erp": "4320x2160"},
+
+  "rate_control": "crf",
+  "decoding_num": 5,
+
+  "bins": 30,
+  "metric_list": ["time", "rate", "ssim", "mse", "s-mse", "ws-mse"],
+  "error_metric": "rmse",
+  "distributions": ["burr12", "fatiguelife", "gamma", "beta", "invgauss",
+                    "rayleigh", "lognorm", "genpareto", "pareto", "halfnorm",
+                    "expon"],
+
+  "fov": "110x90",
+  "quality_list": ["16", "22", "28", "34", "40"],
+  "tiling_list": ["1x1", "3x2", "6x4", "9x6", "12x8"]
+}
