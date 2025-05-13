@@ -11,7 +11,7 @@ from lib.check import Check
 from lib.decode import Decode
 from lib.get_bitrate import GetBitrate
 from lib.get_seen_tiles import GetSeenTiles
-from lib.get_tiles import GetTiles
+from lib.make_seen_tiles import MakeTilesSeen
 from lib.get_dectime import GetDectime
 from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.make_dash import MakeDash
@@ -117,7 +117,7 @@ worker_list = [
     Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='Decode', obj=Decode),
     Option(id=4, name='MakeChunkQuality', obj=MakeChunkQuality),
-    Option(id=5, name='GetTiles', obj=GetTiles),
+    Option(id=5, name='MakeTilesSeen', obj=MakeTilesSeen),
     Option(id=6, name='MakeSiti', obj=MakeSiti),
     Option(id=7, name='GetBitrate', obj=GetBitrate),
     Option(id=8, name='GetDectime', obj=GetDectime),
