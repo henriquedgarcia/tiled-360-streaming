@@ -11,7 +11,7 @@ from lib.check import Check
 from lib.decode import Decode
 from lib.get_bitrate import GetBitrate
 from lib.get_seen_tiles import GetSeenTiles
-from lib.make_seen_tiles import MakeTilesSeen
+from lib.make_tiles_seen import MakeTilesSeen
 from lib.get_dectime import GetDectime
 from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.make_dash import MakeDash
