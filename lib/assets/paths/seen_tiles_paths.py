@@ -1,22 +1,18 @@
 from pathlib import Path
 
-from lib.assets.context import Context
 from lib.assets.paths.basepaths import BasePaths
 
 
 class SeenTilesPaths(BasePaths):
-    ctx: Context
-
-    def __init__(self, context: Context):
-        self.ctx = context
-
     @property
     def seen_tiles_result_json(self) -> Path:
-        return self.results_folder / f'seen_tiles/get_tiles_{self.name}_fov{self.fov}.json'
+        """depend on name and fov"""
+        return self.seen_tiles_folder / f'seen_tiles_{self.name}_fov{self.fov}.json'
 
     @property
     def seen_tiles_result_pickle(self) -> Path:
-        return self.results_folder / f'seen_tiles/seen_tiles_{self.name}_fov{self.fov}.pickle'
+        """depend on name and fov"""
+        return self.seen_tiles_folder / f'seen_tiles.pickle'
 
     @property
     def user_seen_tiles_folder(self) -> Path:
