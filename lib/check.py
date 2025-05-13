@@ -5,14 +5,14 @@ from tqdm import tqdm
 
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.paths.makesitipaths import MakeSitiPaths
-from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.worker import Worker
 
 
-class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, SeenTilesPaths):
+class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
     def main(self):
         func = [self.CheckChunkQuality, self.CheckMakeDecodable, self.CheckMakeDash,
-                self.CheckMakeSITI, self.CheckMakeTilesSeen]
+                self.CheckMakeSITI, self.CheckTilesSeen]
         options = ''.join(f'{n} - {c.__name__}\n' for n, c in enumerate(func))
         print(options)
         n = input('Choose option: ')
@@ -210,7 +210,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, SeenTilesPaths):
         pd.options.display.max_columns = len(df.columns)
         print(df)
 
-    def CheckMakeTilesSeen(self):
+    def CheckTilesSeen(self):
         check_data = []
         total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
         n = iter(range(total))
@@ -220,7 +220,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, SeenTilesPaths):
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}',
                        f'user{self.user}')
             context_str = '_'.join(context)
-            msg = f'{next(n)}/{total} - {self.CheckMakeTilesSeen.__name__} - {context_str}'
+            msg = f'{next(n)}/{total} - {self.CheckTilesSeen.__name__} - {context_str}'
             print(f'\r{msg}', end='')
 
             err = ''
@@ -235,7 +235,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, SeenTilesPaths):
 
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
-        df.to_csv(f'{self.CheckMakeTilesSeen.__name__}_{now}.csv')
+        df.to_csv(f'{self.CheckTilesSeen.__name__}_{now}.csv')
         pd.options.display.max_columns = len(df.columns)
         print('')
         print(df)
