@@ -1,5 +1,5 @@
 {
-  "project_folder": "../results/nasrabadi_8videos_erp_cmp_qp",
+  "project_folder": "../results/nasrabadi_erp_qp",
   "sph_file": "datasets/sphere_655362.txt",
   "dataset_file": "datasets/nasrabadi_28videos.json",
 
@@ -7,8 +7,7 @@
   "fps": 30,
   "gop": 30,
   "fov_res": "110x90",
-  "scale": {"cmp": "3240x2160",
-            "erp": "4320x2160"},
+  "scale": {"erp": "4320x2160"},
 
   "rate_control": "qp",
   "decoding_num": 5,
