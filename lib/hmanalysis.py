@@ -222,7 +222,7 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
     fig_final = draw.compose(fig_final, vp, (0, 0, 255))
     draw.show(fig_final)
 
-# class TestGetTiles(GetTiles):
+# class TestMakeTilesSeen(MakeTilesSeen):
 #     def init(self):
 #         ctx.tiling_list.remove('1x1')
 #         self.quality = '28'
