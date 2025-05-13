@@ -35,7 +35,7 @@ done
 # 2 - MakeDecodable
 # 3 - Decode
 # 4 - MakeChunkQuality
-# 5 - GetTiles
+# 5 - MakeTilesSeen
 # 6 - MakeSiti
 # 7 - GetBitrate
 # 8 - GetDectime
