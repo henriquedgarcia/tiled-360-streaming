@@ -94,13 +94,13 @@ path_config = Path('config')
 config_list = [
     Option(id=0, name='cmp_qp', obj=path_config / 'config_cmp_qp.json'),
     Option(id=1, name='erp_qp', obj=path_config / 'config_erp_qp.json'),
-    Option(id=2, name='test_qp', obj=path_config / 'config_test_qp.json'),
-    Option(id=3, name='erp_cmp', obj=path_config / 'config_erp_cmp_qp_.json'),
+    Option(id=2, name='cmp_crf', obj=path_config / 'config_cmp_crf.json'),
+    Option(id=3, name='erp_crf', obj=path_config / 'config_erp_crf.json'),
 ]
 
 videos_list = [
-    Option(id=0, name='full', obj=path_config / 'videos_full.json'),  # 
-    Option(id=1, name='reversed', obj=path_config / 'videos_reversed.json'),  # 
+    Option(id=0, name='reduced', obj=path_config / 'videos_reduced.json'),  #
+    Option(id=1, name='reversed', obj=path_config / 'videos_reversed.json'),  #
     Option(id=2, name='lumine', obj=path_config / 'videos_lumine.json'),  # 100 angel_falls-closet_tour
     Option(id=3, name='container0', obj=path_config / 'videos_container0.json'),  # 67 drone_chases_car-dubstep_dance
     Option(id=4, name='container1', obj=path_config / 'videos_container1.json'),  # 70 elevator_lift-nyc_drive
@@ -108,7 +108,7 @@ videos_list = [
     Option(id=6, name='hp_elite', obj=path_config / 'videos_hp_elite.json'),  # 103 three_peaks-video_22
     Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # 99 video_23-wingsuit_dubai
     Option(id=8, name='test', obj=path_config / 'videos_test.json'),  # 
-    Option(id=9, name='reduced', obj=path_config / 'videos_reduced.json'),  #
+    Option(id=9, name='full', obj=path_config / 'videos_full.json'),  #
 ]
 
 worker_list = [

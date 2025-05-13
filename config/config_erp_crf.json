@@ -1,5 +1,5 @@
 {
-  "project_folder": "../results/nasrabadi_erp_qp",
+  "project_folder": "../results/nasrabadi_erp_crf",
   "sph_file": "datasets/sphere_655362.txt",
   "dataset_file": "datasets/nasrabadi_28videos.json",
 
