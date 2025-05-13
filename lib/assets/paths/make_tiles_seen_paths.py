@@ -3,7 +3,7 @@ from pathlib import Path
 from lib.assets.paths.basepaths import BasePaths
 
 
-class SeenTilesPaths(BasePaths):
+class TilesSeenPaths(BasePaths):
     @property
     def seen_tiles_result_json(self) -> Path:
         """depend on name and fov"""
