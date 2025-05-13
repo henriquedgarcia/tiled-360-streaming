@@ -10,7 +10,7 @@ from lib.assets.autodict import AutoDict
 from lib.assets.ctxinterface import CtxInterface
 
 from lib.assets.paths.dectimepaths import DectimePaths
-from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.paths.segmenterpaths import SegmenterPaths
 from lib.assets.paths.userqualitypaths import UserQualityPaths
 from .assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
@@ -30,7 +30,7 @@ class UserProjectionMetricsProps(CtxInterface):
     get_tiles_data: dict
     dectime_paths: DectimePaths
     segmenter_paths: SegmenterPaths
-    get_tiles_paths: SeenTilesPaths
+    get_tiles_paths: TilesSeenPaths
     tile_chunk_quality_paths: MakeChunkQualityPaths
     user_quality_paths: UserQualityPaths
 
@@ -63,7 +63,7 @@ class UserQuality(UserProjectionMetricsProps):
         self.tile_chunk_quality_paths = MakeChunkQualityPaths(self.ctx)
         self.dectime_paths = DectimePaths(self.ctx)
         self.segmenter_paths = SegmenterPaths(self.ctx)
-        self.get_tiles_paths = SeenTilesPaths(self.ctx)
+        self.get_tiles_paths = TilesSeenPaths(self.ctx)
         self.user_quality_paths = UserQualityPaths(self.ctx)
 
     def main(self):
