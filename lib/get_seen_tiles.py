@@ -2,11 +2,11 @@ import pandas as pd
 
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.utils.util import load_json, save_pickle, print_error
 
 
-class GetSeenTiles(Worker, SeenTilesPaths):
+class GetSeenTiles(Worker, TilesSeenPaths):
     seen_tiles_result: list
     progress_bar: ProgressBar
 
