@@ -7,7 +7,7 @@ from py360tools import ProjectionBase
 from py360tools.draw import draw
 
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
-from lib.make_seen_tiles import MakeTilesSeen
+from lib.make_tiles_seen import MakeTilesSeen
 from lib.utils.util import print_error, load_json, splitx
 
 
