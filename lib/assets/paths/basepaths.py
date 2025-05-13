@@ -63,7 +63,7 @@ class BasePaths(CtxInterface):
 
     @property
     def seen_tiles_folder(self):
-        return self.project_path / 'get_tiles'
+        return self.project_path / 'seen_tiles'
 
     @property
     def folder_name(self):
