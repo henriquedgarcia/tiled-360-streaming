@@ -4,7 +4,6 @@ from typing import Optional, Any
 from py360tools import ProjectionBase
 
 from lib.assets.autodict import AutoDict
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.seen_tiles_paths import SeenTilesPaths
 from lib.assets.worker import Worker
@@ -12,7 +11,7 @@ from lib.utils.context_utils import task, timer
 from lib.utils.util import save_json, build_projection, get_nested_value, load_json
 
 
-class PrivatesMethods(CtxInterface):
+class PrivatesMethods(SeenTilesPaths):
     _results: dict = None
 
     @property
@@ -50,7 +49,7 @@ class PrivatesMethods(CtxInterface):
             tiles_seen_by_frame.append(vptiles)
         return tiles_seen_by_frame
 
-    def get_tiles_seen_by_chunk(self, tiles_seen_by_frame):
+    def get_tiles_seen_by_chunk(self, tiles_seen_by_frame: list[list[str]]) -> dict[str, list[str]]:
         tiles_seen_by_chunk = {}
 
         if self.tiling == '1x1':
@@ -106,7 +105,7 @@ class PrivatesMethods(CtxInterface):
         save_json(result, self.counter_tiles_json)
 
 
-class MakeTilesSeen(Worker, SeenTilesPaths, PrivatesMethods):
+class MakeTilesSeen(Worker, PrivatesMethods):
     projection_dict: dict['str', dict['str', ProjectionBase]]
     tiles_seen: dict
 
