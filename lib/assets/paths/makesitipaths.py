@@ -35,7 +35,7 @@ class MakeSitiPaths(BasePaths):
 
     @property
     def siti_pickle_results(self) -> Path:
-        folder = self.results_folder / 'siti'
+        folder = self.siti_folder
         folder.mkdir(exist_ok=True, parents=True)
-        return folder / f"siti_{self.name}.pickle"
+        return folder / f"siti.pickle"
 
