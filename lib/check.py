@@ -1,11 +1,15 @@
+import os
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
 
+from config.config import Config
+from lib.assets.context import Context
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
-from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
+from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.worker import Worker
 
 
@@ -64,6 +68,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
         n = iter(range(total))
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
 
+        self.config.config_dict['quality_list'] = ['0'] + self.quality_list
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                        f'qp{self.quality}', f'chunk{self.chunk}')
@@ -96,7 +101,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.tile in self.tile_list:
-                        for self.quality in self.quality_list:
+                        for self.quality in ['0'] + self.quality_list:
                             for self.chunk in self.chunk_list:
                                 context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                                            f'qp{self.quality}', f'chunk{self.chunk}')
@@ -141,7 +146,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
                                        None, None)
                             check_data.append(context + (err,))
 
-                        for self.quality in self.quality_list:
+                        for self.quality in ['0'] + self.quality_list:
                             err = ''
                             try:
                                 size = self.dash_init.stat().st_size
@@ -212,7 +217,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
 
     def CheckTilesSeen(self):
         check_data = []
-        total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
+        total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list) * 30
         n = iter(range(total))
         columns = ['name', 'projection', 'tiling', 'user', 'err']
 
@@ -220,7 +225,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}',
                        f'user{self.user}')
             context_str = '_'.join(context)
-            msg = f'{next(n)}/{total} - {self.CheckTilesSeen.__name__} - {context_str}'
+            msg = f'{next(n) + 1}/{total} - {self.CheckTilesSeen.__name__} - {context_str}'
             print(f'\r{msg}', end='')
 
             err = ''
@@ -239,3 +244,28 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
         pd.options.display.max_columns = len(df.columns)
         print('')
         print(df)
+
+
+if __name__ == '__main__':
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    Check(ctx)
