@@ -34,13 +34,13 @@ done
 # 1 - MakeDash
 # 2 - MakeDecodable
 # 3 - Decode
-# 4 - MakeChunkQuality
+# 4 - GetChunkQuality
 # 5 - MakeTilesSeen
 # 6 - MakeSiti
 # 7 - GetBitrate
 # 8 - GetDectime
-# 9 - MakeChunkQuality
-# 10 - GetSeenTiles
+# 9 - GetChunkQuality
+# 10 - GetTilesSeen
 # 11 - ViewportQuality
 
 # NAMES_LIST
