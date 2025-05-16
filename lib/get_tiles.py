@@ -1,3 +1,4 @@
+import pandas as pd
 from collections import defaultdict
 from typing import Union
 
@@ -62,8 +63,7 @@ class TestMakeTilesSeen(MakeTilesSeen):
 
     def init(self):
         super().init()
-        self.results = load_json(self.seen_tiles_result_json)
-        pass
+        self.results = pd.read_pickle(self.seen_tiles_result_by_name)
 
     seen_tiles_metric: dict
 
