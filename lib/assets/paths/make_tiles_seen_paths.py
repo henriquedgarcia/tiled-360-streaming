@@ -5,14 +5,14 @@ from lib.assets.paths.basepaths import BasePaths
 
 class TilesSeenPaths(BasePaths):
     @property
-    def seen_tiles_result_json(self) -> Path:
+    def seen_tiles_result_by_name(self) -> Path:
         """depend on name and fov"""
-        return self.seen_tiles_folder / f'seen_tiles_{self.name}_fov{self.fov}.json'
+        return self.seen_tiles_folder / f'seen_tiles_{self.name}_{self.projection}_fov{self.fov}.pickle'
 
     @property
-    def seen_tiles_result_pickle(self) -> Path:
+    def seen_tiles_result(self) -> Path:
         """depend on name and fov"""
-        return self.seen_tiles_folder / f'seen_tiles.pickle'
+        return self.results_folder / f'seen_tiles_fov{self.fov}.pickle'
 
     @property
     def user_seen_tiles_folder(self) -> Path:
