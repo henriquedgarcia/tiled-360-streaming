@@ -26,4 +26,4 @@ class ViewportQualityPaths(BasePaths):
     @property
     def chunk_quality_result(self) -> Path:
         """depend on name and fov"""
-        return self.results_folder / f'chunk_quality_{self.metric}_{self.projection}_{self.rate_control}.pickle'
+        return self.results_folder / f'user_viewport_quality_{self.metric}_{self.projection}_{self.rate_control}.pickle'
