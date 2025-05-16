@@ -1,9 +1,14 @@
+import pandas as pd
+import os
 from collections import Counter
+from pathlib import Path
 from typing import Optional, Any
 
 from py360tools import ProjectionBase
 
+from config.config import Config
 from lib.assets.autodict import AutoDict
+from lib.assets.context import Context
 from lib.assets.errors import AbortError
 from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.worker import Worker
@@ -68,8 +73,7 @@ class PrivatesMethods(TilesSeenPaths):
 
     def count_tiles(self):
         if self.counter_tiles_json.exists(): return
-
-        self.results = load_json(self.seen_tiles_result_json)
+        self.results = pd.read_pickle(self.seen_tiles_result)
         result = {}
 
         for self.tiling in self.tiling_list:
@@ -174,3 +178,28 @@ class MakeTilesSeen(Worker, PrivatesMethods):
         save_json(self.tiles_seen, self.user_seen_tiles_json)
 
     _results: dict
+
+
+if __name__ == '__main__':
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    MakeTilesSeen(ctx)
