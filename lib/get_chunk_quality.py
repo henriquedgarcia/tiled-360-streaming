@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -5,14 +6,15 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from config.config import Config
+from lib.assets.context import Context
 from lib.assets.errors import AbortError
-from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
 from lib.make_chunk_quality import MakeChunkQualityPaths
-from lib.utils.util import print_error, load_json, save_pickle
+from lib.utils.util import print_error, load_json
 
 
-class MakeChunkQuality(Worker, MakeChunkQualityPaths):
+class GetChunkQuality(Worker, MakeChunkQualityPaths):
     """
            The result dict have a following structure:
         results[video_name][tile_pattern][quality][tile_id][chunk_id]
@@ -29,72 +31,85 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
         'WS-MSE': float
         'S-MSE': float
     """
-    progress_bar: ProgressBar
-
-    def iter_proj_tiling_tile_qlt_chunk(self):
-        self.projection = 'cmp'
-        self.progress_bar = ProgressBar(total=(len(self.quality_list)
-                                               * 181
-                                               ),
-                                        desc=f'{self.__class__.__name__}')
-
-        for self.tiling in self.tiling_list:
-            for self.tile in self.tile_list:
-                for self.quality in self.quality_list:
-                    self.progress_bar.update(f'{self.ctx}')
-                    for self.chunk in self.chunk_list:
-                        yield
-                    self.chunk = None
+    data: list
+    cools_names: list
+    metric_list: list
 
     def init(self):
-        pass
+        self.cools_names = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk',
+                            'frame', 'ssim', 'mse', 's-mse', 'ws-mse']
+        self.metric_list = ['ssim', 'mse', 's-mse', 'ws-mse']
+        self.metric = 'ssim'
+
+    def __str__(self):
+        return f'{self.name}_{self.projection}_{self.tiling}_tile{self.tile}_{self.rate_control}{self.quality}_chunk{self.chunk}'
 
     def main(self):
-        for self.name in self.name_list:
-            self.metric = 'mse'
-            if self.chunk_quality_result_pickle.exists():
-                print_error(f'{self.chunk_quality_result_pickle} exists')
+        for _ in self.iterate_name_projection:
+            if self.chunk_quality_result_by_name.exists(): continue
+
+            try:
+                self.get_data()
+            except FileNotFoundError:
+                print(f'\nFileNotFoundError: {self.chunk_quality_json} not found.')
+                self.logger.register_log('FileNotFoundError', self.chunk_quality_json)
                 continue
 
-            chunk_quality_result = []
+            print('\tSaving Data')
+            self.save_data()
+            print('\tfinished')
 
-            for _ in self.iter_proj_tiling_tile_qlt_chunk():
-                tile_chunk_quality_dict = self.get_chunk_quality()
-                self.set_chunk_quality(chunk_quality_result,
-                                       tile_chunk_quality_dict)
+        self.merge()
 
-            result = pd.DataFrame(chunk_quality_result,
-                                  columns=['name', 'projection', 'tiling',
-                                           'tile', 'quality', 'chunk', 'ssim',
-                                           'mse', 's-mse', 'ws-mse'])
-            result.set_index(['name', 'projection', 'tiling', 'tile',
-                              'quality', 'chunk'], inplace=True)
-            for self.metric in ['ssim', 'mse', 's-mse', 'ws-mse']:
-                save_pickle(result[self.metric], self.chunk_quality_result_pickle)
+    def get_data(self):
+        self.data = []
+        for _ in self.iterate_tiling_tile_quality_chunk:
+            print(f'\r{self}', end='')
 
-    def get_chunk_quality(self):
-        try:
             tile_chunk_quality_dict = load_json(self.chunk_quality_json)
-        except FileNotFoundError:
-            self.logger.register_log('chunk_quality_json not found', self.chunk_quality_json)
-            raise AbortError(f'{self.chunk_quality_json} not found.')
-        return tile_chunk_quality_dict
 
-    def set_chunk_quality(self, chunk_quality_result, tile_chunk_quality_dict):
-        metric_values = list(tile_chunk_quality_dict.values())
-        key = [self.name, self.projection, self.tiling,
-               int(self.tile), int(self.quality),
-               int(self.chunk) - 1] + metric_values
-        chunk_quality_result.append(key)
+            metric_values = tuple(tile_chunk_quality_dict.values())
+            for frame, values in enumerate(zip(*metric_values)):
+                data = (self.name, self.projection, self.tiling,
+                        int(self.tile), int(self.quality),
+                        int(self.chunk) - 1, frame) + values
+                self.data.append(data)
+
+    def save_data(self):
+        df = pd.DataFrame(self.data, columns=self.cools_names)
+        df.set_index(self.cools_names[:-4], inplace=True)
+        df.sort_index(inplace=True)
+        for self.metric in self.metric_list:
+            new_df = df[[self.metric]]
+            new_df.to_pickle(self.chunk_quality_result_by_name)
+
+    def merge(self):
+        for self.metric in self.metric_list:
+            # if self.chunk_quality_result.exists():
+            #     print('chunk_quality_result is OK.')
+            #     return
+            print(f'Merging {self.metric}...')
+            merged = None
+
+            for _ in self.iterate_name_projection:
+                df = pd.read_pickle(self.chunk_quality_result_by_name)
+                merged = (df if merged is None else
+                          pd.concat([merged, df], axis=0))
+
+            if merged.size != 13032000:
+                print_error('Dataframe size mismatch.')
+                raise AbortError
+
+            merged.to_pickle(self.chunk_quality_result)
 
 
-class MakePlot(MakeChunkQuality):
+class MakePlot(GetChunkQuality):
     _skip: bool
     change_flag: bool
     folder: Path
     results: dict
 
-    def main(self):
+    def main3(self):
         def get_serie(value1, value2):
             # self.results[self.proj][self.name][self.tiling][self.quality][self.tile][self.chunk][self.metric]
             results = self.results[self.projection][self.name][self.tiling][self.quality]
@@ -104,7 +119,7 @@ class MakePlot(MakeChunkQuality):
         for self.video in self.name_list:
             folder = self.quality_folder / '_metric plots' / f'{self.name}'
             folder.mkdir(parents=True, exist_ok=True)
-            self.results = load_json(self.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_result_by_name)
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
                     # self.get_tile_image()
@@ -114,7 +129,7 @@ class MakePlot(MakeChunkQuality):
 
     def main2(self):
         for self.name in self.name_list:
-            self.results = load_json(self.chunk_quality_result_json)
+            self.results = load_json(self.chunk_quality_result_by_name)
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.quality in self.quality_list:
@@ -168,3 +183,28 @@ class MakePlot(MakeChunkQuality):
         # fig.show()
         fig.savefig(self.quality_result_img)
         plt.close()
+
+
+if __name__ == '__main__':
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    GetChunkQuality(ctx)
