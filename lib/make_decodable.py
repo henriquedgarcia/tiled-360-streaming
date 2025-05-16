@@ -1,3 +1,8 @@
+import os
+from pathlib import Path
+
+from config.config import Config
+from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
@@ -59,3 +64,29 @@ class MakeDecodable(Worker, MakeDecodablePaths):
             self.logger.register_log('Chunk size is 0.', self.decodable_chunk)
             self.decodable_chunk.unlink()
             raise FileNotFoundError()
+
+
+if __name__ == '__main__':
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_erp_qp.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    MakeDecodable(ctx)
