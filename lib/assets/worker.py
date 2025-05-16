@@ -58,12 +58,43 @@ class Worker(ABC, CtxInterface):
               f'  patterns: {self.ctx.tiling_list}')
         print('=' * 70)
 
+    @property
+    def iterate_name_projection(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                self.ctx.iterations += 1
+                yield
+
+    @property
+    def iterate_name_projection_metric(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.metric in self.metric_list:
+                    self.ctx.iterations += 1
+                    yield
+
+    def iterate_name_projection_user(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.user in self.users_list_by_name:
+                    self.ctx.iterations += 1
+                    yield
+
+    @property
     def iterate_name_projection_tiling(self):
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     self.ctx.iterations += 1
                     yield
+
+    def iterate_name_projection_tiling_user(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list_by_name:
+                        self.ctx.iterations += 1
+                        yield
 
     def iterate_name_projection_tiling_tile(self):
         for self.name in self.name_list:
@@ -92,32 +123,32 @@ class Worker(ABC, CtxInterface):
                                 self.ctx.iterations += 1
                                 yield
 
-    def iterate_projection_tiling_tile_quality_chunk(self):
-        for self.projection in self.projection_list:
-            for self.tiling in self.tiling_list:
-                for self.tile in self.tile_list:
-                    for self.quality in self.quality_list:
-                        for self.chunk in self.chunk_list:
-                            self.ctx.iterations += 1
-                            yield
+    def iterate_tiling_tile(self):
+        for self.tiling in self.tiling_list:
+            for self.tile in self.tile_list:
+                self.ctx.iterations += 1
+                yield
 
-    def iterate_projection_tiling_tile(self):
-        for self.projection in self.projection_list:
-            for self.tiling in self.tiling_list:
-                for self.tile in self.tile_list:
-                    self.ctx.iterations += 1
-                    yield
-
-    def iterate_name_projection_tiling_user(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.user in self.users_list_by_name:
+    @property
+    def iterate_tiling_tile_quality_chunk(self):
+        for self.tiling in self.tiling_list:
+            for self.tile in self.tile_list:
+                for self.quality in self.quality_list:
+                    for self.chunk in self.chunk_list:
                         self.ctx.iterations += 1
                         yield
 
-    def iterate_name_user(self):
-        for self.name in self.name_list:
-            for self.user in self.users_list_by_name:
-                self.ctx.iterations += 1
-                yield
+    @property
+    def iterate_tiling_quality_user(self):
+        for self.tiling in self.tiling_list:
+            for self.quality in self.quality_list:
+                for self.user in self.users_list_by_name:
+                    self.ctx.iterations += 1
+                    yield
+
+    def iterate_tiling_user(self):
+        for self.projection in self.projection_list:
+            for self.tiling in self.tiling_list:
+                for self.user in self.users_list_by_name:
+                    self.ctx.iterations += 1
+                    yield
