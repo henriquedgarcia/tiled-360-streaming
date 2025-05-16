@@ -25,9 +25,9 @@ class MakeDashPaths(MakeTilesPaths):
         return self.mpd_folder / f'tile{self.tile}_{self.rate_control}{self.quality}_{self.chunk}.m4s'
 
     @property
-    def bitrate_result_json(self) -> Path:
-        return self.results_folder / f'bitrate/bitrate_{self.name}.json'
+    def bitrate_result_by_name(self) -> Path:
+        return self.dash_folder / f'bitrate_{self.name}_{self.projection}_{self.rate_control}.pickle'
 
     @property
-    def bitrate_result_pickle(self) -> Path:
-        return self.results_folder / f'bitrate/bitrate.pickle'
+    def bitrate_result(self) -> Path:
+        return self.results_folder / f'bitrate_{self.projection}_{self.rate_control}.pickle'
