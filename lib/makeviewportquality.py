@@ -12,13 +12,12 @@ from skimage.metrics import mean_squared_error as mse, structural_similarity as 
 
 from lib.assets.autodict import AutoDict
 from lib.assets.chunkprojectionreader import ChunkProjectionReader
-from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
-from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, get_nested_value, print_error, save_pickle
+from lib.utils.util import save_json, load_json, get_nested_value, print_error
 
 Tiling = str
 Tile = str
@@ -46,7 +45,7 @@ class Props(Worker, ViewportQualityPaths,
     def seen_tiles(self):
         """
         depends [self.name, self.projection, self.tiling, self.user, self.chunk]
-        need make: self.seen_tiles_result = load_json(self.seen_tiles_result_json)
+        need make: self.tiles_seen_result = load_json(self.seen_tiles_result_json)
             self.seen_tiles_result_json depends [self.name, self.fov]
         :return:
         """
@@ -84,7 +83,7 @@ class ViewportQuality(Props):
             self.proj_obj = CMP(tiling=self.tiling, proj_res='3240x2160',
                                 vp_res='1320x1080', fov_res='110x90')
             for self.name in self.name_list:
-                self.seen_tiles_result = load_json(self.seen_tiles_result_json)
+                self.seen_tiles_result: pd.DataFrame = pd.read_pickle(self.seen_tiles_result_by_name)
                 for self.user in self.users_list_by_name:
                     for self.chunk in self.chunk_list:
                         self.viewport_frame_ref_3dArray = None
@@ -175,35 +174,3 @@ class CheckViewportQuality(ViewportQuality):
         print(json.dumps(result, indent=2))
         print(f'\nChunks que faltam: {miss_total}, Chunks ok: {ok_total}. Total: {miss_total + ok_total}')
         Path(f'CheckViewportQuality.json').write_text(json.dumps(result, indent=2))
-
-
-class GetViewportQuality(ViewportQuality):
-    def main(self):
-
-        typos = {'name': str, 'projection': str, 'tiling': str,
-                 'quality': int, 'user': int, 'chunk': int, 'frame': int,
-                 'mse': float, 'ssim': float}
-        for self.name in self.name_list:
-            new_data = []
-            for self.projection in self.projection_list:
-                for self.tiling in self.tiling_list:
-                    for self.quality in self.quality_list:
-                        for self.user in self.users_list_by_name:
-                            frame = 0
-                            for self.chunk in self.chunk_list:
-                                print(f'\r{self.name}_{self.tiling}_qp{self.quality}_user{self.user}_chunk{self.chunk}', end='')
-                                # user_viewport_quality é um dicionário de listas. As chaves são 'ssim' e 'mse'.
-                                # As listas contem as métricas usando float64 para cada frame do chunk (30 frames)
-                                user_viewport_quality = load_json(self.user_viewport_quality_json)
-                                mse_ = user_viewport_quality['mse']
-                                ssim_ = user_viewport_quality['ssim']
-                                for (m, s) in zip(mse_, ssim_):
-                                    data = (self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk) - 1, frame, m, s)
-                                    new_data.append(data)
-                                    frame += 1
-                            # break
-            keys = list(typos.keys())
-
-            df = pd.DataFrame(new_data, columns=keys)
-            df.set_index(keys[:-2], inplace=True)
-            save_pickle(df, self.user_viewport_quality_result_pickle)
