@@ -18,5 +18,9 @@ class DectimePaths(MakeDecodablePaths):
         return self.results_folder / f'dectime/time_{self.ctx.name}.json'
 
     @property
-    def dectime_result_pickle(self) -> Path:
-        return self.results_folder / f'dectime/dectime.pickle'
+    def dectime_result_by_name(self) -> Path:
+        return self.dectime_folder0 / f'dectime_{self.name}_{self.projection}_{self.rate_control}.pickle'
+
+    @property
+    def dectime_result(self) -> Path:
+        return self.results_folder / f'dectime_{self.projection}_{self.rate_control}.pickle'
