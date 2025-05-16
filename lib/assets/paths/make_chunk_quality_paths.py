@@ -12,12 +12,13 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
         return chunk_video_paths
 
     @property
-    def chunk_quality_result_json(self) -> Path:
-        return self.results_folder / f'quality/chunk_quality_{self.name}.json'
+    def chunk_quality_result_by_name(self) -> Path:
+        return self.project_path / f'quality/chunk_quality_{self.metric}_{self.name}_{self.projection}_{self.rate_control}.pickle'
 
     @property
-    def chunk_quality_result_pickle(self) -> Path:
-        return self.results_folder / f'quality/{self.metric}_{self.name}.pickle'
+    def chunk_quality_result(self) -> Path:
+        """depend on name and fov"""
+        return self.results_folder / f'chunk_quality_{self.metric}_{self.projection}_{self.rate_control}.pickle'
 
     @property
     def chunk_quality_folder(self) -> Path:
