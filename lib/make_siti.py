@@ -1,5 +1,10 @@
+import os
+from pathlib import Path
+
 import pandas as pd
 
+from config.config import Config
+from lib.assets.context import Context
 from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.paths.maketilespaths import MakeTilesPaths
 from lib.assets.siti import SiTi
@@ -12,25 +17,39 @@ class MakeSiti(Worker, MakeSitiPaths, MakeTilesPaths):
     siti_results_df: pd.DataFrame = None
 
     def init(self):
-        self.projection = 'cmp'
         self.tiling = '3x2'
         self.quality = '28'
 
     def main(self):
+        def assert_siti_csv_results() -> bool:
+            try:
+                csv_results = pd.read_csv(self.siti_csv_results, index_col=0)
+                if csv_results.size == 0:
+                    self.siti_csv_results.unlink()
+                    raise FileNotFoundError
+                print_error(f'\t{self.name} siti_csv_results exist.')
+                return True
+            except FileNotFoundError:
+                return False
+
+        def assert_tile_video() -> bool:
+            if self.tile_video.exists():
+                return True
+
+            self.logger.register_log('compressed_file NOT_FOUND', self.tile_video)
+            print_error('\tcompressed_file not exist. Skipping.')
+            return False
+
         for self.name in self.name_list:
-            for self.tile in self.tile_list:
-                print(f'{self.name}_{self.tile}')
+            for self.projection in self.projection_list:
+                for self.tile in self.tile_list:
+                    print(f'{self.name}_{self.tile}')
+                    if assert_siti_csv_results(): continue
+                    if not assert_tile_video(): continue
 
-                if self.siti_csv_results.exists():
-                    print_error(f'\t{self.name} siti_csv_results exist. Skipping.')
-                    continue
-                if not self.tile_video.exists():
-                    self.logger.register_log('compressed_file NOT_FOUND', self.tile_video)
-                    print_error('\tcompressed_file not exist. Skipping.')
-
-                siti = SiTi(self.tile_video)
-                df = pd.DataFrame(siti.siti)
-                df.to_csv(self.siti_csv_results, index_label='frame')
+                    siti = SiTi(self.tile_video)
+                    df = pd.DataFrame(siti.siti)
+                    df.to_csv(self.siti_csv_results, index_label='frame')
 
         # siti_stats = defaultdict(list)
         # self.dict = defaultdict(list)
@@ -239,24 +258,52 @@ class MakeSiti(Worker, MakeSitiPaths, MakeTilesPaths):
 
 class GetMakeSiti(MakeSiti):
     def main(self):
-        self.projection = 'cmp'
         self.tiling = '3x2'
         self.quality = '28'
         result = []
-        typos = {'name': str, 'projection': str, 'tiling': str, 'tile': int, 'quality': int, 'si': list[float], 'ti': list[float]}
+        typos = {'name': str, 'projection': str, 'tiling': str, 'tile': int, 'quality': int, 'frame': int, 'si': list[float], 'ti': list[float]}
         keys = list(typos.keys())
+
         for self.name in self.name_list:
-            for self.tile in self.tile_list:
-                if not self.siti_csv_results.exists():
-                    print_error(f'\t{self.name} siti_csv_results NOT exist. Skipping.')
-                    continue
+            for self.projection in self.projection_list:
+                for self.tile in self.tile_list:
+                    if not self.siti_csv_results.exists():
+                        print_error(f'\t{self.name} siti_csv_results NOT exist. Skipping.')
+                        continue
 
-                df = pd.read_csv(self.siti_csv_results, index_col=0)
-                si = df['si'].to_list()
-                ti = df['ti'].to_list()
+                    df = pd.read_csv(self.siti_csv_results, index_col=0)
+                    si = df['si'].to_list()
+                    ti = df['ti'].to_list()
+                    for frame, (si, ti) in enumerate(zip(si, ti)):
+                        result.append([self.name, self.projection, self.tiling, int(self.tile), int(self.quality), frame, si, ti])
 
-                result.append([self.name, self.projection, self.tiling, int(self.tile), int(self.quality), si, ti])
-
-            df = pd.DataFrame(result, columns=keys)
-            df.set_index(keys[:-2], inplace=True)
+        df = pd.DataFrame(result, columns=keys)
+        df.set_index(keys[:-2], inplace=True)
+        if df.size == 172800:
             df.to_pickle(self.siti_pickle_results)
+
+
+if __name__ == '__main__':
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    # MakeSiti(ctx)
+    GetMakeSiti(ctx)
