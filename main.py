@@ -10,7 +10,7 @@ from lib.assets.worker import Worker
 from lib.check import Check
 from lib.decode import Decode
 from lib.get_bitrate import GetBitrate
-from lib.get_seen_tiles import GetSeenTiles
+from lib.get_seen_tiles import GetTilesSeen
 from lib.make_tiles_seen import MakeTilesSeen
 from lib.get_dectime import GetDectime
 from lib.make_siti import MakeSiti, GetMakeSiti
@@ -18,7 +18,8 @@ from lib.make_dash import MakeDash
 from lib.make_decodable import MakeDecodable
 from lib.make_chunk_quality import MakeChunkQuality
 from lib.make_tiles import MakeTiles
-from lib.makeviewportquality import ViewportQuality, CheckViewportQuality, GetViewportQuality
+from lib.makeviewportquality import ViewportQuality, CheckViewportQuality
+from lib.get_viewport_quality import GetViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -116,13 +117,13 @@ worker_list = [
     Option(id=1, name='MakeDash', obj=MakeDash),
     Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='Decode', obj=Decode),
-    Option(id=4, name='MakeChunkQuality', obj=MakeChunkQuality),
+    Option(id=4, name='GetChunkQuality', obj=MakeChunkQuality),
     Option(id=5, name='MakeTilesSeen', obj=MakeTilesSeen),
     Option(id=6, name='MakeSiti', obj=MakeSiti),
     Option(id=7, name='GetBitrate', obj=GetBitrate),
     Option(id=8, name='GetDectime', obj=GetDectime),
-    Option(id=9, name='MakeChunkQuality', obj=MakeChunkQuality),
-    Option(id=10, name='GetSeenTiles', obj=GetSeenTiles),
+    Option(id=9, name='GetChunkQuality', obj=MakeChunkQuality),
+    Option(id=10, name='GetTilesSeen', obj=GetTilesSeen),
     Option(id=11, name='ViewportQuality', obj=ViewportQuality),
     Option(id=12, name='CheckViewportQuality', obj=CheckViewportQuality),
     Option(id=13, name='GetViewportQuality', obj=GetViewportQuality),
