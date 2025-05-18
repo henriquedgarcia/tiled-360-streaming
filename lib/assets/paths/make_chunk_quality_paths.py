@@ -23,6 +23,7 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
     @property
     def chunk_quality_folder(self) -> Path:
         folder = self.quality_folder / self.folder_name_proj_tiling_tile
+        folder.mkdir(parents=True, exist_ok=True)
         return folder
 
     @property
