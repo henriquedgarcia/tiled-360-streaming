@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import pandas as pd
 from py360tools import CMP, ERP
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
@@ -81,19 +80,15 @@ class ViewportQuality(Props):
         """
         for _ in self.iterate_name_projection_tiling:
             self.make_proj_obj()
-            for _ in self.iterate_tiling_user()
-            for _ in self.iterate_user_chunks
+            for _ in self.iterate_user_chunks:
+                self.viewport_frame_ref_3dArray = None
 
-            for self.user in self.users_list_by_name:
-                for self.chunk in self.chunk_list:
-                    self.viewport_frame_ref_3dArray = None
+                for self.quality in self.quality_list:
+                    if self.check_json(): continue
 
-                    for self.quality in self.quality_list:
-                        if self.check_json(): continue
-
-                        self.make_viewport_frame_ref_3dArray()
-                        results = self.calc_chunk_error_per_frame()
-                        save_json(results, self.user_viewport_quality_json)
+                    self.make_viewport_frame_ref_3dArray()
+                    results = self.calc_chunk_error_per_frame()
+                    save_json(results, self.user_viewport_quality_json)
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
