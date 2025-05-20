@@ -14,7 +14,6 @@ import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
 from py360tools import ProjectionBase, ERP, CMP
-from tqdm import tqdm
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
@@ -432,7 +431,7 @@ def get_times(filename: Path):
 
 def decode_video(filename, threads=None, ui_prefix='', ui_suffix='\n'):
     """
-    Decode the filename HEVC video with "threads".
+    MakeDectime the filename HEVC video with "threads".
     :param filename:
     :param threads:
     :param ui_prefix:
@@ -489,9 +488,9 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
     """
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
-
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     stdout_lines = [cmd + '\n']
+    print(ui_prefix, end='')
     while True:
         out = process.stdout.readline()
         if not out: break
@@ -500,6 +499,7 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
     process.wait()
     stdout = ''.join(stdout_lines)
     print(' finish', end='')
+    print(ui_suffix, end='')
 
     if log_file is not None:
         with open(log_file, mode) as f:
