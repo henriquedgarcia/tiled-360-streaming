@@ -20,12 +20,11 @@ class GetTilesSeen(MakeTilesSeen):
         pass
 
     def main(self):
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
-                with task(self):
-                    self.check_seen_tiles_result_by_name()
-                    self.make_tiles_seen_result()
-                    self.save_tiles_seen()
+        for _ in self.iterate_name_projection:
+            with task(self):
+                self.check_seen_tiles_result_by_name()
+                self.make_tiles_seen_result()
+                self.save_tiles_seen()
         self.merge()
 
     def merge(self):
@@ -96,7 +95,7 @@ if __name__ == '__main__':
     # videos_file = 'videos_test.json'
     # videos_file = 'videos_full.json'
 
-    config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_erp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
