@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pandas as pd
 from py360tools import CMP, ERP
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
@@ -49,7 +50,7 @@ class Props(Worker, ViewportQualityPaths,
         :return:
         """
         keys = [self.name, self.projection, self.tiling, self.user]
-        return get_nested_value(self.seen_tiles_result, keys)['chunks'][self.chunk]
+        return get_nested_value(self.video_seen_tiles, keys)['chunks'][self.chunk]
 
     @LazyProperty
     def hmd_dataset(self) -> dict[str, dict[str, list]]:
@@ -66,6 +67,7 @@ class ViewportQuality(Props):
 
     viewport_frame_ref_3dArray: Optional[np.ndarray] = None
     result = None
+    video_seen_tiles: pd.DataFrame
 
     def main(self):
         """
@@ -79,6 +81,7 @@ class ViewportQuality(Props):
         :return:
         """
         for _ in self.iterate_name_projection_tiling:
+            self.video_seen_tiles = pd.read_pickle(self.seen_tiles_result)
             self.make_proj_obj()
             for _ in self.iterate_user_chunks:
                 self.viewport_frame_ref_3dArray = None
