@@ -19,7 +19,6 @@ class MakeDecodable(Worker, MakeDecodablePaths):
         self.quality_list = ['0'] + self.ctx.quality_list
 
     def main(self):
-        self.init()
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             with task(self):
                 self.work()
