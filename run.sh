@@ -33,7 +33,7 @@ done
 # 0 - MakeTiles
 # 1 - MakeDash
 # 2 - MakeDecodable
-# 3 - Decode
+# 3 - MakeDectime
 # 4 - GetChunkQuality
 # 5 - MakeTilesSeen
 # 6 - MakeSiti
