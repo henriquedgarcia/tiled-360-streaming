@@ -30,7 +30,7 @@ class BasePaths(CtxInterface):
         return self.project_path / 'decodable'
 
     @property
-    def dectime_folder0(self):
+    def dectime_folder(self):
         return self.project_path / 'dectime'
 
     @property
