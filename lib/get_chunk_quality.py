@@ -11,6 +11,7 @@ from lib.assets.context import Context
 from lib.assets.errors import AbortError
 from lib.assets.worker import Worker
 from lib.make_chunk_quality import MakeChunkQualityPaths
+from lib.utils.context_utils import task
 from lib.utils.util import print_error, load_json
 
 
@@ -44,21 +45,31 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
     def __str__(self):
         return f'{self.name}_{self.projection}_{self.tiling}_tile{self.tile}_{self.rate_control}{self.quality}_chunk{self.chunk}'
 
+    def check_chunk_quality_result_by_name(self):
+        try:
+            size = self.chunk_quality_result_by_name.stat().st_size
+        except FileNotFoundError:
+            return
+
+        if size < 10:
+            self.chunk_quality_result_by_name.unlink(missing_ok=True)
+            return
+
+        raise AbortError('Seen tiles JSON is OK.')
+
+    def make_chunk_quality_result(self):
+        try:
+            self.get_data()
+        except FileNotFoundError:
+            self.logger.register_log('FileNotFoundError', self.chunk_quality_json)
+            raise AbortError(f'\nFileNotFoundError: {self.chunk_quality_json} not found.')
+
     def main(self):
         for _ in self.iterate_name_projection:
-            if self.chunk_quality_result_by_name.exists(): continue
-
-            try:
-                self.get_data()
-            except FileNotFoundError:
-                print(f'\nFileNotFoundError: {self.chunk_quality_json} not found.')
-                self.logger.register_log('FileNotFoundError', self.chunk_quality_json)
-                continue
-
-            print('\tSaving Data')
-            self.save_data()
-            print('\tfinished')
-
+            with task(self):
+                self.check_chunk_quality_result_by_name()
+                self.make_chunk_quality_result()
+                self.save_data()
         self.merge()
 
     def get_data(self):
@@ -76,12 +87,14 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
                 self.data.append(data)
 
     def save_data(self):
+        print('\tSaving Data')
         df = pd.DataFrame(self.data, columns=self.cools_names)
         df.set_index(self.cools_names[:-4], inplace=True)
         df.sort_index(inplace=True)
         for self.metric in self.metric_list:
             new_df = df[[self.metric]]
             new_df.to_pickle(self.chunk_quality_result_by_name)
+        print('\tfinished')
 
     def merge(self):
         for self.metric in self.metric_list:
