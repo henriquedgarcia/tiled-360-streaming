@@ -152,3 +152,10 @@ class Worker(ABC, CtxInterface):
                 for self.user in self.users_list_by_name:
                     self.ctx.iterations += 1
                     yield
+
+    @property
+    def iterate_user_chunks(self):
+        for self.user in self.users_list_by_name:
+            for self.chunk in self.chunk_list:
+                self.ctx.iterations += 1
+                yield
