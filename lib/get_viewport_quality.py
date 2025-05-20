@@ -6,7 +6,7 @@ import pandas as pd
 from config.config import Config
 from lib.assets.context import Context
 from lib.assets.errors import AbortError
-from lib.makeviewportquality import ViewportQuality
+from lib.make_viewport_quality import ViewportQuality
 from lib.utils.util import load_json, print_error
 
 
