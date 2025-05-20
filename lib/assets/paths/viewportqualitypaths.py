@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from lib.assets.paths.basepaths import BasePaths
+from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
+from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 
 
-class ViewportQualityPaths(BasePaths):
+class ViewportQualityPaths(TilesSeenPaths, MakeChunkQualityPaths):
     @property
     def user_viewport_folder(self):
         folder = (self.viewport_quality_folder /
