@@ -12,15 +12,6 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
         return chunk_video_paths
 
     @property
-    def chunk_quality_result_by_name(self) -> Path:
-        return self.project_path / f'quality/chunk_quality_{self.metric}_{self.name}_{self.projection}_{self.rate_control}.pickle'
-
-    @property
-    def chunk_quality_result(self) -> Path:
-        """depend on name and fov"""
-        return self.results_folder / f'chunk_quality_{self.metric}_{self.projection}_{self.rate_control}.pickle'
-
-    @property
     def chunk_quality_folder(self) -> Path:
         folder = self.quality_folder / self.folder_name_proj_tiling_tile
         folder.mkdir(parents=True, exist_ok=True)
@@ -35,6 +26,15 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
     def chunk_quality_json(self) -> Path:
         filename = f'chunk{int(self.chunk):03d}_{self.config.rate_control}{self.ctx.quality}.json'
         return self.chunk_quality_folder / filename
+
+    @property
+    def chunk_quality_result_by_name(self) -> Path:
+        return self.quality_folder / f'chunk_quality_{self.metric}_{self.name}_{self.projection}_{self.rate_control}.pickle'
+
+    @property
+    def chunk_quality_result(self) -> Path:
+        """depend on name and fov"""
+        return self.results_folder / f'chunk_quality_{self.metric}_{self.projection}_{self.rate_control}.pickle'
 
     @property
     def quality_result_img(self) -> Path:
