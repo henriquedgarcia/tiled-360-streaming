@@ -38,9 +38,9 @@ class GetTilesSeen(MakeTilesSeen):
                 df = pd.read_pickle(self.seen_tiles_result_by_name)
                 merged = (df if merged is None
                           else pd.concat([merged, df], axis=0))
-            if merged.size != 72000:
-                print_error('Dataframe size mismatch.')
-                raise AbortError
+        if merged.size != 72000:
+            print_error('Dataframe size mismatch.')
+            raise AbortError
 
         merged.to_pickle(self.seen_tiles_result)
 
