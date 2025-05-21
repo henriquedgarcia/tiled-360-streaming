@@ -83,7 +83,7 @@ class ViewportQuality(Props):
     def get_seen_tiles(self) -> list[int]:
         seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk)-1),
                                            level=self.seen_tiles_level)
-        return seen_tiles['seen_tiles'][0]
+        return seen_tiles['seen_tiles'].iloc[0]
 
     def main(self):
         """
