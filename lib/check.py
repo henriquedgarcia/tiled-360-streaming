@@ -7,16 +7,18 @@ from tqdm import tqdm
 
 from config.config import Config
 from lib.assets.context import Context
-from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
-from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
+from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.makesitipaths import MakeSitiPaths
+from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
+from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
+from lib.utils.util import count_decoding, get_times
 
 
-class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
+class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
     def main(self):
-        func = [self.CheckChunkQuality, self.CheckMakeDecodable, self.CheckMakeDash,
-                self.CheckMakeSITI, self.CheckTilesSeen]
+        func = [self.CheckMakeDash, self.CheckMakeDecodable, self.CheckMakeDectime,
+                self.CheckChunkQuality, self.CheckTilesSeen, self.CheckViewportQuality, self.CheckMakeSITI]
         options = ''.join(f'{n} - {c.__name__}\n' for n, c in enumerate(func))
         print(options)
         n = input('Choose option: ')
@@ -28,7 +30,7 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
         total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'err']
         bar = tqdm(total=total, desc=name)
-        for _ in self.iterate_name_projection_tiling_tile_quality():
+        for _ in self.iterate_name_projection_tiling_tile_quality:
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                        f'qp{self.quality}', f'chunk{self.chunk}')
             context_str = '_'.join(context)
@@ -117,6 +119,70 @@ class Check(Worker, MakeChunkQualityPaths, MakeSitiPaths, TilesSeenPaths):
                                     err = 'FileNotFoundError'
                                 if err:
                                     check_data.append(context + (err,))
+
+        df = pd.DataFrame(check_data, columns=columns)
+        now = f'{datetime.now()}'.replace(':', '-')
+        df.to_csv(f'check_{name}_{now}.csv')
+        pd.options.display.max_columns = len(df.columns)
+        print(df)
+
+    def CheckViewportQuality(self):
+        name = 'CheckMakeDectime'
+        check_data = []
+        total = len(self.name_list) * len(self.tiling_list) * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
+        columns = ['name', 'projection', 'tiling', 'quality', 'user', 'chunk', 'err']
+        bar = ProgressBar(total=total, desc=name)
+
+        for _ in self.iterate_name_projection_tiling_quality_user_chunk:
+            context = (f'{self.name}', f'{self.projection}', f'{self.tiling}',
+                       f'qp{self.quality}', f'tile{self.tile}', f'chunk{self.chunk}')
+            context_str = '_'.join(context)
+            bar.update(context_str)
+            if not self.user_viewport_quality_json.exists():
+                err = 'FileNotFoundError'
+                check_data.append(context + (err,))
+                continue
+
+        df = pd.DataFrame(check_data, columns=columns)
+        now = f'{datetime.now()}'.replace(':', '-')
+        df.to_csv(f'check_{name}_{now}.csv')
+        pd.options.display.max_columns = len(df.columns)
+        print(df)
+
+    def CheckMakeDectime(self):
+        name = 'CheckMakeDectime'
+        check_data = []
+        total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
+        columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
+        bar = ProgressBar(total=total, desc=name)
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.tile in self.tile_list:
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
+                                           f'qp{self.quality}', f'chunk{self.chunk}')
+                                context_str = '_'.join(context)
+                                bar.update(context_str)
+
+                                if not self.dectime_log.exists():
+                                    err = 'FileNotFoundError'
+                                    check_data.append(context + (err,))
+                                    continue
+
+                                dectime_list = get_times(self.dectime_log)
+                                decoding_times = len(dectime_list)
+
+                                if decoding_times < self.decoding_num:
+                                    err = 'DecodeTimesError'
+                                    check_data.append(context + (err,))
+                                    continue
+
+                                if 0 in dectime_list:
+                                    err = '0InDectimeError'
+                                    check_data.append(context + (err,))
+                                    continue
 
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
