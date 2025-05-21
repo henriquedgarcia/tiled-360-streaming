@@ -2,11 +2,9 @@ from math import prod
 from pathlib import Path
 
 import numpy as np
-from py360tools import CMP, ERP, ProjectionBase
+from py360tools import ProjectionBase
 
-from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
-from lib.utils.util import build_projection, idx2xy, iter_video, splitx
+from lib.utils.util import idx2xy, iter_video, splitx
 
 
 class ChunkProjectionReader:
@@ -32,22 +30,24 @@ class ChunkProjectionReader:
     def reset_readers(self):
         self.tiles_reader = {}
         for seen_tile, file_path in self.seen_tiles.items():
-            self.tiles_reader[seen_tile] = iter_video(file_path, gray=True)
+            self.tiles_reader[str(seen_tile)] = iter_video(file_path, gray=True)
 
     def clear_frame(self):
         proj_h, proj_w = self.proj.canvas.shape
         self.frame = np.zeros((proj_h, proj_w), dtype='uint8')
 
-    def mount_frame(self):
+    def _mount_frame(self):
         self.frame[:] = 0
-
+        frame_idx = 0
         for tile in self.seen_tiles:
+            tile = str(tile)
+            frame_idx += 1
             x_ini, x_end, y_ini, y_end = self.tile_positions[tile]
             tile_frame = next(self.tiles_reader[tile])
             self.frame[y_ini:y_end, x_ini:x_end] = tile_frame
 
     def extract_viewport(self, yaw_pitch_roll) -> np.ndarray:
-        self.mount_frame()
+        self._mount_frame()
         viewport = self.proj.extract_viewport(self.frame, yaw_pitch_roll)
         return viewport
 
