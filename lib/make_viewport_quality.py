@@ -7,6 +7,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas import DataFrame
 from py360tools import CMP, ERP
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
@@ -18,15 +19,14 @@ from lib.assets.context import Context
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, get_nested_value, print_error
+from lib.utils.util import save_json, load_json, print_error
 
 Tiling = str
 Tile = str
 NumpyArray = np.ndarray
 
 
-class Props(Worker, ViewportQualityPaths,
-            ABC):
+class Props(Worker, ViewportQualityPaths, ABC):
     seen_tiles_deg_path: dict[Tile, Path]
     seen_tiles_ref_path: dict[Tile, Path]
     canvas: NumpyArray
@@ -41,16 +41,16 @@ class Props(Worker, ViewportQualityPaths,
         start = chunk * 30
         return self.user_hmd_data[slice(start, start + 30)]
 
-    @property
-    def seen_tiles(self):
-        """
-        depends [self.name, self.projection, self.tiling, self.user, self.chunk]
-        need make: self.tiles_seen_result = load_json(self.seen_tiles_result_json)
-            self.seen_tiles_result_json depends [self.name, self.fov]
-        :return:
-        """
-        keys = [self.name, self.projection, self.tiling, self.user]
-        return get_nested_value(self.video_seen_tiles, keys)['chunks'][self.chunk]
+    # @property
+    # def seen_tiles(self):
+    #     """
+    #     depends [self.name, self.projection, self.tiling, self.user, self.chunk]
+    #     need make: self.tiles_seen_result = load_json(self.seen_tiles_result_json)
+    #         self.seen_tiles_result_json depends [self.name, self.fov]
+    #     :return:
+    #     """
+    #     keys = [self.name, self.projection, self.tiling, self.user]
+    #     return get_nested_value(self.video_seen_tiles, keys)['chunks'][self.chunk]
 
     @LazyProperty
     def hmd_dataset(self) -> dict[str, dict[str, list]]:
@@ -62,12 +62,28 @@ class Props(Worker, ViewportQualityPaths,
 
 
 class ViewportQuality(Props):
-    def init(self):
-        pass
-
+    seen_tiles_db: DataFrame
+    seen_tiles_level: list
     viewport_frame_ref_3dArray: Optional[np.ndarray] = None
     result = None
     video_seen_tiles: pd.DataFrame
+
+    @property
+    def projection(self):
+        return self.ctx.projection
+
+    @projection.setter
+    def projection(self, value):
+        self.ctx.projection = value
+        self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
+
+    def init(self):
+        self.seen_tiles_level = ['name', 'projection', 'tiling', 'user', 'chunk']
+
+    def get_seen_tiles(self) -> list[int]:
+        seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk)-1),
+                                           level=self.seen_tiles_level)
+        return seen_tiles['seen_tiles'][0]
 
     def main(self):
         """
@@ -81,7 +97,6 @@ class ViewportQuality(Props):
         :return:
         """
         for _ in self.iterate_name_projection_tiling:
-            self.video_seen_tiles = pd.read_pickle(self.seen_tiles_result)
             self.make_proj_obj()
             for _ in self.iterate_user_chunks:
                 self.viewport_frame_ref_3dArray = None
@@ -95,7 +110,7 @@ class ViewportQuality(Props):
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
-        self.proj_obj = p(tiling=self.tiling, proj_res='3240x2160',
+        self.proj_obj = p(tiling=self.tiling, proj_res=self.scale,
                           vp_res='1320x1080', fov_res='110x90')
 
     def check_json(self):
@@ -112,15 +127,31 @@ class ViewportQuality(Props):
             return False
         return True
 
+    def make_viewport_frame_ref_3dArray(self):
+        if self.viewport_frame_ref_3dArray is not None:
+            return
+
+        ref_tiles_path = {self.tile: self.reference_chunk
+                          for self.tile in self.get_seen_tiles()}
+        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path,
+                                                       proj=self.proj_obj)
+
+        self.viewport_frame_ref_3dArray = np.zeros((30, 1080, 1320))
+
+        for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
+            self.viewport_frame_ref_3dArray[self.frame] = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
+
+        self.frame = None
+        self.tile = None
+
     def calc_chunk_error_per_frame(self, ):
-        deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.seen_tiles}
+        deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
         deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, proj=self.proj_obj)
         results = defaultdict(list)
         for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
             msg = f'{self.ctx}.'
             print(f'\r{msg:<90}', end='')
             viewport_frame_deg = deg_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-
             _mse = mse(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg)
             _ssim = ssim(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg, data_range=255.0,
                          gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
@@ -129,16 +160,6 @@ class ViewportQuality(Props):
         self.frame = None
         print('')
         return results
-
-    def make_viewport_frame_ref_3dArray(self):
-        if self.viewport_frame_ref_3dArray is not None:
-            return
-        ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.seen_tiles}
-        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path, proj=self.proj_obj)
-        self.viewport_frame_ref_3dArray = np.zeros((len(self.chunk_yaw_pitch_roll_per_frame), 1080, 1320))
-        for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
-            self.viewport_frame_ref_3dArray[self.frame] = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-        self.frame = None
 
 
 # Image.fromarray(viewport_frame_ref).show()
