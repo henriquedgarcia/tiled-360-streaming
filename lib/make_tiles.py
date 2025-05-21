@@ -15,7 +15,7 @@ class MakeTiles(Worker, MakeTilesPaths):
 
     def main(self):
         self.init()
-        for _ in self.iterate_name_projection_tiling_tile_quality():
+        for _ in self.iterate_name_projection_tiling_tile_quality:
             with task(self):
                 self.make_tile()
 
