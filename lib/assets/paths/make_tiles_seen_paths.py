@@ -7,7 +7,7 @@ class TilesSeenPaths(BasePaths):
     @property
     def seen_tiles_result_by_name(self) -> Path:
         """depend on name and fov"""
-        return self.user_seen_tiles_folder / f'seen_tiles_{self.name}_{self.projection}_fov{self.fov}.pickle'
+        return self.seen_tiles_folder / f'seen_tiles_{self.name}_{self.projection}_fov{self.fov}.pickle'
 
     @property
     def seen_tiles_result(self) -> Path:
