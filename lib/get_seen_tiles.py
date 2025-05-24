@@ -59,7 +59,7 @@ class GetTilesSeen(MakeTilesSeen):
     def make_tiles_seen_result(self):
         self.tiles_seen_result = []
         self.progress_bar = ProgressBar(len(self.projection_list) * len(self.tiling_list) * 30, desc=self.name)
-        for _ in self.iterate_tiling_user():
+        for _ in self.iterate_projection_tiling_user():
             self.progress_bar.update(f'{self.ctx}')
             self.process_user_seen_tiles_json()
 
