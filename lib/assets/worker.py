@@ -158,7 +158,7 @@ class Worker(ABC, CtxInterface):
                     self.ctx.iterations += 1
                     yield
 
-    def iterate_tiling_user(self):
+    def iterate_projection_tiling_user(self):
         for self.projection in self.projection_list:
             for self.tiling in self.tiling_list:
                 for self.user in self.users_list_by_name:
