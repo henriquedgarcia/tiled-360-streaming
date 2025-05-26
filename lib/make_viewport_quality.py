@@ -108,13 +108,15 @@ class ViewportQuality(Props):
                         continue
 
                     print(f'{self.ctx}. Processing...')
-
-                    if self.viewport_frame_ref_3dArray is None:
-                        self.make_viewport_frame_ref_3dArray()
-
-                    self.calc_chunk_error_per_frame()
-
-                    save_json(self.results, self.user_viewport_quality_json)
+                    try:
+                        if self.viewport_frame_ref_3dArray is None:
+                            self.make_viewport_frame_ref_3dArray()
+                        self.calc_chunk_error_per_frame()
+                        save_json(self.results, self.user_viewport_quality_json)
+                    except StopIteration:
+                        print_error(f'{self.ctx}. Decode error.')
+                        self.logger.register_log('Decode error', '')
+                        continue
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
