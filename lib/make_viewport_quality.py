@@ -114,8 +114,8 @@ class ViewportQuality(Props):
                         self.calc_chunk_error_per_frame()
                         save_json(self.results, self.user_viewport_quality_json)
                     except StopIteration:
-                        print_error(f'{self.ctx}. Decode error.')
-                        self.logger.register_log('Decode error', '')
+                        print_error(f'{self.ctx}. Decode error. Frame {self.frame}.')
+                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
                         continue
 
     def make_proj_obj(self):
