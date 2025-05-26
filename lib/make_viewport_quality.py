@@ -64,8 +64,8 @@ class Props(Worker, ViewportQualityPaths, ABC):
 class ViewportQuality(Props):
     seen_tiles_db: DataFrame
     seen_tiles_level: list
-    viewport_frame_ref_3dArray: Optional[np.ndarray] = None
-    result = None
+    viewport_frame_ref_3dArray: Optional[np.ndarray]
+    results: defaultdict
     video_seen_tiles: pd.DataFrame
 
     @property
@@ -105,8 +105,8 @@ class ViewportQuality(Props):
                     if self.check_json(): continue
 
                     self.make_viewport_frame_ref_3dArray()
-                    results = self.calc_chunk_error_per_frame()
-                    save_json(results, self.user_viewport_quality_json)
+                    self.calc_chunk_error_per_frame()
+                    save_json(self.results, self.user_viewport_quality_json)
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
@@ -145,21 +145,20 @@ class ViewportQuality(Props):
         self.tile = None
 
     def calc_chunk_error_per_frame(self, ):
+        print(f'{str(self.ctx):<90}')
+        self.results = defaultdict(list)
+
         deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
         deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, proj=self.proj_obj)
-        results = defaultdict(list)
+
         for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
-            msg = f'{self.ctx}.'
-            print(f'\r{msg:<90}', end='')
             viewport_frame_deg = deg_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
             _mse = mse(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg)
             _ssim = ssim(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg, data_range=255.0,
                          gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
-            results['mse'].append(_mse)
-            results['ssim'].append(_ssim)
+            self.results['mse'].append(_mse)
+            self.results['ssim'].append(_ssim)
         self.frame = None
-        print('')
-        return results
 
 
 # Image.fromarray(viewport_frame_ref).show()
