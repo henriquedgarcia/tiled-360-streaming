@@ -102,7 +102,8 @@ class ViewportQuality(Props):
                 self.viewport_frame_ref_3dArray = None
 
                 for self.quality in self.quality_list:
-                    if self.check_json():
+                    if (self.user_viewport_quality_json.exists()
+                            and self.user_viewport_quality_json.stat().st_size > 10):
                         print_error(f'{self.ctx}. File exists. skipping.')
                         continue
 
@@ -119,12 +120,6 @@ class ViewportQuality(Props):
         p = CMP if self.projection == 'cmp' else ERP
         self.proj_obj = p(tiling=self.tiling, proj_res=self.scale,
                           vp_res='1320x1080', fov_res='110x90')
-
-    def check_json(self):
-        size = self.user_viewport_quality_json.stat().st_size
-        if size < 10:
-            return False
-        return True
 
     def make_viewport_frame_ref_3dArray(self):
         ref_tiles_path = {self.tile: self.reference_chunk
@@ -169,20 +164,21 @@ class CheckViewportQuality(ViewportQuality):
         for self.name in self.name_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
+
                     print(f'\r{self.name}_{self.tiling}_{self.quality}  ', end='')
                     miss = 0
                     ok = 0
                     for self.user in self.users_list_by_name:
                         for self.chunk in self.chunk_list:
-                            if self.check_json():
+                            if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
                                 ok += 1
                                 continue
                             miss += 1
 
                     if miss == 0:
-                        print(' OK!')
+                        print('OK!')
                         continue
-                    print(f' Chunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
+                    print(f'\n\tChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
                     miss_total += miss
                     ok_total += ok
 
@@ -217,4 +213,4 @@ if __name__ == '__main__':
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    ViewportQuality(ctx)
+    CheckViewportQuality(ctx)
