@@ -81,7 +81,7 @@ class ViewportQuality(Props):
         self.seen_tiles_level = ['name', 'projection', 'tiling', 'user', 'chunk']
 
     def get_seen_tiles(self) -> list[int]:
-        seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk)-1),
+        seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
                                            level=self.seen_tiles_level)
         return seen_tiles['seen_tiles'].iloc[0]
 
@@ -102,10 +102,17 @@ class ViewportQuality(Props):
                 self.viewport_frame_ref_3dArray = None
 
                 for self.quality in self.quality_list:
-                    if self.check_json(): continue
+                    if self.check_json():
+                        print_error(f'{self.ctx}. File exists. skipping.')
+                        continue
 
-                    self.make_viewport_frame_ref_3dArray()
+                    print(f'{self.ctx}. Processing...')
+
+                    if self.viewport_frame_ref_3dArray is None:
+                        self.make_viewport_frame_ref_3dArray()
+
                     self.calc_chunk_error_per_frame()
+
                     save_json(self.results, self.user_viewport_quality_json)
 
     def make_proj_obj(self):
@@ -114,23 +121,12 @@ class ViewportQuality(Props):
                           vp_res='1320x1080', fov_res='110x90')
 
     def check_json(self):
-        def check():
-            size = self.user_viewport_quality_json.stat().st_size
-            if size < 10:
-                raise FileNotFoundError
-            msg = f'{self.ctx}. File exists. skipping.'
-            print_error(f'{msg:<90}')
-
-        try:
-            check()
-        except FileNotFoundError:
+        size = self.user_viewport_quality_json.stat().st_size
+        if size < 10:
             return False
         return True
 
     def make_viewport_frame_ref_3dArray(self):
-        if self.viewport_frame_ref_3dArray is not None:
-            return
-
         ref_tiles_path = {self.tile: self.reference_chunk
                           for self.tile in self.get_seen_tiles()}
         ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path,
@@ -145,7 +141,6 @@ class ViewportQuality(Props):
         self.tile = None
 
     def calc_chunk_error_per_frame(self, ):
-        print(f'{str(self.ctx):<90}')
         self.results = defaultdict(list)
 
         deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
