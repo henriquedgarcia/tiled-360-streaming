@@ -12,7 +12,7 @@ from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import count_decoding, get_times
+from lib.utils.util import get_times
 
 
 class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
@@ -129,19 +129,18 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
     def CheckViewportQuality(self):
         name = 'CheckMakeDectime'
         check_data = []
-        total = len(self.name_list) * len(self.tiling_list) * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
+        total = len(self.name_list) * len(self.tiling_list) * len(self.projection_list) * len(self.quality_list) * 30 * len(self.chunk_list)
         columns = ['name', 'projection', 'tiling', 'quality', 'user', 'chunk', 'err']
         bar = ProgressBar(total=total, desc=name)
 
         for _ in self.iterate_name_projection_tiling_quality_user_chunk:
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}',
-                       f'qp{self.quality}', f'tile{self.tile}', f'chunk{self.chunk}')
-            context_str = '_'.join(context)
-            bar.update(context_str)
+                       f'qp{self.quality}', f'user{self.user}', f'chunk{self.chunk}')
+            bar.update('_'.join(context))
+
             if not self.user_viewport_quality_json.exists():
                 err = 'FileNotFoundError'
                 check_data.append(context + (err,))
-                continue
 
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
