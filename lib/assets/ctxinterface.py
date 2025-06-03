@@ -98,22 +98,45 @@ class Factors:
 
 class Lists:
     ctx: Context
+    _name_list = None
 
-    @LazyProperty
+    @property
     def name_list(self):
-        return self.ctx.name_list
+        if self._name_list is None:
+            return self.ctx.name_list
+        return self._name_list
+
+    @name_list.setter
+    def name_list(self, value):
+        self._name_list = value
 
     @LazyProperty
     def projection_list(self):
         return self.ctx.projection_list
 
+    _quality_list = None
+
     @property
     def quality_list(self):
-        return self.ctx.quality_list
+        if self._quality_list is None:
+            return self.ctx.quality_list
+        return self._quality_list
 
-    @LazyProperty
+    @quality_list.setter
+    def quality_list(self, value):
+        self._quality_list = value
+
+    _tiling_list = None
+
+    @property
     def tiling_list(self):
-        return self.ctx.tiling_list
+        if self._tiling_list is None:
+            return self.ctx.tiling_list
+        return self._tiling_list
+
+    @tiling_list.setter
+    def tiling_list(self, value):
+        self._tiling_list = value
 
     @property
     def tile_list(self):
