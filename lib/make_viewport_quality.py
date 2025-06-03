@@ -104,19 +104,22 @@ class ViewportQuality(Props):
                 for self.quality in self.quality_list:
                     if (self.user_viewport_quality_json.exists()
                             and self.user_viewport_quality_json.stat().st_size > 10):
-                        print_error(f'{self.ctx}. File exists. skipping.')
+                        # print_error(f'{self.ctx}. File exists. skipping.')
                         continue
 
-                    print(f'{self.ctx}. Processing...')
+                    print(f'{self}. Processing...')
                     try:
                         if self.viewport_frame_ref_3dArray is None:
                             self.make_viewport_frame_ref_3dArray()
                         self.calc_chunk_error_per_frame()
                         save_json(self.results, self.user_viewport_quality_json)
                     except StopIteration:
-                        print_error(f'{self.ctx}. Decode error. Frame {self.frame}.')
+                        print_error(f'{self}. Decode error. Frame {self.frame}.')
                         self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
                         continue
+
+    def __str__(self):
+        return f'{self.name}_{self.projection}_{self.tiling}_user{self.user}_chunk{self.chunk}_{self.config.rate_control}{self.quality}'
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
@@ -215,4 +218,5 @@ if __name__ == '__main__':
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    CheckViewportQuality(ctx)
+    ViewportQuality(ctx)
+    # CheckViewportQuality(ctx)
