@@ -36,8 +36,8 @@ class GetViewportQuality(ViewportQuality):
             try:
                 self.get_data()
             except FileNotFoundError:
-                print(f'\nFileNotFoundError: {self.chunk_quality_json} not found.')
-                self.logger.register_log('FileNotFoundError', self.chunk_quality_json)
+                print(f'\nFileNotFoundError: {self.user_viewport_quality_json} not found.')
+                self.logger.register_log('FileNotFoundError', self.user_viewport_quality_json)
                 continue
 
             print('\tSaving Data')
@@ -80,7 +80,7 @@ class GetViewportQuality(ViewportQuality):
             merged = None
 
             for _ in self.iterate_name_projection:
-                df = pd.read_pickle(self.chunk_quality_result_by_name)
+                df = pd.read_pickle(self.user_viewport_result_by_name)
                 merged = (df if merged is None else
                           pd.concat([merged, df], axis=0))
 
@@ -107,7 +107,8 @@ if __name__ == '__main__':
     # videos_file = 'videos_test.json'
     # videos_file = 'videos_full.json'
 
-    config_file = Path('config/config_cmp_qp.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_erp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
