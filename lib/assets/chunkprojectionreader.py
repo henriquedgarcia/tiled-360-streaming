@@ -43,7 +43,10 @@ class ChunkProjectionReader:
             tile = str(tile)
             frame_idx += 1
             x_ini, x_end, y_ini, y_end = self.tile_positions[tile]
-            tile_frame = next(self.tiles_reader[tile])
+            try:
+                tile_frame = next(self.tiles_reader[tile])
+            except Exception as e:
+                raise e
             self.frame[y_ini:y_end, x_ini:x_end] = tile_frame
 
     def extract_viewport(self, yaw_pitch_roll) -> np.ndarray:
