@@ -7,16 +7,13 @@ from config.config import Config
 from lib.assets.context import Context
 from lib.assets.errors import AbortError
 from lib.make_viewport_quality import ViewportQuality
-from lib.utils.util import load_json, print_error
+from lib.utils.util import print_error, load_json
 
 
 class GetViewportQuality(ViewportQuality):
     data: list
     cools_names: list
     metric_list: list
-
-    def __str__(self):
-        return f'{self.name}_{self.projection}_{self.tiling}_tile{self.tile}_{self.rate_control}{self.quality}_chunk{self.chunk}'
 
     def init(self):
         self.cools_names = ['name', 'projection', 'tiling', 'quality', 'user', 'chunk', 'frame',
@@ -35,49 +32,45 @@ class GetViewportQuality(ViewportQuality):
             if self.user_viewport_result_by_name.exists(): continue
             try:
                 self.get_data()
+                self.save_data()
             except FileNotFoundError:
                 print(f'\nFileNotFoundError: {self.user_viewport_quality_json} not found.')
                 self.logger.register_log('FileNotFoundError', self.user_viewport_quality_json)
                 continue
 
-            print('\tSaving Data')
-            self.save_data()
             print('\tfinished')
 
+        for _ in self.iterate_name_projection:
+            if not self.user_viewport_result_by_name.exists():
+                return
         self.merge()
 
     def get_data(self):
         self.data = []
-
         for _ in self.iterate_tiling_quality_user:
             print(f'\r{self}', end='')
-
             for self.chunk in self.chunk_list:
-                print(f'\r{self.name}_{self.tiling}_qp{self.quality}_user{self.user}_chunk{self.chunk}', end='')
-                user_viewport_quality = load_json(self.user_viewport_quality_json)
-                mse_ = user_viewport_quality['mse']
-                ssim_ = user_viewport_quality['ssim']
-                for frame, (m, s) in enumerate(zip(mse_, ssim_)):
-                    data = (self.name, self.projection, self.tiling, int(self.quality),
-                            int(self.user), int(self.chunk) - 1, frame) + (m, s)
-                    self.data.append(data)
-            # break
+                # print(f'\r{self.name}_{self.projection}_{self.tiling}_{self.rate_control}{self.quality}_user{self.user}_chunk{self.chunk}', end='')
+                user_viewport_quality: dict = load_json(self.user_viewport_quality_json)
+                a=list(user_viewport_quality.values())
+                for frame, (mse, ssim) in enumerate(zip(*a)):
+                    self.data.append((self.name, self.projection, self.tiling, self.quality, self.user, self.chunk, frame, mse, ssim))
+            self.chunk = None
+        print('\tSaving Data')
 
     def save_data(self):
         df = pd.DataFrame(self.data, columns=self.cools_names)
         df.set_index(self.cools_names[:-2], inplace=True)
         df.sort_index(inplace=True)
-        for self.metric in self.metric_list:
-            new_df = df[[self.metric]]
-            new_df.to_pickle(self.user_viewport_result_by_name)
+        df.to_pickle(self.user_viewport_result_by_name)
 
     def merge(self):
+        merged = None
         for self.metric in self.metric_list:
             # if self.chunk_quality_result.exists():
             #     print('chunk_quality_result is OK.')
             #     return
             print(f'Merging {self.metric}...')
-            merged = None
 
             for _ in self.iterate_name_projection:
                 df = pd.read_pickle(self.user_viewport_result_by_name)
