@@ -119,7 +119,20 @@ class ViewportQuality(Props):
                         continue
 
     def __str__(self):
-        return f'{self.name}_{self.projection}_{self.tiling}_user{self.user}_chunk{self.chunk}_{self.config.rate_control}{self.quality}'
+        s = []
+        if self.name is not None:
+            s += [f'{self.name}']
+        if self.projection is not None:
+            s += [f'{self.projection}']
+        if self.tiling is not None:
+            s += [f'{self.tiling}']
+        if self.user is not None:
+            s += [f'user{self.user}']
+        if self.chunk is not None:
+            s += [f'chunk{self.chunk}']
+        if self.quality is not None:
+            s += [f'{self.config.rate_control}{self.quality}']
+        return '_'.join(s)
 
     def make_proj_obj(self):
         p = CMP if self.projection == 'cmp' else ERP
