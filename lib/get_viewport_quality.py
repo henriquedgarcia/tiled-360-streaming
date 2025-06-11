@@ -52,9 +52,9 @@ class GetViewportQuality(ViewportQuality):
             for self.chunk in self.chunk_list:
                 # print(f'\r{self.name}_{self.projection}_{self.tiling}_{self.rate_control}{self.quality}_user{self.user}_chunk{self.chunk}', end='')
                 user_viewport_quality: dict = load_json(self.user_viewport_quality_json)
-                a=list(user_viewport_quality.values())
+                a = list(user_viewport_quality.values())
                 for frame, (mse, ssim) in enumerate(zip(*a)):
-                    self.data.append((self.name, self.projection, self.tiling, self.quality, self.user, self.chunk, frame, mse, ssim))
+                    self.data.append((self.name, self.projection, self.tiling, int(self.quality), int(self.user), int(self.chunk)-1, int(frame), mse, ssim))
             self.chunk = None
         print('\tSaving Data')
 
