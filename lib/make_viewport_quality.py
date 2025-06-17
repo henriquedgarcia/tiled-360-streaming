@@ -83,7 +83,10 @@ class ViewportQuality(Props):
     def get_seen_tiles(self) -> list[int]:
         seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
                                            level=self.seen_tiles_level)
-        return seen_tiles['seen_tiles'].iloc[0]
+        a = set()
+        for item in list(seen_tiles['seen_tiles']):
+            a.update(item)
+        return list(a)
 
     def main(self):
         """
@@ -227,6 +230,7 @@ if __name__ == '__main__':
     # config_file = Path('config/config_cmp_qp.json')
     config_file = Path('config/config_erp_qp.json')
     videos_file = Path('config/videos_reduced.json')
+    videos_file = Path('config/videos_full.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
