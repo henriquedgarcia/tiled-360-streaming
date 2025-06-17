@@ -1,6 +1,4 @@
-import pandas as pd
 import os
-from collections import Counter
 from pathlib import Path
 from typing import Optional, Any
 
@@ -13,7 +11,7 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task, timer
-from lib.utils.util import save_json, build_projection, get_nested_value, load_json
+from lib.utils.util import save_json, build_projection, get_nested_value
 
 
 class PrivatesMethods(TilesSeenPaths):
@@ -70,43 +68,6 @@ class PrivatesMethods(TilesSeenPaths):
                 tiles_seen_by_chunk[f'{chunk_id}'] = list(tiles_in_chunk)
                 tiles_in_chunk.clear()
         return tiles_seen_by_chunk
-
-    def count_tiles(self):
-        if self.counter_tiles_json.exists(): return
-        self.results = pd.read_pickle(self.seen_tiles_result)
-        result = {}
-
-        for self.tiling in self.tiling_list:
-            if self.tiling == '1x1': continue
-
-            # <editor-fold desc="Count tiles">
-            tiles_counter_chunks = Counter()  # Collect tiling count
-
-            for self.user in self.users_list_by_name:
-                result_chunks = self.results[self.projection][self.name]
-                result_chunks = result_chunks[self.tiling][self.user]
-                result_chunks = result_chunks['chunks']
-
-                for chunk in result_chunks:
-                    tiles_counter_chunks = (tiles_counter_chunks
-                                            + Counter(result_chunks[chunk]))
-            # </editor-fold>
-
-            print(tiles_counter_chunks)
-            dict_tiles_counter_chunks = dict(tiles_counter_chunks)
-
-            # <editor-fold desc="Normalize Counter">
-            nb_chunks = sum(dict_tiles_counter_chunks.values())
-            for self.tile in self.tile_list:
-                try:
-                    dict_tiles_counter_chunks[self.tile] /= nb_chunks
-                except KeyError:
-                    dict_tiles_counter_chunks[self.tile] = 0
-            # </editor-fold>
-
-            result[self.tiling] = dict_tiles_counter_chunks
-
-        save_json(result, self.counter_tiles_json)
 
 
 class MakeTilesSeen(Worker, PrivatesMethods):
