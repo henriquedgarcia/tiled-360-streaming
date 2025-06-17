@@ -62,7 +62,6 @@ class Worker(ABC, CtxInterface):
     def iterate_name_projection(self):
         for self.name in self.name_list:
             for self.projection in self.projection_list:
-                self.ctx.iterations += 1
                 yield
 
     @property
@@ -143,27 +142,31 @@ class Worker(ABC, CtxInterface):
 
     @property
     def iterate_tiling_tile_quality_chunk(self):
+        n = 0
         for self.tiling in self.tiling_list:
             for self.tile in self.tile_list:
                 for self.quality in self.quality_list:
                     for self.chunk in self.chunk_list:
-                        self.ctx.iterations += 1
-                        yield
+                        n += 1
+                        yield n
 
     @property
     def iterate_tiling_quality_user(self):
+        n = 0
         for self.tiling in self.tiling_list:
             for self.quality in self.quality_list:
                 for self.user in self.users_list_by_name:
-                    self.ctx.iterations += 1
-                    yield
+                    for self.chunk in self.chunk_list:
+                        n += 1
+                        yield n
 
-    def iterate_projection_tiling_user(self):
-        for self.projection in self.projection_list:
-            for self.tiling in self.tiling_list:
-                for self.user in self.users_list_by_name:
-                    self.ctx.iterations += 1
-                    yield
+    def iterate_tiling_user(self):
+        n = 0
+        for self.tiling in self.tiling_list:
+            for self.user in self.users_list_by_name:
+                self.ctx.iterations += 1
+                n += 1
+                yield n
 
     @property
     def iterate_user_chunks(self):
