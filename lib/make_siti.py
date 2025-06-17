@@ -299,6 +299,7 @@ if __name__ == '__main__':
     # videos_file = 'videos_test.json'
     # videos_file = 'videos_full.json'
 
+    # config_file = Path('config/config_erp_qp.json')
     config_file = Path('config/config_cmp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
