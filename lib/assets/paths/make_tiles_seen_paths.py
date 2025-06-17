@@ -10,6 +10,11 @@ class TilesSeenPaths(BasePaths):
         return self.seen_tiles_folder / f'seen_tiles_{self.name}_{self.projection}_fov{self.fov}.pickle'
 
     @property
+    def df_seen_tiles_hf5_by_name(self) -> Path:
+        """depend on name and fov"""
+        return self.seen_tiles_folder / f'df_seen_tiles_{self.name}_{self.projection}_fov{self.fov}.h5'
+
+    @property
     def seen_tiles_result(self) -> Path:
         """depend on name and fov"""
         return self.results_folder / f'seen_tiles_{self.projection}_fov{self.fov}.pickle'
