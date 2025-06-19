@@ -71,6 +71,17 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
     def chunk_quality_json_ok(self) -> bool:
         def read_chunk_quality_json():
+            filename = f'chunk{int(self.chunk)}_{self.config.rate_control}{self.ctx.quality}.json'
+            old_name = self.chunk_quality_folder / filename
+            if old_name.exists():
+                old_name.rename(self.chunk_quality_json)
+                chunk_quality = pd.read_json(self.chunk_quality_json)
+                try:
+                    del chunk_quality['frame']
+                    chunk_quality.to_json(self.chunk_quality_json)
+                except KeyError:
+                    pass
+
             chunk_quality = pd.read_json(self.chunk_quality_json)
             if chunk_quality.size != int(self.gop) * 4:
                 self.chunk_quality_json.unlink()
