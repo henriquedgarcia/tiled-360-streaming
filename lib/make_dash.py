@@ -1,5 +1,8 @@
 import shutil
+from pathlib import Path
 
+from config.config import Config
+from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.makedashpaths import MakeDashPaths
@@ -108,6 +111,7 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
     #            '"')
     #     return cmd
 
+
 # def prepare(self):
 #     """
 #     deprecated
@@ -145,3 +149,34 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
 #     self.lossless_video.parent.mkdir(parents=True, exist_ok=True)
 #     process = run(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
 #     self.lossless_log.write_text(process.stdout)
+
+
+if __name__ == '__main__':
+    import os
+
+    os.chdir('../')
+
+    # config_file = 'config_erp_qp.json'
+    # config_file = 'config_cmp_crf.json'
+    # config_file = 'config_erp_crf.json'
+    # videos_file = 'videos_reversed.json'
+    # videos_file = 'videos_lumine.json'
+    # videos_file = 'videos_container0.json'
+    # videos_file = 'videos_container1.json'
+    # videos_file = 'videos_fortrek.json'
+    # videos_file = 'videos_hp_elite.json'
+    # videos_file = 'videos_alambique.json'
+    # videos_file = 'videos_test.json'
+    # videos_file = 'videos_full.json'
+
+    config_file = Path('config/config_cmp_crf.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # config_file = Path('config/config_erp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
+    # videos_file = Path('config/videos_full.json')
+
+    config = Config(config_file, videos_file)
+    ctx = Context(config=config)
+
+    MakeDash(ctx)
+    # CheckViewportQuality(ctx)
