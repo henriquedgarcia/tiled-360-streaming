@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from config.config import Config
@@ -63,7 +62,7 @@ class GetDectime(Worker, DectimePaths):
             msg = f'Chunk is not decoded enough. {len(times)} times.'
             self.logger.register_log(msg, self.dectime_log)
             raise AbortError(msg)
-        return np.average(times)
+        return times
 
     def merge(self):
         merged = None
@@ -82,8 +81,8 @@ class GetDectime(Worker, DectimePaths):
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = Path('config/config_erp_qp.json')
-    config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_erp_qp.json')
+    # config_file = Path('config/config_cmp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
