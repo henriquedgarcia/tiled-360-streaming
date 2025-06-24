@@ -1,18 +1,21 @@
 import json
 import os
 import pickle
+import subprocess as sp
 from collections import defaultdict
 from collections.abc import Sequence, Hashable
 from pathlib import Path
 from subprocess import Popen, STDOUT, PIPE
 from time import time
-from typing import Union, Any, Optional
+from typing import Union, Any, Optional, Generator
 
 import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
+from numpy import ndarray, dtype
+from numpy._typing import _64Bit
 from py360tools import ProjectionBase, ERP, CMP
 
 from lib.assets.ansi_colors import Bcolors
@@ -557,3 +560,94 @@ class LoadingUi:
     @staticmethod
     def end(suffix='\n'):
         print(f'{suffix}', end='')
+
+
+def make_tile_positions(proj: ProjectionBase):
+    """
+    Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
+    onde tiles é XXXX (verificar)
+    e as coordenadas são inteiros.
+
+    Mostra a posição inicial e final do tile na projeção.
+    :param proj:
+    :return:
+    """
+    tile_positions = {}
+    tile_h, tile_w = proj.tiling.tile_shape
+    tile_N, tile_M = proj.tiling.shape
+
+    tile_list = list(map(int, proj.tiling.tile_list))
+
+    for tile in tile_list:
+        tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
+        tile_y, tile_x = tile_n * tile_h, tile_m * tile_w
+        x_ini = tile_x
+        x_end = tile_x + tile_w
+        y_ini = tile_y
+        y_end = tile_y + tile_h
+        tile_positions[str(tile)] = x_ini, x_end, y_ini, y_end
+    return tile_positions
+
+
+def get_video_resolution(caminho_video):
+    cmd = [
+        'ffprobe',
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0:s=x',
+        f'{caminho_video}'
+    ]
+    resolution = sp.check_output(cmd).decode().strip()
+    largura, altura = splitx(resolution)
+    return largura, altura
+
+
+class ReadVideo:
+    # Coeficientes de luminância perceptual (sRGB - ITU-R BT.709 )
+    # BT.709 : Parameter values for the HDTV standards for production and international programme exchange
+    # https://www.itu.int/rec/R-REC-BT.709-6-201506-I/en
+
+    def __init__(self, file_path, gray=True):
+        self.file_path = file_path
+        self.gray = gray
+
+        self.largura, self.altura = get_video_resolution(file_path)
+        self.frame_size = self.largura * self.altura * 3  # RGB24 = 3 bytes por pixel
+
+        self.pipe = sp.Popen(cmd, stdout=sp.PIPE, bufsize=-1)
+
+    def read_video(self) -> Generator[Union[ndarray[Any, dtype[np.floating[_64Bit]]], Any], Any, None]:
+        while True:
+            raw_frame = self.pipe.stdout.read(self.frame_size)
+            self.pipe.stdout.close()
+            self.pipe.wait()
+            if len(raw_frame) < self.frame_size:
+                raise StopIteration  # Fim do vídeo ou erro
+
+            frame = np.frombuffer(raw_frame, dtype=np.uint8)
+            frame = frame.reshape((altura, largura, 3))
+
+            if self.gray:
+                frame = np.dot(frame[..., :3], [0.2989, 0.5870, 0.1140])
+                frame = frame.astype(np.uint8)
+            yield frame
+
+        self.pipe.stdout.close()
+        self.pipe.wait()
+
+    def __iter__(self):
+        iter(self.read_video())
+
+    def get_video_resolution(self):
+        cmd = [
+            'ffprobe',
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=width,height',
+            '-of', 'csv=p=0:s=x',
+            f'{self.file_path}'
+        ]
+        resolution = sp.check_output(cmd).decode().strip()
+        largura, altura = splitx(resolution)
+        return largura, altura

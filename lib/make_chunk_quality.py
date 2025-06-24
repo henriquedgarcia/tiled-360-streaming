@@ -71,6 +71,17 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
     def chunk_quality_json_ok(self) -> bool:
         def read_chunk_quality_json():
+            filename = f'chunk{int(self.chunk)}_{self.config.rate_control}{self.ctx.quality}.json'
+            old_name = self.chunk_quality_folder / filename
+            if old_name.exists():
+                old_name.rename(self.chunk_quality_json)
+                chunk_quality = pd.read_json(self.chunk_quality_json)
+                try:
+                    del chunk_quality['frame']
+                    chunk_quality.to_json(self.chunk_quality_json)
+                except KeyError:
+                    pass
+
             chunk_quality = pd.read_json(self.chunk_quality_json)
             if chunk_quality.size != int(self.gop) * 4:
                 self.chunk_quality_json.unlink()
@@ -114,7 +125,8 @@ if __name__ == '__main__':
     # videos_file = 'videos_full.json'
 
     # config_file = Path('config/config_cmp_qp.json')
-    config_file = Path('config/config_erp_qp.json')
+    # config_file = Path('config/config_erp_qp.json')
+    config_file = Path('config/config_cmp_crf.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)

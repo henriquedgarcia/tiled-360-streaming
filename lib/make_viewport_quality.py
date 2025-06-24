@@ -3,12 +3,12 @@ import os
 from abc import ABC
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Iterator
 
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from py360tools import CMP, ERP
+from py360tools import CMP, ERP, ProjectionBase
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
@@ -16,10 +16,11 @@ from config.config import Config
 from lib.assets.autodict import AutoDict
 from lib.assets.chunkprojectionreader import ChunkProjectionReader
 from lib.assets.context import Context
+from lib.assets.errors import AbortError
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, print_error
+from lib.utils.util import save_json, load_json, print_error, idx2xy, iter_video
 
 Tiling = str
 Tile = str
@@ -84,7 +85,7 @@ class ViewportQuality(Props):
         seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
                                            level=self.seen_tiles_level)
         a = set()
-        for item in list(seen_tiles['seen_tiles']):
+        for item in list(seen_tiles['tiles_seen']):
             a.update(item)
         return list(a)
 
@@ -101,6 +102,7 @@ class ViewportQuality(Props):
         """
         for _ in self.iterate_name_projection_tiling:
             self.make_proj_obj()
+
             for _ in self.iterate_user_chunks:
                 self.viewport_frame_ref_3dArray = None
 
@@ -114,6 +116,12 @@ class ViewportQuality(Props):
                     try:
                         if self.viewport_frame_ref_3dArray is None:
                             self.make_viewport_frame_ref_3dArray()
+                    except StopIteration:
+                        print_error(f'{self}. Decode error. Frame {self.frame}.')
+                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
+                        continue
+
+                    try:
                         self.calc_chunk_error_per_frame()
                         save_json(self.results, self.user_viewport_quality_json)
                     except StopIteration:
@@ -121,40 +129,38 @@ class ViewportQuality(Props):
                         self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
                         continue
 
-    def __str__(self):
-        s = []
-        if self.name is not None:
-            s += [f'{self.name}']
-        if self.projection is not None:
-            s += [f'{self.projection}']
-        if self.tiling is not None:
-            s += [f'{self.tiling}']
-        if self.user is not None:
-            s += [f'user{self.user}']
-        if self.chunk is not None:
-            s += [f'chunk{self.chunk}']
-        if self.quality is not None:
-            s += [f'{self.config.rate_control}{self.quality}']
-        return '_'.join(s)
-
     def make_proj_obj(self):
-        p = CMP if self.projection == 'cmp' else ERP
+        proj_obj = CMP if self.projection == 'cmp' else ERP
         self.proj_obj = p(tiling=self.tiling, proj_res=self.scale,
                           vp_res='1080x1080', fov_res='90x90')
 
     def make_viewport_frame_ref_3dArray(self):
-        ref_tiles_path = {self.tile: self.reference_chunk
-                          for self.tile in self.get_seen_tiles()}
-        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path,
-                                                       proj=self.proj_obj)
+        """
+        Extrai todos os viewport de referência deste usuário para um chunk.
+        :return:
+        """
+        tiles_reader: dict[str, Iterator]
+        tiles_seen: dict[str, Path]
+        tile_positions: dict[str, tuple[int, int, int, int]]
 
-        self.viewport_frame_ref_3dArray = np.zeros((30, 1080, 1320))
+        tiles_seen = {str(self.tile): self.reference_chunk
+                      for self.tile in self.get_seen_tiles()}
+        tile_positions = make_tile_positions(self.proj_obj)
+        tiles_reader = {tile: iter_video(file_path, gray=True)
+                        for tile, file_path in tiles_seen.items()}
+        proj_canvas = np.zeros(self.video_shape, dtype='uint8')
+        viewport_30frames_ref = np.zeros((30, 1080, 1320))
 
-        for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
-            self.viewport_frame_ref_3dArray[self.frame] = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-
-        self.frame = None
-        self.tile = None
+        for frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
+            for tile in tiles_seen:
+                x_ini, x_end, y_ini, y_end = tile_positions[tile]
+                try:
+                    tile_frame = next(tiles_reader[tile])
+                except StopIteration:
+                    msg = f'{self}. Decode error. {frame=}, {tile=}.'
+                    raise AbortError(msg)
+                proj_canvas[y_ini:y_end, x_ini:x_end] = tile_frame
+            viewport_30frames_ref[frame] = proj_canvas
 
     def calc_chunk_error_per_frame(self, ):
         self.results = defaultdict(list)
@@ -211,6 +217,33 @@ class CheckViewportQuality(ViewportQuality):
         Path(f'CheckViewportQuality.json').write_text(json.dumps(result, indent=2))
 
 
+def make_tile_positions(proj: ProjectionBase) -> dict[str, tuple[int, int, int, int]]:
+    """
+    Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
+    onde tiles é XXXX (verificar)
+    e as coordenadas são inteiros.
+
+    Mostra a posição inicial e final do tile na projeção.
+    :param proj:
+    :return:
+    """
+    tile_positions = {}
+    tile_h, tile_w = proj.tiling.tile_shape
+    tile_N, tile_M = proj.tiling.shape
+
+    tile_list = list(map(int, proj.tiling.tile_list))
+
+    for tile in tile_list:
+        tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
+        tile_y, tile_x = tile_n * tile_h, tile_m * tile_w
+        x_ini = tile_x
+        x_end = tile_x + tile_w
+        y_ini = tile_y
+        y_end = tile_y + tile_h
+        tile_positions[str(tile)] = x_ini, x_end, y_ini, y_end
+    return tile_positions
+
+
 if __name__ == '__main__':
     os.chdir('../')
 
@@ -227,10 +260,11 @@ if __name__ == '__main__':
     # videos_file = 'videos_test.json'
     # videos_file = 'videos_full.json'
 
+    config_file = Path('config/config_cmp_crf.json')
     # config_file = Path('config/config_cmp_qp.json')
-    config_file = Path('config/config_erp_qp.json')
+    # config_file = Path('config/config_erp_qp.json')
     videos_file = Path('config/videos_reduced.json')
-    videos_file = Path('config/videos_full.json')
+    # videos_file = Path('config/videos_full.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)

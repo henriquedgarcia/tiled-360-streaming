@@ -24,7 +24,12 @@ def make_help_txt(config_list, video, worker, names_list):
 
 
 def show_options(options_list: list[Option], indent=0, silent=False):
-    txt = "\n".join(['\t' * indent + f'{o.id} - {o.name}' for o in options_list])
+    str_list = []
+    for n, o in enumerate(options_list):
+        if n % 5 == 0:
+            str_list.append('\n')
+        str_list.append('\t' * indent + f'{o.id} - {o.name: <20}')
+    txt = "".join(str_list[1:])
     if not silent:
         print(txt)
     return txt
