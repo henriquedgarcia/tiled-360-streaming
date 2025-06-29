@@ -6,7 +6,7 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "fov_res": "110x90",
+  "fov_res": "1080x1080",
   "scale": {"cmp": "3240x2160"},
 
   "rate_control": "crf",
@@ -19,7 +19,7 @@
                     "rayleigh", "lognorm", "genpareto", "pareto", "halfnorm",
                     "expon"],
 
-  "fov": "110x90",
+  "fov": "90x90",
   "quality_list": ["16", "22", "28", "34", "40"],
   "tiling_list": ["1x1", "3x2", "6x4", "9x6", "12x8"]
 }

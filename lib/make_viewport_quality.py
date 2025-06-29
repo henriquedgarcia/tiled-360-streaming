@@ -131,8 +131,8 @@ class ViewportQuality(Props):
 
     def make_proj_obj(self):
         proj_obj = CMP if self.projection == 'cmp' else ERP
-        self.proj_obj = proj_obj(tiling=self.tiling, proj_res=self.scale,
-                                 vp_res='1320x1080', fov_res='110x90')
+        self.proj_obj = p(tiling=self.tiling, proj_res=self.scale,
+                          vp_res='1080x1080', fov_res='90x90')
 
     def make_viewport_frame_ref_3dArray(self):
         """
