@@ -64,10 +64,10 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
             print(f'\rProcessing {n}/{self.total_by_name} - {self.ctx}', end='')
 
             tile_chunk_quality_dict: dict = load_json(self.chunk_quality_json)
-
-            for frame, (ssim, mse, s_mse, ws_mse) in enumerate(zip(*tile_chunk_quality_dict.values())):
+            ssim, mse, s_mse, ws_mse = tile_chunk_quality_dict.values()
+            for frame, (ssim_, mse_, s_mse_, ws_mse_) in enumerate(zip(ssim.values(), mse.values(), s_mse.values(), ws_mse.values())):
                 key = (self.name, self.projection, self.tiling, int(self.tile), int(self.quality), int(self.chunk) - 1, frame,
-                       ssim, mse, s_mse, ws_mse)
+                       ssim_, mse_, s_mse_, ws_mse_)
                 data.append(key)
 
         print('\nSaving')
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     config_file1 = Path('config/config_cmp_qp.json')
     config_file2 = Path('config/config_erp_qp.json')
 
-    config = Config(config_file1, videos_file)
+    config = Config(config_file2, videos_file)
     ctx = Context(config=config)
 
     GetChunkQuality(ctx)
