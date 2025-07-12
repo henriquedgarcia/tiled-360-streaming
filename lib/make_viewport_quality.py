@@ -3,12 +3,12 @@ import os
 from abc import ABC
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Iterator
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from py360tools import CMP, ERP, ProjectionBase
+from py360tools import CMP, ERP, ProjectionBase, Viewport
 from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
@@ -16,11 +16,10 @@ from config.config import Config
 from lib.assets.autodict import AutoDict
 from lib.assets.chunkprojectionreader import ChunkProjectionReader
 from lib.assets.context import Context
-from lib.assets.errors import AbortError
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, print_error, idx2xy, iter_video
+from lib.utils.util import save_json, load_json, print_error, idx2xy
 
 Tiling = str
 Tile = str
@@ -100,84 +99,53 @@ class ViewportQuality(Props):
         yaw, pitch, roll in radians
         :return:
         """
-        for _ in self.iterate_name_projection_tiling:
-            self.make_proj_obj()
+        for self.projection in self.projection_list:
+            for self.tiling in self.tiling_list:
+                self.make_proj_and_vp_obj()
+                for self.name in self.name_list:
+                    for self.user in self.users_list_by_name:
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
+                                    continue
 
-            for _ in self.iterate_user_chunks:
-                self.viewport_frame_ref_3dArray = None
+                                print(f'{self}. Processing...')
 
-                for self.quality in self.quality_list:
-                    if (self.user_viewport_quality_json.exists()
-                            and self.user_viewport_quality_json.stat().st_size > 10):
-                        # print_error(f'{self.ctx}. File exists. skipping.')
-                        continue
+                                try:
+                                    self.calc_chunk_error_per_frame()
+                                except StopIteration:
+                                    print_error(f'{self}. Decode error. Frame {self.frame}.')
+                                    self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
+                                    continue
+                                save_json(self.results, self.user_viewport_quality_json)
 
-                    print(f'{self}. Processing...')
-                    try:
-                        if self.viewport_frame_ref_3dArray is None:
-                            self.make_viewport_frame_ref_3dArray()
-                    except StopIteration:
-                        print_error(f'{self}. Decode error. Frame {self.frame}.')
-                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
-                        continue
+    vp: Viewport
 
-                    try:
-                        self.calc_chunk_error_per_frame()
-                        save_json(self.results, self.user_viewport_quality_json)
-                    except StopIteration:
-                        print_error(f'{self}. Decode error. Frame {self.frame}.')
-                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
-                        continue
-
-    def make_proj_obj(self):
+    def make_proj_and_vp_obj(self):
         proj_obj = CMP if self.projection == 'cmp' else ERP
-        self.proj_obj = proj_obj(tiling=self.tiling, proj_res=self.scale,
-                                 vp_res='1080x1080', fov_res='90x90')
-
-    def make_viewport_frame_ref_3dArray(self):
-        """
-        Extrai todos os viewport de referência deste usuário para um chunk.
-        :return:
-        """
-        tiles_reader: dict[str, Iterator]
-        tiles_seen: dict[str, Path]
-        tile_positions: dict[str, tuple[int, int, int, int]]
-
-        tiles_seen = {str(self.tile): self.reference_chunk
-                      for self.tile in self.get_seen_tiles()}
-        tile_positions = make_tile_positions(self.proj_obj)
-        tiles_reader = {tile: iter_video(file_path, gray=True)
-                        for tile, file_path in tiles_seen.items()}
-        proj_canvas = np.zeros(self.video_shape, dtype='uint8')
-        viewport_30frames_ref = np.zeros((30, 1080, 1320))
-
-        for frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
-            for tile in tiles_seen:
-                x_ini, x_end, y_ini, y_end = tile_positions[tile]
-                try:
-                    tile_frame = next(tiles_reader[tile])
-                except StopIteration:
-                    msg = f'{self}. Decode error. {frame=}, {tile=}.'
-                    raise AbortError(msg)
-                proj_canvas[y_ini:y_end, x_ini:x_end] = tile_frame
-            viewport_30frames_ref[frame] = proj_canvas
+        self.proj_obj = proj_obj(tiling=self.tiling, proj_res=self.scale)
+        self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
 
     def calc_chunk_error_per_frame(self, ):
-        self.results = defaultdict(list)
+        ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.tile_list}
+        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path, viewport=self.vp)
 
         deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
-        deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, proj=self.proj_obj)
+        deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, viewport=self.vp)
 
+        self.results = defaultdict(list)
         for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
+            viewport_frame_ref = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
             viewport_frame_deg = deg_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-            _mse = mse(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg)
-            _ssim = ssim(self.viewport_frame_ref_3dArray[self.frame], viewport_frame_deg, data_range=255.0,
+            _mse = mse(viewport_frame_ref, viewport_frame_deg)
+            _ssim = ssim(viewport_frame_ref, viewport_frame_deg, data_range=255.0,
                          gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
             self.results['mse'].append(_mse)
             self.results['ssim'].append(_ssim)
         self.frame = None
 
 
+# from PILL import Image
 # Image.fromarray(viewport_frame_ref).show()
 # Image.fromarray(np.abs(viewport_frame_ref - viewport_frame_deg)).show()
 

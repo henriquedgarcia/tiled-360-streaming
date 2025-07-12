@@ -8,7 +8,7 @@ class ViewportQualityPaths(TilesSeenPaths, MakeChunkQualityPaths):
     @property
     def user_viewport_folder(self):
         folder = (self.viewport_quality_folder /
-                  f'{self.name}' / f'{self.tiling}' / f'{self.user}' / f'{self.quality}')
+                  f'{self.name}' / f'{self.projection}' / f'{self.tiling}' / f'{self.user}' / f'{self.quality}')
         folder.mkdir(parents=True, exist_ok=True)
         return folder
 

@@ -28,8 +28,13 @@ class Multi(ABC):
 class Worker(ABC, CtxInterface):
     def __init__(self, ctx: Context):
         self.ctx = ctx
-        self.logger = Logger(ctx)
-        self.status = StatusCtx(ctx)
+
+    logger: Logger
+    status: StatusCtx
+
+    def run(self):
+        self.logger = Logger(self.ctx)
+        self.status = StatusCtx(self.ctx)
         self.print_resume()
 
         with self.logger.logger_context(self.__class__.__name__):

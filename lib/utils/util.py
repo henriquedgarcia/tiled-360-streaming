@@ -562,7 +562,7 @@ class LoadingUi:
         print(f'{suffix}', end='')
 
 
-def make_tile_positions(proj: ProjectionBase):
+def make_tile_positions(proj: ProjectionBase) -> dict[int, tuple[int, int, int, int]]:
     """
     Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
     onde tiles é XXXX (verificar)
@@ -585,7 +585,7 @@ def make_tile_positions(proj: ProjectionBase):
         x_end = tile_x + tile_w
         y_ini = tile_y
         y_end = tile_y + tile_h
-        tile_positions[str(tile)] = x_ini, x_end, y_ini, y_end
+        tile_positions[tile] = x_ini, x_end, y_ini, y_end
     return tile_positions
 
 

@@ -36,6 +36,9 @@ def main():
     parser.add_argument('-slice', default=None, nargs=2, type=int,
                         metavar=('VIDEO_START', 'VIDEO_STOP',),
                         help=f'A int or slice of video range.')
+    parser.add_argument('-video', default=None,
+                        metavar=('VIDEO',),
+                        help=f'Force video. [0, 1, 2, 3, 4, 5, 6, 7]')
     parser.add_argument('-tiling', default=None,
                         metavar=('TILING',),
                         help=f'Force tiling. ["1x1", "3x2", "6x4", "9x6", "12x8"]')
@@ -76,6 +79,12 @@ def main():
         sliced_list = items_list[start:stop]
         config.videos_dict = dict(sliced_list)
 
+    if args.video is not None:
+        video = args.video
+        items_list = list(config.videos_dict.items())
+        selected_video = items_list[int(video)]
+        config.videos_dict = {selected_video[0]: selected_video[1]}
+
     if args.tiling is not None:
         config.tiling_list = [args.tiling]
 
@@ -88,6 +97,7 @@ def main():
 
     ctx = Context(config=config)
     app: Worker = worker(ctx)
+    app.run()
     print(f'\tTotal iterations = {app.ctx.iterations}')
 
 
