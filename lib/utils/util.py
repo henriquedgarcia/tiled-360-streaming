@@ -573,10 +573,10 @@ def make_tile_positions(proj: ProjectionBase) -> dict[int, tuple[int, int, int, 
     :return:
     """
     tile_positions = {}
-    tile_h, tile_w = proj.tiling.tile_shape
-    tile_N, tile_M = proj.tiling.shape
+    tile_h, tile_w = proj.tile_shape
+    tile_N, tile_M = proj.tiling_shape
 
-    tile_list = list(map(int, proj.tiling.tile_list))
+    tile_list = list(proj.tile_list)
 
     for tile in tile_list:
         tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
