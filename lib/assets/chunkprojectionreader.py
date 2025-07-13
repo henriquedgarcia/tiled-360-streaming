@@ -24,7 +24,7 @@ class ChunkProjectionReader:
         self.vp = viewport
         self.proj = viewport.projection
         self.tile_positions = make_tile_positions(self.proj)
-        self.canvas = np.zeros(self.proj.canvas.shape, dtype='uint8')
+        self.canvas = np.zeros(self.proj.shape, dtype='uint8')
         self.tiles_reader = {seen_tile: iter_video(file_path, gray=True)
                              for seen_tile, file_path in self.seen_tiles.items()}
 
