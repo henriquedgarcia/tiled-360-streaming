@@ -78,11 +78,12 @@ class ViewportQuality(Props):
         self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
 
     def init(self):
-        self.seen_tiles_level = ['name', 'projection', 'tiling', 'user', 'chunk']
+        pass
 
     def get_seen_tiles(self) -> list[int]:
+        seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
         seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
-                                           level=self.seen_tiles_level)
+                                           level=seen_tiles_level)
         a = set()
         for item in list(seen_tiles['tiles_seen']):
             a.update(item)
@@ -196,10 +197,10 @@ def make_tile_positions(proj: ProjectionBase) -> dict[str, tuple[int, int, int, 
     :return:
     """
     tile_positions = {}
-    tile_h, tile_w = proj.tiling.tile_shape
-    tile_N, tile_M = proj.tiling.shape
+    tile_h, tile_w = proj.tile_shape
+    tile_N, tile_M = proj.tiling_shape
 
-    tile_list = list(map(int, proj.tiling.tile_list))
+    tile_list = list(proj.tile_list)
 
     for tile in tile_list:
         tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
