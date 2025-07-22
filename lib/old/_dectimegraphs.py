@@ -15,11 +15,11 @@ import scipy.stats
 from cycler import cycler
 from fitter import Fitter
 
-from lib.assets.autodict import AutoDict
 from lib.assets.ansi_colors import Bcolors
-from lib.assets.worker import Worker
+from lib.assets.autodict import AutoDict
 from lib.assets.paths.dectimepaths import DectimePaths
-from lib.utils.worker_utils import save_json, load_json, save_pickle, load_pickle
+from lib.assets.worker import Worker
+from lib.utils.util import save_json, load_json, save_pickle, load_pickle
 
 
 class DectimeGraphsPaths(DectimePaths):
@@ -270,7 +270,7 @@ class ByPatternProps(DectimeGraphsObj):
         # mid = self.metric_list.index(self.metric)
         # _boxplot_file = folder / f'boxplot_pattern_{mid}_{self.metric}_{self.proj}.pdf'
         # return _boxplot_file
-        return  folder / f'boxplot_pattern.pdf'
+        return folder / f'boxplot_pattern.pdf'
 
     @property
     def pdf_file(self) -> Path:
@@ -403,7 +403,7 @@ class ByPatternMakeBucket(ByPatternProps):
         for _ in self.context_metric_proj_tiling():
             bucket = self.data_bucket[self.metric][self.proj][self.tiling]
             if self.tiles_num[self.tiling] != len(bucket):
-                self.logger(f'bucket size error', self.data_bucket_file)
+                self.logger.register_log(f'bucket size error', self.data_bucket_file)
                 raise ValueError(f'bucket size error')
 
     def save(self):
@@ -421,7 +421,7 @@ class ByPatternFit(ByPatternProps):
             if self.fitter_pickle_file.exists(): continue
             self.print()
             samples = self.get_data()
-            self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+            self.fitter = Fitter(samples, bins=self.bins, distributions=self.config.distributions, timeout=1500)
             self.fitter.fit()
             print(f'\tSaving Fitter... ')
             save_pickle(self.fitter, self.fitter_pickle_file)
@@ -939,7 +939,7 @@ class ByPatternByQualityMakeBucket(ByPatternByQualityProps, ByPatternMakeBucket)
         for _ in self.context_metric_proj_tiling_quality():
             bucket = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
             if self.tiles_num[self.tiling] != len(bucket):
-                self.logger(f'bucket size error', self.data_bucket_file)
+                self.logger.register_log(f'bucket size error', self.data_bucket_file)
                 raise ValueError(f'bucket size error')
 
 
@@ -1051,6 +1051,7 @@ class ByPatternByQualityGraphs(ByPatternByQualityProps, ByPatternGraphs):
     def get_samples_from_data_bucket(self):
         return self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
 
+
 class ByPatternByQualityStats666(ByPatternByQualityProps, ByPatternStats):
     def main(self):
         print(f'\n====== ByPatternByQuality - error_type={self.error_type}, n_dist={self.n_dist} ======')
@@ -1097,7 +1098,7 @@ class ByPatternByQualityStats666(ByPatternByQualityProps, ByPatternStats):
                 for quality in self.quality_list:
                     bucket = self.data_bucket[self.metric][proj][tiling][quality]
                     if tiles_num[tiling] != len(bucket):
-                        self.logger(f'bucket size error', self.data_bucket_file)
+                        self.logger.register_log(f'bucket size error', self.data_bucket_file)
                         print(f'{Bcolors.RED}\n    bucket size error')
 
         print(f'  Saving ... ', end='')
@@ -1128,7 +1129,7 @@ class ByPatternByQualityStats666(ByPatternByQualityProps, ByPatternStats):
                     print(f'\tFitting - {self.metric} - {self.proj} - {self.tiling} - {self.quality_str}... ')
 
                     samples = self.data_bucket[self.metric][self.proj][self.tiling][self.quality]
-                    self.fitter = Fitter(samples, bins=self.bins, distributions=self.config['distributions'], timeout=1500)
+                    self.fitter = Fitter(samples, bins=self.bins, distributions=self.config.distributions, timeout=1500)
                     self.fitter.fit()
                     print(f'\tSaving Fitter... ')
                     save_pickle(self.fitter, self.fitter_pickle_file)
@@ -1417,9 +1418,6 @@ class ByPatternByQualityStats666(ByPatternByQualityProps, ByPatternStats):
 
                 print(f'  Saving the figure')
                 fig.savefig(img_file)
-
-
-
 
 
 DectimeGraphsOptions = {'0': ByPatternMakeBucket,

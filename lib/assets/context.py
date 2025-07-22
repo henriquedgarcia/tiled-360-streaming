@@ -1,7 +1,6 @@
 from collections import defaultdict
+from functools import cached_property
 from math import prod
-
-from py360tools.utils import LazyProperty
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -64,19 +63,19 @@ class Context:
 
         return ''.join(txt)
 
-    @LazyProperty
-    def name_list(self):
+    @cached_property
+    def name_list(self) -> list[str]:
         return [str(name) for name in self.config.videos_dict]
 
-    @LazyProperty
+    @cached_property
     def projection_list(self):
         return list(self.config.config_dict['scale'])
 
-    @property
+    @cached_property
     def quality_list(self):
         return self.config.quality_list
 
-    @property
+    @cached_property
     def tiling_list(self):
         return [str(tiling) for tiling in self.config.tiling_list]
 
@@ -84,20 +83,20 @@ class Context:
     def tile_list(self):
         return [str(tile) for tile in range(self.n_tiles)]
 
-    @LazyProperty
+    @cached_property
     def chunk_list(self):
         return [str(chunk) for chunk in range(1, self.config.n_chunks + 1)]
 
-    @LazyProperty
+    @cached_property
     def group_list(self):
         return list({self.config.videos_dict[video]['group']
                      for video in self.name_list})
 
-    @LazyProperty
+    @cached_property
     def metric_list(self):
         return self.config.metric_list
 
-    @LazyProperty
+    @cached_property
     def hmd_dataset(self):
         return load_json(self.config.dataset_file)
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import numpy as np
-from py360tools.transform import ea2nm, ea2nm_face
+from py360tools import ERP, CMP
 from py360tools.utils import splitx
 from skimage.metrics import mean_squared_error, structural_similarity
 
@@ -108,9 +108,9 @@ class QualityMetrics(CtxInterface):
         ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
 
         if proj == 'cmp':
-            nm = ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
+            nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
         elif proj == 'erp':
-            nm = ea2nm(ea=ea_array, proj_shape=self.video_shape)
+            nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)
         else:
             nm = np.ndarray([])
 
@@ -155,9 +155,9 @@ def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
     for proj in ctx.projection_list:
         proj_shape = splitx(ctx.config.config_dict['scale'][proj])[::-1]
         if proj == 'erp':
-            nm = ea2nm(ea=ea_array, proj_shape=proj_shape)
+            nm = ERP.ea2nm(ea=ea_array, proj_shape=proj_shape)
         elif proj == 'cmp':
-            nm = ea2nm_face(ea=ea_array, proj_shape=proj_shape)[0]
+            nm = CMP.ea2nm_face(ea=ea_array, proj_shape=proj_shape)[0]
         else:
             raise ValueError(f'Unknown projection: {proj}')
         sph_points_mask[proj] = np.zeros(proj_shape)

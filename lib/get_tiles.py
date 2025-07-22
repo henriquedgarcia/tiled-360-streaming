@@ -1,10 +1,10 @@
-import pandas as pd
 from collections import defaultdict
 from typing import Union
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
-from py360tools import ProjectionBase
+from py360tools import Viewport
 from py360tools.draw import draw
 
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
@@ -125,14 +125,14 @@ class TestMakeTilesSeen(MakeTilesSeen):
         plt.close(fig)
 
 
-def print_tiles(proj: ProjectionBase, vptiles: list,
+def print_tiles(viewport: Viewport, vptiles: list,
                 yaw_pitch_roll: Union[tuple, np.ndarray] = None):
     if yaw_pitch_roll is not None:
-        proj.yaw_pitch_roll = yaw_pitch_roll
-    shape = proj.canvas.shape
+        viewport.yaw_pitch_roll = yaw_pitch_roll
+    shape = viewport.projection.shape
 
     # convert fig_all_tiles_borders to RGB
-    fig_all_tiles_borders = draw.draw_all_tiles_borders(projection=proj)
+    fig_all_tiles_borders = viewport.projection.draw_all_tiles_borders()
     fig_all_tiles_borders_ = np.array([fig_all_tiles_borders,
                                        fig_all_tiles_borders,
                                        fig_all_tiles_borders])
@@ -141,10 +141,11 @@ def print_tiles(proj: ProjectionBase, vptiles: list,
     # Get vp tiles
     fig_vp_tiles = np.zeros(shape, dtype='uint8')
     for tile in vptiles:
-        fig_vp_tiles = fig_vp_tiles + draw.draw_tile_border(projection=proj, idx=int(tile), lum=255)
+        t = viewport.projection.tile_list[tile]
+        fig_vp_tiles = fig_vp_tiles + viewport.projection.draw_tile_border(t)
 
     # get vp
-    vp = draw.draw_vp_borders(projection=proj)
+    vp = viewport.get_vp_borders()
 
     # Compose
     fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))

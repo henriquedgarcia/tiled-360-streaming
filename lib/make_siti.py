@@ -262,7 +262,7 @@ class GetMakeSiti(MakeSiti):
         self.quality = '28'
         result = []
         typos = {'name': str, 'projection': str, 'tiling': str, 'tile': int, 'quality': int, 'frame': int, 'si': list[float], 'ti': list[float]}
-        keys = list(typos.keys())
+        keys = tuple(typos.keys())
 
         for self.name in self.name_list:
             for self.projection in self.projection_list:

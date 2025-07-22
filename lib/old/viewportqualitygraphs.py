@@ -160,7 +160,7 @@ class ViewportQualityGraphs(ViewportQualityProps):
             for tiling in self.tiling_list:
                 self.erp_list = {tiling: ERP(tiling=tiling,
                                              proj_res=self.resolution,
-                                             fov=self.fov)
+                                             )
                                  for tiling in self.tiling_list}
             for self.tiling in self.tiling_list:
                 self.projection_obj = self.erp_list[self.tiling]

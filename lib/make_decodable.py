@@ -3,7 +3,6 @@ from pathlib import Path
 
 from config.config import Config
 from lib.assets.context import Context
-from lib.assets.ctxinterface import CtxInterface
 from lib.assets.errors import AbortError
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker

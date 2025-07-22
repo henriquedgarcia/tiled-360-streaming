@@ -1,4 +1,4 @@
-from py360tools.utils import LazyProperty
+from functools import cached_property
 
 from lib.assets.context import Context
 from lib.utils.util import make_tile_position_dict
@@ -100,17 +100,11 @@ class Lists:
     ctx: Context
     _name_list = None
 
-    @property
-    def name_list(self):
-        if self._name_list is None:
-            return self.ctx.name_list
-        return self._name_list
+    @cached_property
+    def name_list(self) -> list[str]:
+        return self.ctx.name_list
 
-    @name_list.setter
-    def name_list(self, value):
-        self._name_list = value
-
-    @LazyProperty
+    @cached_property
     def projection_list(self):
         return self.ctx.projection_list
 
@@ -142,11 +136,11 @@ class Lists:
     def tile_list(self):
         return self.ctx.tile_list
 
-    @LazyProperty
+    @cached_property
     def chunk_list(self):
         return self.ctx.chunk_list
 
-    @LazyProperty
+    @cached_property
     def metric_list(self):
         return ['time', 'rate', "ssim", "mse", "s-mse", "ws-mse"]
 
@@ -158,7 +152,7 @@ class Lists:
     def name_list_by_user(self):
         return self.ctx.name_list_by_user
 
-    @LazyProperty
+    @cached_property
     def group_list(self):
         return self.ctx.group_list
 
@@ -241,7 +235,7 @@ class CtxInterface(Factors, Lists):
              for group in self.group_list}
         return b
 
-    @LazyProperty
+    @cached_property
     def tile_position_dict(self) -> dict:
         """
         tile_position_dict[resolution: str][tiling: str][tile: str]

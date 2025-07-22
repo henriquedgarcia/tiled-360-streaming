@@ -1,9 +1,10 @@
-from py360tools.utils.lazyproperty import LazyProperty
-import numpy as np
+from functools import cached_property
 
-from .tile import Tile
-from .projectionframe import ProjectionFrame
+import numpy as np
 from py360tools.utils.util import splitx
+
+from .projectionframe import ProjectionFrame
+from .tile import Tile
 
 
 class Tiling:
@@ -27,7 +28,7 @@ class Tiling:
         self.ntiles = self.shape[0] * self.shape[1]
         self.tile_shape = (projection_frame.shape / self.shape).astype(int)
 
-    @LazyProperty
+    @cached_property
     def tile_list(self):
         return [Tile(tile_id, self) for tile_id in range(self.ntiles)]
 

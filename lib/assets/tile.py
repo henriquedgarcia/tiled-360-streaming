@@ -1,6 +1,6 @@
 import numpy as np
 
-from py360tools.utils.util_transform import get_tile_borders
+from py360tools.utils.util import get_tile_borders
 
 
 class Tile:
@@ -11,8 +11,8 @@ class Tile:
     def __init__(self, tile_id, tiling):
         """
         # Property
-        tiling_position: position of tile in the tiling array
-        position: position of tile in the projection image
+        tiling_position: position of a tile in the tiling array
+        position: position of the tile in the projection image
 
         :param tile_id: A number on int or str
         :type tile_id: int | str

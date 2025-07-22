@@ -2,6 +2,7 @@ import json
 import os
 from abc import ABC
 from collections import defaultdict
+from functools import cached_property
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +10,6 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from py360tools import CMP, ERP, ProjectionBase, Viewport
-from py360tools.utils import LazyProperty
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
 from config.config import Config
@@ -52,7 +52,7 @@ class Props(Worker, ViewportQualityPaths, ABC):
     #     keys = [self.name, self.projection, self.tiling, self.user]
     #     return get_nested_value(self.video_seen_tiles, keys)['chunks'][self.chunk]
 
-    @LazyProperty
+    @cached_property
     def hmd_dataset(self) -> dict[str, dict[str, list]]:
         return load_json(self.config.dataset_file)
 
@@ -100,31 +100,31 @@ class ViewportQuality(Props):
         yaw, pitch, roll in radians
         :return:
         """
-        for self.projection in self.projection_list:
-            for self.tiling in self.tiling_list:
-                self.make_proj_and_vp_obj()
-                for self.name in self.name_list:
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    self.make_proj_and_vp_obj()
                     for self.user in self.users_list_by_name:
                         for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
+                                print(f'{self}. Processing... ', end='')
                                 if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
+                                    print(f'Skipping...')
                                     continue
-
-                                print(f'{self}. Processing...')
 
                                 try:
                                     self.calc_chunk_error_per_frame()
                                 except StopIteration:
-                                    print_error(f'{self}. Decode error. Frame {self.frame}.')
+                                    print_error(f'Decode error. Frame {self.frame}')
                                     self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
                                     continue
+                                print(f'Skipping...')
                                 save_json(self.results, self.user_viewport_quality_json)
 
     vp: Viewport
 
     def make_proj_and_vp_obj(self):
-        proj_obj = CMP if self.projection == 'cmp' else ERP
-        self.proj_obj = proj_obj(tiling=self.tiling, proj_res=self.scale)
+        self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
         self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
 
     def calc_chunk_error_per_frame(self, ):

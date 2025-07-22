@@ -11,7 +11,6 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
-from lib.get_seen_tiles import GetTilesSeen
 from lib.utils.context_utils import task
 from lib.utils.util import iter_video
 

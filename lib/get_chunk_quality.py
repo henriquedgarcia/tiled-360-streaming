@@ -124,6 +124,8 @@ class MakePlot(GetChunkQuality):
 
     def make_tile_image(self, iter1, iter2, quality_plot_file: Path, get_serie: Callable, nrows=1, ncols=1,
                         figsize=(8, 5), dpi=200):
+        axes: np.ndarray
+
         if quality_plot_file.exists():
             print_error(f'The file quality_result_img exist. Skipping.')
             return
@@ -131,7 +133,7 @@ class MakePlot(GetChunkQuality):
         print(f'\r{self.ctx}', end='')
 
         fig, axes = plt.subplots(nrows, ncols, figsize=figsize, dpi=dpi)
-        axes: list[plt.Axes] = list(np.ravel(list(axes)))
+        axes = axes.ravel()
         fig: plt.Figure
 
         for i, value1 in enumerate(iter1):
@@ -156,7 +158,7 @@ class MakePlot(GetChunkQuality):
         print(f'\rProcessing [{self.name}][{self.projection}][{self.tiling}][crf{self.quality}]', end='')
 
         fig, axes = plt.subplots(2, 2, figsize=(8, 5), dpi=200)
-        axes: list[plt.Axes] = list(np.ravel(axes))
+        axes = np.ravel(axes)
         fig: plt.Figure
 
         for i, self.metric in enumerate(self.metric_list):

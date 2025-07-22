@@ -1,11 +1,10 @@
-from lib.assets.context import ctx
 from time import time
 
 import numpy as np
 from py360tools import xyz2ea
 
 from lib.assets.autodict import AutoDict
-from lib.assets.paths import segmenter_paths
+from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker
 from lib.utils.util import save_json, load_json, lin_interpol
 
@@ -15,14 +14,14 @@ rotation_map = {'cable_cam_nas': 265 / 180 * pi, 'drop_tower_nas': 180 / 180 * p
                 'wingsuit_dubai_nas': 63 / 180 * pi, 'drone_chases_car_nas': 81 / 180 * pi}
 
 
-class ProcessNasrabadi(Worker):
+class ProcessNasrabadi(Worker, MakeDecodablePaths):
     dataset_final = AutoDict()
     previous_line: tuple
     frame_counter: int
 
     def main(self):
-        print(f'Processing dataset {segmenter_paths.dataset_folder}.')
-        if segmenter_paths.dataset_json.exists(): return
+        print(f'Processing dataset {self.dataset_folder}.')
+        if self.dataset_folderet_json.exists(): return
 
         ctx.video_id_map = load_json(f'{segmenter_paths.dataset_folder}/videos_map.json')
         ctx.user_map = load_json(f'{segmenter_paths.dataset_folder}/usermap.json')
@@ -71,11 +70,11 @@ class ProcessNasrabadi(Worker):
             old_timestamp, old_xyz = self.previous_line
             xyz = lin_interpol(frame_timestamp, timestamp, old_timestamp, np.array(xyz), np.array(old_xyz))
 
-        yaw, pitch = xyz2ea(xyz).T
+        yaw, pitch = xyz2ea(xyz=xyz).T
         roll = [0] * len(yaw) if isinstance(yaw, np.ndarray) else 0
 
-        if self.video_name in rotation_map:
-            yaw -= rotation_map[self.video_name]
+        if self.name in rotation_map:
+            yaw -= rotation_map[self.name]
 
         yaw = np.mod(yaw + pi, pi2) - pi
         return np.round(np.array([yaw, pitch, roll]), 6).T

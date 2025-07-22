@@ -70,7 +70,7 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
         n = iter(range(total))
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
 
-        self.config.config_dict['quality_list'] = ['0'] + self.quality_list
+        self.quality_list = ['0'] + self.quality_list
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                        f'qp{self.quality}', f'chunk{self.chunk}')

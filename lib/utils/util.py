@@ -7,15 +7,13 @@ from collections.abc import Sequence, Hashable
 from pathlib import Path
 from subprocess import Popen, STDOUT, PIPE
 from time import time
-from typing import Union, Any, Optional, Generator
+from typing import Union, Any, Optional
 
 import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
-from numpy import ndarray, dtype
-from numpy._typing import _64Bit
 from py360tools import ProjectionBase, ERP, CMP
 
 from lib.assets.ansi_colors import Bcolors
@@ -76,10 +74,10 @@ def get_borders(*,
 
 def rot_matrix(yaw_pitch_roll: Union[np.ndarray, list]) -> np.ndarray:
     """
-    Create rotation matrix using Tait–Bryan angles in Z-Y-X order.
+    Create a rotation matrix using Tait–Bryan angles in Z-Y-X order.
     See Wikipedia. Use:
-        X axis point to right
-        Y axis point to down
+        X axis point to right,
+        Y axis point to down,
         Z axis point to front
 
     Examples
@@ -88,7 +86,7 @@ def rot_matrix(yaw_pitch_roll: Union[np.ndarray, list]) -> np.ndarray:
     >> mat = rot_matrix(yaw, pitch, roll)
     >> mat @ (x, y, z)
 
-    :param yaw_pitch_roll: the rotation (yaw, pitch, roll) in rad.
+    :param yaw_pitch_roll: The rotation (yaw, pitch, roll) in rad.
     :return: A 3x3 matrix of rotation for (z,y,x) vector
     """
     cos_rot = np.cos(yaw_pitch_roll)
@@ -514,17 +512,17 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
 def __frame_handler__(): ...
 
 
-def build_projection(proj_name, proj_res, tiling, vp_res, fov_res) -> ProjectionBase:
+def build_projection(proj_name, proj_res, tiling) -> ProjectionBase:
     if proj_name == 'erp':
-        projection = ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+        projection = ERP(tiling=tiling, proj_res=proj_res)
     elif proj_name == 'cmp':
-        projection = CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res)
+        projection = CMP(tiling=tiling, proj_res=proj_res)
     else:
         raise TypeError(f'Unknown projection name: {proj_name}')
     return projection
 
 
-def iter_video(video_path: Path, gray=True, dtype='float64'):
+def iter_video(video_path: Path, gray=True, datatype='float64'):
     cap = cv2.VideoCapture(f'{video_path}')
     while True:
         ok, frame = cap.read()
@@ -532,10 +530,10 @@ def iter_video(video_path: Path, gray=True, dtype='float64'):
             break
         if gray:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        yield frame.astype(dtype)
+        yield frame.astype(datatype)
 
 
-def get_frames(video_path, gray=True, dtype='float64'):
+def get_frames(video_path, gray=True, datatype='float64'):
     cap = cv2.VideoCapture(f'{video_path}')
     frames = []
     while True:
@@ -544,7 +542,7 @@ def get_frames(video_path, gray=True, dtype='float64'):
             break
         if gray:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frames.append(frame.astype(dtype))
+        frames.append(frame.astype(datatype))
     return frames
 
 
@@ -601,53 +599,3 @@ def get_video_resolution(caminho_video):
     resolution = sp.check_output(cmd).decode().strip()
     largura, altura = splitx(resolution)
     return largura, altura
-
-
-class ReadVideo:
-    # Coeficientes de luminância perceptual (sRGB - ITU-R BT.709 )
-    # BT.709 : Parameter values for the HDTV standards for production and international programme exchange
-    # https://www.itu.int/rec/R-REC-BT.709-6-201506-I/en
-
-    def __init__(self, file_path, gray=True):
-        self.file_path = file_path
-        self.gray = gray
-
-        self.largura, self.altura = get_video_resolution(file_path)
-        self.frame_size = self.largura * self.altura * 3  # RGB24 = 3 bytes por pixel
-
-        self.pipe = sp.Popen(cmd, stdout=sp.PIPE, bufsize=-1)
-
-    def read_video(self) -> Generator[Union[ndarray[Any, dtype[np.floating[_64Bit]]], Any], Any, None]:
-        while True:
-            raw_frame = self.pipe.stdout.read(self.frame_size)
-            self.pipe.stdout.close()
-            self.pipe.wait()
-            if len(raw_frame) < self.frame_size:
-                raise StopIteration  # Fim do vídeo ou erro
-
-            frame = np.frombuffer(raw_frame, dtype=np.uint8)
-            frame = frame.reshape((altura, largura, 3))
-
-            if self.gray:
-                frame = np.dot(frame[..., :3], [0.2989, 0.5870, 0.1140])
-                frame = frame.astype(np.uint8)
-            yield frame
-
-        self.pipe.stdout.close()
-        self.pipe.wait()
-
-    def __iter__(self):
-        iter(self.read_video())
-
-    def get_video_resolution(self):
-        cmd = [
-            'ffprobe',
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
-            '-of', 'csv=p=0:s=x',
-            f'{self.file_path}'
-        ]
-        resolution = sp.check_output(cmd).decode().strip()
-        largura, altura = splitx(resolution)
-        return largura, altura
