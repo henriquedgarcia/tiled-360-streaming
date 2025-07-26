@@ -39,6 +39,9 @@ def main():
     parser.add_argument('-video', default=None,
                         metavar=('VIDEO',),
                         help=f'Force video. [0, 1, 2, 3, 4, 5, 6, 7]')
+    parser.add_argument('-projection', default=None,
+                        metavar=('PROJECTION',),
+                        help=f"Force projection. ['cmp' | 'erp]")
     parser.add_argument('-tiling', default=None,
                         metavar=('TILING',),
                         help=f'Force tiling. ["1x1", "3x2", "6x4", "9x6", "12x8"]')
@@ -84,6 +87,9 @@ def main():
         items_list = list(config.videos_dict.items())
         selected_video = items_list[int(video)]
         config.videos_dict = {selected_video[0]: selected_video[1]}
+
+    if args.projection is not None:
+        config.projection_list = [args.projection]
 
     if args.tiling is not None:
         config.tiling_list = [args.tiling]
