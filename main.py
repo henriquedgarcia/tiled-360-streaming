@@ -75,33 +75,32 @@ def main():
 
     config = Config(config_file, videos_file)
     config.remove = bool(args.remove)
+    ctx = Context(config=config)
 
     if videos_list_id in [0, 9] and args.slice is not None:
         start, stop = args.slice
-        items_list = list(config.videos_dict.items())
-        sliced_list = items_list[start:stop]
-        config.videos_dict = dict(sliced_list)
+        items_list = list(ctx.video_list)
+        ctx.video_list = items_list[start:stop]
 
     if args.video is not None:
         video = args.video
-        items_list = list(config.videos_dict.items())
-        selected_video = items_list[int(video)]
-        config.videos_dict = {selected_video[0]: selected_video[1]}
+        video_list = ctx.video_list
+        ctx.video_list = [video_list[int(video)]]
 
     if args.projection is not None:
-        config.projection_list = [args.projection]
+        ctx.projection_list
+        ctx.projection_list = [args.projection]
 
     if args.tiling is not None:
-        config.tiling_list = [args.tiling]
+        ctx.tiling_list = [args.tiling]
 
     if args.quality is not None:
-        config.quality_list = [args.quality]
+        ctx.quality_list = [args.quality]
 
     if args.qslice is not None:
         start, stop = args.qslice
-        config.quality_list = config.quality_list[start:stop]
+        ctx.quality_list = ctx.quality_list[start:stop]
 
-    ctx = Context(config=config)
     app: Worker = worker(ctx)
     app.run()
     print(f'\tTotal iterations = {app.ctx.iterations}')
