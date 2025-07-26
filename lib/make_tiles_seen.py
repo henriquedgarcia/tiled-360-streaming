@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Optional, Any
 
-from py360tools import ProjectionBase, Viewport, ERP, CMP
+from py360tools import ProjectionBase, Viewport, ERP, CMP, Tile
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -43,12 +43,12 @@ class PrivatesMethods(TilesSeenPaths):
             return [["0"]] * self.n_frames
 
         tiles_seen_by_frame = []
-        viewport_obj = self.viewport_dict[self.projection][self.tiling]
+        viewport_obj: Viewport = self.viewport_dict[self.projection][self.tiling]
 
         for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
             print(f'\r\tframe {frame:04d}/{self.n_frames}', end='')
-            vptiles = viewport_obj.get_vptiles(yaw_pitch_roll)
-            vptiles: list[str] = list(map(str, map(int, vptiles)))
+            vptiles: list[Tile] = viewport_obj.get_vptiles(yaw_pitch_roll)
+            vptiles: list[str] = [str(tile.idx) for tile in vptiles]
             tiles_seen_by_frame.append(vptiles)
         return tiles_seen_by_frame
 
@@ -97,7 +97,7 @@ class MakeTilesSeen(Worker, PrivatesMethods):
                 projection_dict['cmp'][tiling] = vp
             return projection_dict
 
-        self.projection_dict = create_projections_dict()
+        self.viewport_dict = create_projections_dict()
 
     def main(self):
         for _ in self.iterate_name_projection_tiling_user():
