@@ -68,26 +68,8 @@ class ViewportQuality(Props):
     results: defaultdict
     video_seen_tiles: pd.DataFrame
 
-    @property
-    def projection(self):
-        return self.ctx.projection
-
-    @projection.setter
-    def projection(self, value):
-        self.ctx.projection = value
-        self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
-
     def init(self):
         pass
-
-    def get_seen_tiles(self) -> list[int]:
-        seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
-        seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
-                                           level=seen_tiles_level)
-        a = set()
-        for item in list(seen_tiles['tiles_seen']):
-            a.update(item)
-        return list(a)
 
     def main(self):
         """
@@ -100,17 +82,24 @@ class ViewportQuality(Props):
         yaw, pitch, roll in radians
         :return:
         """
-        for self.name in self.name_list:
-            for self.projection in self.projection_list:
+        for self.projection in self.projection_list:
+            self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
+
+            for self.name in self.name_list:
                 for self.tiling in self.tiling_list:
-                    self.make_proj_and_vp_obj()
+                    self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
+                    self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
+
                     for self.user in self.users_list_by_name:
                         for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
                                 print(f'{self}. Processing... ', end='')
-                                if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
-                                    print(f'Skipping...')
-                                    continue
+                                # try:
+                                #     assert self.user_viewport_quality_json.stat().st_size > 10
+                                #     print('Skipping \r', end='')
+                                #     continue
+                                # except FileNotFoundError:
+                                #     pass
 
                                 try:
                                     self.calc_chunk_error_per_frame()
@@ -118,8 +107,18 @@ class ViewportQuality(Props):
                                     print_error(f'Decode error. Frame {self.frame}')
                                     self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
                                     continue
-                                print(f'Skipping...')
+                                print(f'Saving...')
+                                exit(0)
                                 save_json(self.results, self.user_viewport_quality_json)
+
+    def get_seen_tiles(self) -> list[int]:
+        seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
+        seen_tiles = self.seen_tiles_db.xs((self.name, self.projection, self.tiling, int(self.user), int(self.chunk) - 1),
+                                           level=seen_tiles_level)
+        a = set()
+        for item in list(seen_tiles['tiles_seen']):
+            a.update(item)
+        return list(a)
 
     vp: Viewport
 
@@ -153,10 +152,10 @@ class ViewportQuality(Props):
 
 class CheckViewportQuality(ViewportQuality):
     def main(self):
-
         result = AutoDict()
         miss_total = 0
         ok_total = 0
+
         for self.name in self.name_list:
             for self.tiling in self.tiling_list:
                 for self.quality in self.quality_list:
@@ -229,8 +228,8 @@ if __name__ == '__main__':
     # videos_file = 'videos_test.json'
     # videos_file = 'videos_full.json'
 
-    config_file = Path('config/config_cmp_crf.json')
-    # config_file = Path('config/config_cmp_qp.json')
+    # config_file = Path('config/config_cmp_crf.json')
+    config_file = Path('config/config_cmp_qp.json')
     # config_file = Path('config/config_erp_qp.json')
     videos_file = Path('config/videos_reduced.json')
     # videos_file = Path('config/videos_full.json')
@@ -238,5 +237,6 @@ if __name__ == '__main__':
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    ViewportQuality(ctx)
-    # CheckViewportQuality(ctx)
+    o = ViewportQuality(ctx)
+    # o = CheckViewportQuality(ctx)
+    o.run()
