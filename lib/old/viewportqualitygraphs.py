@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2 as cv
 import numpy as np
 from PIL import Image
-from py360tools import ERP, ProjectionBase
+from py360tools import ERP, ProjectionBase, Viewport
 from py360tools.draw import draw
 
 from lib.assets.autodict import AutoDict
@@ -24,7 +24,7 @@ class ViewportQualityProps(CtxInterface):
     video_frame_idx: int
     tile_h: float
     tile_w: float
-    projection_obj: ProjectionBase
+    projection_obj: Viewport
 
     quality_metrics: QualityMetrics
     viewport_quality_paths: ViewportQualityPaths
@@ -42,6 +42,14 @@ class ViewportQualityProps(CtxInterface):
                                                proj_res=self.ctx.scale,
                                                vp_res='1320x1080',
                                                fov_res=self.ctx.fov)
+
+        if proj_name == 'erp':
+            projection = ERP(tiling=tiling, proj_res=proj_res)
+        elif proj_name == 'cmp':
+            projection = CMP(tiling=tiling, proj_res=proj_res)
+        else:
+            raise TypeError(f'Unknown projection name: {proj_name}')
+        return Viewport('800x800', '90x90', projection)
 
         tile_N, tile_M = self.projection_obj.tiling.shape
         for tile in tiles_list:
