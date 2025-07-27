@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
-from py360tools import ProjectionBase, ERP, CMP
+from py360tools import ProjectionBase, ERP, CMP, Viewport
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
@@ -512,14 +512,15 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
 def __frame_handler__(): ...
 
 
-def build_projection(proj_name, proj_res, tiling) -> ProjectionBase:
+def build_projection(proj_name, proj_res, tiling) -> Viewport:
+
     if proj_name == 'erp':
         projection = ERP(tiling=tiling, proj_res=proj_res)
     elif proj_name == 'cmp':
         projection = CMP(tiling=tiling, proj_res=proj_res)
     else:
         raise TypeError(f'Unknown projection name: {proj_name}')
-    return projection
+    return Viewport('800x800', '90x90', projection)
 
 
 def iter_video(video_path: Path, gray=True, datatype='float64'):
