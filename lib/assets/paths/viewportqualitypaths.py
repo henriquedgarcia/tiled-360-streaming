@@ -16,6 +16,7 @@ class ViewportQualityPaths(TilesSeenPaths, MakeChunkQualityPaths):
     def user_viewport_quality_json(self) -> Path:
         """
         Need name tiling user quality chunk
+        viewport_quality_folder/name/projection/tiling/user/quality/user_viewport_quality_chunk{chunk: str}.json
         """
         filename = f'user_viewport_quality_chunk{self.chunk}.json'
         return self.user_viewport_folder / filename
