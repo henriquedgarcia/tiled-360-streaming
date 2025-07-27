@@ -11,7 +11,7 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task, timer
-from lib.utils.util import save_json, build_projection, get_nested_value
+from lib.utils.util import save_json, get_nested_value
 
 
 class PrivatesMethods(TilesSeenPaths):
@@ -39,8 +39,7 @@ class PrivatesMethods(TilesSeenPaths):
     viewport_dict: dict
 
     def get_tiles_seen_by_frame(self, user_hmd_data) -> list[list[str]]:
-        if self.tiling == '1x1':
-            return [["0"]] * self.n_frames
+        if self.tiling == '1x1': return [["0"]] * self.n_frames
 
         tiles_seen_by_frame = []
         viewport_obj: Viewport = self.viewport_dict[self.projection][self.tiling]
@@ -131,11 +130,7 @@ class MakeTilesSeen(Worker, PrivatesMethods):
         print('')
         with timer(ident=1):
             tiles_seen_by_frame = self.get_tiles_seen_by_frame(self.user_hmd_data)
-            # tiles_seen_by_chunk = self.get_tiles_seen_by_chunk(tiles_seen_by_frame)
-
-            self.tiles_seen = {'frames': tiles_seen_by_frame,
-                               # 'chunks': tiles_seen_by_chunk
-                               }
+            self.tiles_seen = {'frames': tiles_seen_by_frame}
 
     def save_tiles_seen(self):
         save_json(self.tiles_seen, self.user_seen_tiles_json)
@@ -145,19 +140,6 @@ class MakeTilesSeen(Worker, PrivatesMethods):
 
 if __name__ == '__main__':
     os.chdir('../')
-
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
 
     config_file = Path('config/config_cmp_crf.json')
     # config_file = Path('config/config_erp_qp.json')
