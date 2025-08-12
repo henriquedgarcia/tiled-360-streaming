@@ -69,7 +69,7 @@ class GetTilesSeen(MakeTilesSeen):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9, )
+        merged.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9)
 
 
 
