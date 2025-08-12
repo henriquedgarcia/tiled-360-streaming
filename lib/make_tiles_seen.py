@@ -148,4 +148,5 @@ if __name__ == '__main__':
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    MakeTilesSeen(ctx)
+    app = MakeTilesSeen(ctx)
+    app.run()
