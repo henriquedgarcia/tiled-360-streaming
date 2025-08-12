@@ -31,7 +31,7 @@ class GetTilesSeen(MakeTilesSeen):
         try:
             df = pd.read_pickle(self.seen_tiles_result_by_name)
             if df.size == 270000:
-                raise AbortError('Seen tiles JSON is OK.')
+                raise AbortError('Seen tiles Pickle is OK.')
         except FileNotFoundError:
             pass
 
@@ -69,7 +69,7 @@ class GetTilesSeen(MakeTilesSeen):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_pickle(self.seen_tiles_result)
+        merged.to_hdf(self.seen_tiles_result)
 
 
 if __name__ == '__main__':
@@ -86,4 +86,5 @@ if __name__ == '__main__':
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    GetTilesSeen(ctx)
+    app = GetTilesSeen(ctx)
+    app.run()
