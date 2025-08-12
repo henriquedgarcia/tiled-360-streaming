@@ -110,15 +110,11 @@ class Lists:
 
     _quality_list = None
 
-    @property
+    @cached_property
     def quality_list(self):
         if self._quality_list is None:
             return self.ctx.quality_list
         return self._quality_list
-
-    @quality_list.setter
-    def quality_list(self, value):
-        self._quality_list = value
 
     _tiling_list = None
 
