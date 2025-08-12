@@ -12,11 +12,10 @@ from lib.utils.util import run_command
 
 
 class MakeDash(Worker, MakeDashPaths, CtxInterface):
-    quality_list: list[str] = None
     decode_check = False
 
     def init(self):
-        self.quality_list = ['0'] + self.ctx.quality_list
+        self.quality_list = ['0'] + self.quality_list
         self.remove = self.config.remove
 
     def main(self):
