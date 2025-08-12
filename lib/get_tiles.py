@@ -145,7 +145,7 @@ def print_tiles(viewport: Viewport, vptiles: list,
         fig_vp_tiles = fig_vp_tiles + viewport.projection.draw_tile_border(t)
 
     # get vp
-    vp = viewport.borders()
+    vp = viewport.draw_borders()
 
     # Compose
     fig_final = draw.compose(fig_all_tiles_borders_, fig_vp_tiles, (0, 255, 0))
