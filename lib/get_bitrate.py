@@ -6,13 +6,12 @@ import pandas as pd
 from config.config import Config
 from lib.assets.context import Context
 from lib.assets.errors import AbortError
-from lib.assets.worker import Worker
-from lib.make_dash import MakeDashPaths
+from lib.make_dash import MakeDash
 from lib.utils.context_utils import task
 from lib.utils.util import print_error
 
 
-class GetBitrate(Worker, MakeDashPaths):
+class GetBitrate(MakeDash):
     """
     self.video_bitrate[name][projection][tiling][tile]  |
                                   ['dash_mpd'] |
@@ -48,7 +47,11 @@ class GetBitrate(Worker, MakeDashPaths):
         data = []
         for n in self.iterate_tiling_tile_quality_chunk:
             print(f'\n\rProcessing {n}/{self.total_by_name} - {self.ctx}', end='')
-            bitrate = self.dash_m4s.stat().st_size * 8
+            try:
+                bitrate = self.dash_m4s.stat().st_size * 8
+            except FileNotFoundError:
+                self.logger.register_log('dash_m4s is MISSING', self.dash_m4s)
+                raise AbortError('\ndash_m4s is MISSING.')
 
             key = (self.name, self.projection, self.tiling,
                    int(self.tile), int(self.quality),
@@ -56,8 +59,10 @@ class GetBitrate(Worker, MakeDashPaths):
             data.append(key)
 
         print('\nSaving')
-        df = pd.DataFrame(data, columns=self.cools_names)
-        df.set_index(self.cools_names[:-1], inplace=True)
+        cools_names = ('name', 'projection', 'tiling', 'tile', 'quality',
+                       'chunk', 'bitrate')
+        df = pd.DataFrame(data, columns=cools_names)
+        df.set_index(cools_names[:-1], inplace=True)
         pd.to_pickle(df, self.bitrate_result_by_name)
 
     def merge(self):
@@ -67,21 +72,21 @@ class GetBitrate(Worker, MakeDashPaths):
             merged = (df if merged is None
                       else pd.concat([merged, df], axis=0))
 
-        if merged.size != 434400:
+        if merged.size != 434400 * 2:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_pickle(self.bitrate_result)  # self.results_folder / f'bitrate_{self.projection}_{self.rate_control}.pickle'
+        merged.to_hdf(self.bitrate_result, key='bitrate_result', mode='w', complevel=9)
 
 
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = Path('config/config_erp_qp.json')
     config_file = Path('config/config_cmp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    GetBitrate(ctx)
+    app = GetBitrate(ctx)
+    app.run()
