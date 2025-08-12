@@ -19,6 +19,7 @@ class GetTilesSeen(MakeTilesSeen):
 
     def init(self):
         self.cools_names = ['name', 'projection', 'tiling', 'user', 'chunk', 'frame', 'tiles_seen']
+        self.total_by_name = 181 * len(self.quality_list) * len(self.chunk_list)
 
     def main(self):
         for _ in self.iterate_name_projection:
@@ -65,24 +66,18 @@ class GetTilesSeen(MakeTilesSeen):
                 df = pd.read_pickle(self.seen_tiles_result_by_name)
                 merged = (df if merged is None
                           else pd.concat([merged, df], axis=0))
-        if merged.size != 2160000*2:
+        if merged.size != 2160000 * 2:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
         merged.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9)
 
 
-
 if __name__ == '__main__':
     os.chdir('../')
 
-    files = ['config_cmp_qp.json', 'config_erp_qp.json', 'config_erp_crf.json', 'config_erp_crf.json']
-    videos_files = ['videos_reduced.json', 'videos_reversed.json', 'videos_lumine.json', 'videos_container0.json', 'videos_container1.json',
-                    'videos_fortrek.json', 'videos_hp_elite.json', 'videos_alambique.json', 'videos_test.json',
-                    'videos_full.json']
-
-    config_file = Path('config') / files[0]
-    videos_file = Path('config') / videos_files[0]
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
