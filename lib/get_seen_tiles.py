@@ -65,11 +65,12 @@ class GetTilesSeen(MakeTilesSeen):
                 df = pd.read_pickle(self.seen_tiles_result_by_name)
                 merged = (df if merged is None
                           else pd.concat([merged, df], axis=0))
-        if merged.size != 2160000:
+        if merged.size != 2160000*2:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_hdf(self.seen_tiles_result)
+        merged.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9, )
+
 
 
 if __name__ == '__main__':
