@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from config.config import Config
@@ -30,6 +31,9 @@ class GetDectime(Worker, DectimePaths):
         self.merge()
 
     def check_dectime_result_by_name(self):
+        if self.dectime_result_by_name.exists():
+            raise AbortError('dectime_result_by_name is OK.')
+
         try:
             df = pd.read_pickle(self.dectime_result_by_name)
             if df.size == self.total_by_name:
@@ -68,24 +72,25 @@ class GetDectime(Worker, DectimePaths):
         merged = None
         for _ in self.iterate_name_projection:
             df = pd.read_pickle(self.dectime_result_by_name)
+            df['dectime'] = df['dectime'].apply(np.mean)
             merged = (df if merged is None
                       else pd.concat([merged, df], axis=0))
 
-        if merged.size != 434400:
+        if merged.size != 434400*2:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_pickle(self.dectime_result)  # self.results_folder / f'dectime_{self.projection}_{self.rate_control}.pickle'
+        merged.to_hdf(self.dectime_result, key='bitrate_result', mode='w', complevel=9)
 
 
 if __name__ == '__main__':
     os.chdir('../')
 
-    config_file = Path('config/config_erp_qp.json')
-    # config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_cmp_qp.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    GetDectime(ctx)
+    app = GetDectime(ctx)
+    app.run()
