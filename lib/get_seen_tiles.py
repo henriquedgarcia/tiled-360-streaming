@@ -60,17 +60,20 @@ class GetTilesSeen(MakeTilesSeen):
         df.to_pickle(self.seen_tiles_result_by_name)
 
     def merge(self):
+        print('Merging...')
         merged = None
         for self.name in self.name_list:
             for self.projection in self.projection_list:
+                print(f'\rProcessing {self.name}/{self.projection}', end='')
                 df = pd.read_pickle(self.seen_tiles_result_by_name)
-                merged = (df if merged is None
-                          else pd.concat([merged, df], axis=0))
-        if merged.size != 2160000 * 2:
+                new_df = df.groupby(['name', 'projection', 'tiling', 'user', 'chunk'])['tiles_seen'].apply(lambda x: set().union(*tuple(x)))
+                merged = (new_df if merged is None
+                          else pd.concat([merged, new_df], axis=0))
+        if merged.size != 8 * 2 * 5 * 30 * 60:
             print_error('Dataframe size mismatch.')
             raise AbortError
-
-        merged.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9)
+        new_df = pd.DataFrame(merged, columns=['tiles_seen'])
+        new_df.to_hdf(self.seen_tiles_result, key='tiles_seen', mode='w', complevel=9)
 
 
 if __name__ == '__main__':
