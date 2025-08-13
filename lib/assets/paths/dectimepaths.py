@@ -23,4 +23,4 @@ class DectimePaths(MakeDecodablePaths):
 
     @property
     def dectime_result(self) -> Path:
-        return self.results_folder / f'dectime_{self.projection}_{self.rate_control}.pickle'
+        return self.results_folder / f'dectime_{self.rate_control}.hd5'
