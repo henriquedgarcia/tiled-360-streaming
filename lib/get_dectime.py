@@ -80,7 +80,7 @@ class GetDectime(Worker, DectimePaths):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_hdf(self.dectime_result, key='bitrate_result', mode='w', complevel=9)
+        merged.to_hdf(self.dectime_result, key='dectime', mode='w', complevel=9)
 
 
 if __name__ == '__main__':
