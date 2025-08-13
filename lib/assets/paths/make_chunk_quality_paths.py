@@ -34,7 +34,7 @@ class MakeChunkQualityPaths(MakeDecodablePaths):
     @property
     def chunk_quality_result(self) -> Path:
         """depend on name and fov"""
-        return self.results_folder / f'chunk_quality_{self.projection}_{self.rate_control}.pickle'
+        return self.results_folder / f'chunk_quality_{self.rate_control}.hd5'
 
     @property
     def quality_result_img(self) -> Path:
