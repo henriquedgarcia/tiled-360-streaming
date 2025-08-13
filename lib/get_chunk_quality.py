@@ -51,6 +51,9 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
         self.merge()
 
     def check_chunk_quality_result_by_name(self):
+        if self.chunk_quality_result_by_name.exists():
+            raise AbortError('chunk_quality_result_by_name is OK.')
+
         try:
             df = pd.read_pickle(self.chunk_quality_result_by_name)
             if df.size == self.total_by_name * 30 * 4:
@@ -80,14 +83,15 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
 
         for _ in self.iterate_name_projection:
             df = pd.read_pickle(self.chunk_quality_result_by_name)
+            df = df.groupby(['name', 'projection', 'tiling', 'tile', 'quality', 'chunk']).mean()
             merged = (df if merged is None else
                       pd.concat([merged, df], axis=0))
 
-        if merged.size != self.total_by_name * 30 * 4 * 8:
+        if merged.size != len(self.name_list)* len(self.projection_list)* 181 * len(self.quality_list) * len(self.chunk_list) * 4:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
-        merged.to_pickle(self.chunk_quality_result)
+        merged.to_hdf(self.chunk_quality_result, key='chunk_quality_result', mode='w', complevel=9)
 
 
 class MakePlot(GetChunkQuality):
@@ -178,11 +182,10 @@ if __name__ == '__main__':
     os.chdir('../')
 
     videos_file = Path('config/videos_reduced.json')
-
     config_file1 = Path('config/config_cmp_qp.json')
-    config_file2 = Path('config/config_erp_qp.json')
 
-    config = Config(config_file2, videos_file)
+    config = Config(config_file1, videos_file)
     ctx = Context(config=config)
 
-    GetChunkQuality(ctx)
+    app = GetChunkQuality(ctx)
+    app.run()
