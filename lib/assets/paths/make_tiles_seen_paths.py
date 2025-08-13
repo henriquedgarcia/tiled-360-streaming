@@ -18,7 +18,7 @@ class TilesSeenPaths(BasePaths):
     @property
     def seen_tiles_result(self) -> Path:
         """depend on name and fov"""
-        return self.results_folder / f'seen_tiles_fov{self.fov}.hd5'
+        return self.results_folder / f'tiles_seen_fov{self.fov}.hd5'
 
     @property
     def user_seen_tiles_folder(self) -> Path:
