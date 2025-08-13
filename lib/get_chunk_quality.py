@@ -87,7 +87,11 @@ class GetChunkQuality(Worker, MakeChunkQualityPaths):
             merged = (df if merged is None else
                       pd.concat([merged, df], axis=0))
 
-        if merged.size != len(self.name_list)* len(self.projection_list)* 181 * len(self.quality_list) * len(self.chunk_list) * 4:
+        if (merged.size != (len(self.name_list)
+                            * len(self.projection_list)
+                            * 181
+                            * len(self.quality_list)
+                            * len(self.chunk_list) * 4)):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
