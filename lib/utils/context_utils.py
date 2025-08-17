@@ -55,11 +55,12 @@ def task(self, verbose=True):
 
 
 @contextmanager
-def timer(ident=0):
+def timer(ident=0, verbose=True):
     start = time()
     ident = '\t' * ident
 
     try:
-        yield
+        yield start
     finally:
-        print(f"{ident}time={time() - start}.")
+        if verbose:
+            print(f"{ident}time={time() - start}.")
