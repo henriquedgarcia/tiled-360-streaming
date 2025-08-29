@@ -113,6 +113,7 @@ config_list = [
     Option(id=1, name='erp_qp', obj=path_config / 'config_erp_qp.json'),
     Option(id=2, name='cmp_crf', obj=path_config / 'config_cmp_crf.json'),
     Option(id=3, name='erp_crf', obj=path_config / 'config_erp_crf.json'),
+    Option(id=4, name='pres_qp', obj=path_config / 'config_pres_qp.json'),
 ]
 
 videos_list = [
@@ -126,6 +127,7 @@ videos_list = [
     Option(id=7, name='alambique', obj=path_config / 'videos_alambique.json'),  # 99 video_23-wingsuit_dubai
     Option(id=8, name='test', obj=path_config / 'videos_test.json'),  # 
     Option(id=9, name='full', obj=path_config / 'videos_full.json'),  #
+    Option(id=10, name='pres_qp', obj=path_config / 'videos_pres.json'),
 ]
 
 worker_list = [
