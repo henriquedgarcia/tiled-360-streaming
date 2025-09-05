@@ -2,6 +2,8 @@ from collections import defaultdict
 from functools import cached_property
 from math import prod
 
+from py360tools import ProjectionBase
+
 from config.config import Config
 from lib.assets.autodict import AutoDict
 from lib.utils.util import load_json, splitx
@@ -20,7 +22,9 @@ class Context:
     turn: str = None
     attempt: int = None
     iterations: int = 0
-    projection_dict = AutoDict
+    projection_dict: AutoDict
+    proj_obj: ProjectionBase
+    tile_position: tuple[int, int, int, int]
 
     factors_list = ['name', 'projection', 'tiling', 'tile', 'user', 'quality', 'chunk',
                     'frame', 'metric', 'attempt']
