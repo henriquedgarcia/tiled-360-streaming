@@ -1,5 +1,3 @@
-from functools import cached_property
-
 from lib.assets.context import Context
 from lib.utils.util import make_tile_position_dict
 
@@ -100,43 +98,35 @@ class Lists:
     ctx: Context
     _name_list = None
 
-    @cached_property
+    @property
     def name_list(self) -> list[str]:
         return self.ctx.name_list
 
-    @cached_property
+    @property
     def projection_list(self):
         return self.ctx.projection_list
 
-    _quality_list = None
-
-    @cached_property
+    @property
     def quality_list(self):
-        if self._quality_list is None:
-            return self.ctx.quality_list
-        return self._quality_list
-
-    _tiling_list = None
+        return self.ctx.quality_list
 
     @property
     def tiling_list(self):
-        if self._tiling_list is None:
-            return self.ctx.tiling_list
-        return self._tiling_list
+        return self.ctx.tiling_list
 
     @tiling_list.setter
     def tiling_list(self, value):
-        self._tiling_list = value
+        self.ctx.tiling_list = value
 
     @property
     def tile_list(self):
         return self.ctx.tile_list
 
-    @cached_property
+    @property
     def chunk_list(self):
         return self.ctx.chunk_list
 
-    @cached_property
+    @property
     def metric_list(self):
         return ['time', 'rate', "ssim", "mse", "s-mse", "ws-mse"]
 
@@ -148,7 +138,7 @@ class Lists:
     def name_list_by_user(self):
         return self.ctx.name_list_by_user
 
-    @cached_property
+    @property
     def group_list(self):
         return self.ctx.group_list
 
@@ -231,10 +221,13 @@ class CtxInterface(Factors, Lists):
              for group in self.group_list}
         return b
 
-    @cached_property
+    @property
     def tile_position_dict(self) -> dict:
         """
         tile_position_dict[resolution: str][tiling: str][tile: str]
         :return:
         """
-        return make_tile_position_dict(self.video_shape, self.tiling_list)
+        from py360tools import ERP, CMP
+        proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
+
+        return make_tile_position_dict(proj_obj)
