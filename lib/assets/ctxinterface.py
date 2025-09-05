@@ -230,4 +230,4 @@ class CtxInterface(Factors, Lists):
         from py360tools import ERP, CMP
         proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
 
-        return make_tile_position_dict(proj_obj)
+        return make_tile_position_dict(proj_obj, self.tiling_list)
