@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from py360tools import ERP, CMP, ProjectionBase
 from tqdm import tqdm
 
 from config.config import Config
@@ -12,19 +13,35 @@ from lib.assets.paths.make_chunk_quality_paths import MakeChunkQualityPaths
 from lib.assets.qualitymetrics import QualityMetrics
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import iter_video
+from lib.utils.util import iter_video, get_tile_position
 
 
 class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
+    proj_obj: ProjectionBase
+    tile_position: tuple[int, int, int, int]
+
+    @property
+    def iterate_name_projection_tiling_tile_quality_chunk(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    self.proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
+                    for self.tile in self.tile_list:
+                        tile = self.proj_obj.tile_list[int(self.tile)]
+                        self.tile_position = get_tile_position(tile)
+                        for self.quality in self.quality_list:
+                            for self.chunk in self.chunk_list:
+                                self.ctx.iterations += 1
+                                yield
 
     def main(self):
-        for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
-            with task(self, verbose=True):
+        for _ in self.iterate_name_projection_tiling_tile_quality_chunk:
+            with task(self):
                 self.work()
 
     def init(self):
-        self.quality_metrics = QualityMetrics(self.ctx)
+        self.quality_metrics = QualityMetrics(self)
 
     def work(self):
         if self.chunk_quality_json_ok():
@@ -109,26 +126,10 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
 if __name__ == '__main__':
     os.chdir('../')
-
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
-    # config_file = Path('config/config_cmp_qp.json')
-    # config_file = Path('config/config_erp_qp.json')
     config_file = Path('config/config_cmp_crf.json')
     videos_file = Path('config/videos_reduced.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    MakeChunkQuality(ctx)
+    MakeChunkQuality(ctx).run()
