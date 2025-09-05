@@ -85,30 +85,23 @@ class ViewportQuality(Props):
             self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
 
             for self.name in self.name_list:
-                for self.tiling in self.tiling_list:
-                    self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
-                    self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
+                for self.projection in self.projection_list:
+                    for self.tiling in self.tiling_list:
+                        self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
+                        self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
 
-                    for self.user in self.users_list_by_name:
-                        for self.quality in self.quality_list:
-                            for self.chunk in self.chunk_list:
-                                print(f'{self}. Processing... ', end='')
-                                # try:
-                                #     assert self.user_viewport_quality_json.stat().st_size > 10
-                                #     print('Skipping \r', end='')
-                                #     continue
-                                # except FileNotFoundError:
-                                #     pass
-
-                                try:
-                                    self.calc_chunk_error_per_frame()
-                                except StopIteration:
-                                    print_error(f'Decode error. Frame {self.frame}')
-                                    self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
-                                    continue
-                                print(f'Saving...')
-                                exit(0)
-                                save_json(self.results, self.user_viewport_quality_json)
+                        for self.user in self.users_list_by_name:
+                            for self.quality in self.quality_list:
+                                for self.chunk in self.chunk_list:
+                                    print(f'{self}. Processing... ', end='')
+                                    try:
+                                        self.calc_chunk_error_per_frame()
+                                    except StopIteration:
+                                        print_error(f'Decode error. Frame {self.frame}')
+                                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
+                                        continue
+                                    print(f'Saving...')
+                                    save_json(self.results, self.user_viewport_quality_json)
 
     def get_seen_tiles(self) -> list[int]:
         seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
