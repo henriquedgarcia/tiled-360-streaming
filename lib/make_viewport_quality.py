@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from py360tools import CMP, ERP, ProjectionBase, Viewport
+from py360tools import CMP, ERP, Viewport
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
 
 from config.config import Config
@@ -19,16 +19,15 @@ from lib.assets.context import Context
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, print_error, idx2xy
+from lib.utils.util import save_json, load_json, print_error
 
 Tiling = str
-Tile = str
 NumpyArray = np.ndarray
 
 
 class Props(Worker, ViewportQualityPaths, ABC):
-    seen_tiles_deg_path: dict[Tile, Path]
-    seen_tiles_ref_path: dict[Tile, Path]
+    seen_tiles_deg_path: dict[str, Path]
+    seen_tiles_ref_path: dict[str, Path]
     canvas: NumpyArray
     ui: ProgressBar
     get_tiles: dict
@@ -185,58 +184,13 @@ class CheckViewportQuality(ViewportQuality):
         Path(f'CheckViewportQuality.json').write_text(json.dumps(result, indent=2))
 
 
-def make_tile_positions(proj: ProjectionBase) -> dict[str, tuple[int, int, int, int]]:
-    """
-    Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
-    onde tiles é XXXX (verificar)
-    e as coordenadas são inteiros.
-
-    Mostra a posição inicial e final do tile na projeção.
-    :param proj:
-    :return:
-    """
-    tile_positions = {}
-    tile_h, tile_w = proj.tile_shape
-    tile_N, tile_M = proj.tiling_shape
-
-    tile_list = list(proj.tile_list)
-
-    for tile in tile_list:
-        tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
-        tile_y, tile_x = tile_n * tile_h, tile_m * tile_w
-        x_ini = tile_x
-        x_end = tile_x + tile_w
-        y_ini = tile_y
-        y_end = tile_y + tile_h
-        tile_positions[str(tile)] = x_ini, x_end, y_ini, y_end
-    return tile_positions
-
-
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
-    # config_file = Path('config/config_cmp_crf.json')
-    config_file = Path('config/config_cmp_qp.json')
-    # config_file = Path('config/config_erp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
-    # videos_file = Path('config/videos_full.json')
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    o = ViewportQuality(ctx)
-    # o = CheckViewportQuality(ctx)
-    o.run()
+    ViewportQuality(ctx).run()
