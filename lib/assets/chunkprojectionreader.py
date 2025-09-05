@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from py360tools import Viewport
 
-from lib.utils.util import iter_video, make_tile_positions, idx2xy
+from lib.utils.util import iter_video, make_tiles_position, idx2xy
 
 
 class ChunkProjectionReader:
@@ -23,7 +23,7 @@ class ChunkProjectionReader:
         self.seen_tiles = seen_tiles
         self.vp = viewport
         self.proj = viewport.projection
-        self.tile_positions = make_tile_positions(self.proj)
+        self.tile_positions = make_tiles_position(self.proj)
         self.canvas = np.zeros(self.proj.shape, dtype='uint8')
         self.reset_readers()
 
