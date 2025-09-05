@@ -381,7 +381,7 @@ def lin_interpol(t: float, t_f: float, t_i: float, v_f: np.ndarray, v_i: np.ndar
     return v
 
 
-def make_tile_position_dict(proj_obj: ProjectionBase) -> dict[str, dict[str, dict[str, list[int]]]]:
+def make_tile_position_dict(proj_obj: ProjectionBase, tiling_list) -> dict[str, dict[str, dict[str, list[int]]]]:
     """
     Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
     onde tiles é XXXX (verificar)
@@ -394,7 +394,7 @@ def make_tile_position_dict(proj_obj: ProjectionBase) -> dict[str, dict[str, dic
     resolution = proj_obj.resolution
     tile_position_dict = AutoDict()
 
-    for tiling in self.tiling_list:
+    for tiling in tiling_list:
         tiling_m, tiling_n = map(int, splitx(tiling))
         tile_w, tile_h = int(proj_w / tiling_m), int(proj_h / tiling_n)
 
