@@ -53,7 +53,7 @@ class MakeDecodable(Worker, MakeDecodablePaths):
                     f'> {self.decodable_chunk.as_posix()}"')
 
     def run(self):
-        run_command(self.cmd, folder=self.decodable_folder,
+        run_command(self.cmd, folder=self.decodable_folder, log_file=None,
                     ui_prefix='\t')
 
     def _check_decodable(self):
