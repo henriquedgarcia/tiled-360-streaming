@@ -1,3 +1,5 @@
+from py360tools import ProjectionBase
+
 from lib.assets.context import Context
 from lib.utils.util import make_tile_position_dict
 
@@ -92,6 +94,14 @@ class Factors:
     @frame.setter
     def frame(self, value: int):
         self.ctx.frame = value
+
+    @property
+    def proj_obj(self) -> ProjectionBase:
+        return self.ctx.proj_obj
+
+    @proj_obj.setter
+    def proj_obj(self, value: ProjectionBase):
+        self.ctx.proj_obj = value
 
 
 class Lists:
