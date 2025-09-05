@@ -1,3 +1,4 @@
+import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from multiprocessing import Pool
@@ -18,9 +19,7 @@ class Multi(ABC):
         try:
             yield
             with Pool(4) as p:
-                p.map(run_command, self.command_pool)
-                # for command in self.command_pool:
-                #     run_command(command)
+                p.map(subprocess.run, self.command_pool)
         finally:
             pass
 
