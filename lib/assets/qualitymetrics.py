@@ -7,17 +7,17 @@ from skimage.metrics import mean_squared_error, structural_similarity
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.make_chunk_quality import MakeChunkQuality
 from lib.utils.util import save_pickle, load_pickle
 
 
 class QualityMetrics(CtxInterface):
-    ctx: MakeChunkQuality
+    ctx: Context
 
-    def __init__(self, make_chunk_quality_obj: MakeChunkQuality):
-        self.make_chunk_quality_obj = make_chunk_quality_obj
+    def __init__(self, make_chunk_quality_obj: CtxInterface):
+        self.ctx = make_chunk_quality_obj.ctx
+        self.tile_position = self.ctx.proj_obj.tile_list[int(self.tile)].position
         self.sph_points_mask_dict = self.make_sph_points_mask_dict()
-        self.weight_ndarray = make_weight_ndarray_dict(self.make_chunk_quality_obj.ctx)
+        self.weight_ndarray = make_weight_ndarray_dict(self.ctx)
 
     @staticmethod
     def mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
@@ -57,7 +57,7 @@ class QualityMetrics(CtxInterface):
         :param im_deg:
         :return:
         """
-        x1, x2, y1, y2 = self.make_chunk_quality_obj.tile_position
+        x1, x2, y1, y2 = self.ctx.tile_position
         weight_tile = self.weight_ndarray[self.projection][y1:y2, x1:x2]
 
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
@@ -74,7 +74,7 @@ class QualityMetrics(CtxInterface):
         :param tile_deg: The image degraded
         :return:
         """
-        x1, x2, y1, y2 = self.make_chunk_quality_obj.tile_position
+        x1, x2, y1, y2 = self.ctx.tile_position
         tile_mask = self.sph_points_mask_dict[self.projection][y1:y2, x1:x2]
 
         tile_ref_m = tile_ref * tile_mask
