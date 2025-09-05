@@ -18,6 +18,7 @@ from py360tools import ProjectionBase, ERP, CMP, Viewport
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
+from py360tools import Tile
 
 
 def run_command_os(command: str):
@@ -380,19 +381,20 @@ def lin_interpol(t: float, t_f: float, t_i: float, v_f: np.ndarray, v_i: np.ndar
     return v
 
 
-def make_tile_position_dict(video_shape, tiling_list):
+def make_tile_position_dict(proj_obj: ProjectionBase) -> dict[str, dict[str, dict[str, list[int]]]]:
     """
+    Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
+    onde tiles é XXXX (verificar)
+    e as coordenadas são inteiros.
 
-    :param video_shape:
-    :param video_shape:
-    :param tiling_list:
+    :param proj_obj:
     :return:
     """
-    proj_h, proj_w = video_shape
-    resolution = f'{video_shape[1]}x{video_shape[0]}'
+    proj_h, proj_w = proj_obj.shape
+    resolution = proj_obj.resolution
     tile_position_dict = AutoDict()
 
-    for tiling in tiling_list:
+    for tiling in self.tiling_list:
         tiling_m, tiling_n = map(int, splitx(tiling))
         tile_w, tile_h = int(proj_w / tiling_m), int(proj_h / tiling_n)
 
@@ -441,7 +443,7 @@ def decode_video(filename, threads=None, ui_prefix='', ui_suffix='\n'):
     """
 
     cmd = make_decode_cmd(filename=filename, threads=threads)
-    process, stdout = run_command(cmd, ui_prefix=ui_prefix, ui_suffix=ui_suffix)
+    process, stdout = run_command(cmd, log_file=None, ui_prefix=ui_prefix, ui_suffix=ui_suffix)
     return stdout
 
 
@@ -475,7 +477,8 @@ def set_nested_value(data: dict[Hashable, Any], keys: Sequence, value: Any):
     subtree[keys[-1]] = value
 
 
-def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path] = None, mode='w',
+def run_command(cmd: str, folder: Optional[Path],
+                log_file: Optional[Path], mode='w',
                 ui_prefix='', ui_suffix='\n'):
     """
 
@@ -489,6 +492,7 @@ def run_command(cmd: str, folder: Optional[Path] = None, log_file: Optional[Path
     """
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
+
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     stdout_lines = [cmd + '\n']
     print(ui_prefix, end='')
@@ -513,7 +517,6 @@ def __frame_handler__(): ...
 
 
 def build_projection(proj_name, proj_res, tiling) -> Viewport:
-
     if proj_name == 'erp':
         projection = ERP(tiling=tiling, proj_res=proj_res)
     elif proj_name == 'cmp':
@@ -561,7 +564,7 @@ class LoadingUi:
         print(f'{suffix}', end='')
 
 
-def make_tile_positions(proj: ProjectionBase) -> dict[int, tuple[int, int, int, int]]:
+def make_tiles_position(proj: ProjectionBase) -> dict[str, tuple[int, int, int, int]]:
     """
     Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
     onde tiles é XXXX (verificar)
@@ -572,20 +575,17 @@ def make_tile_positions(proj: ProjectionBase) -> dict[int, tuple[int, int, int, 
     :return:
     """
     tile_positions = {}
-    tile_h, tile_w = proj.tile_shape
-    tile_N, tile_M = proj.tiling_shape
 
-    tile_list = list(proj.tile_list)
-
-    for tile in tile_list:
-        tile_m, tile_n = idx2xy(tile, (tile_N, tile_M))
-        tile_y, tile_x = tile_n * tile_h, tile_m * tile_w
-        x_ini = tile_x
-        x_end = tile_x + tile_w
-        y_ini = tile_y
-        y_end = tile_y + tile_h
-        tile_positions[tile] = x_ini, x_end, y_ini, y_end
+    for tile in proj.tile_list:
+        tile_positions[str(tile)] = get_tile_position(tile)
     return tile_positions
+
+
+def get_tile_position(tile: Tile) -> tuple[int, int, int, int]:
+    h, w = tile.shape
+    x_ini, y_ini = tile.position
+    x_end, y_end = x_ini + w, y_ini + h
+    return x_ini, x_end, y_ini, y_end
 
 
 def get_video_resolution(caminho_video):
