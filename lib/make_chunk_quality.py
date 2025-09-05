@@ -19,7 +19,6 @@ from lib.utils.util import iter_video, get_tile_position
 class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
     proj_obj: ProjectionBase
-    tile_position: tuple[int, int, int, int]
 
     @property
     def iterate_name_projection_tiling_tile_quality_chunk(self):
@@ -29,7 +28,7 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
                     self.proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
                     for self.tile in self.tile_list:
                         tile = self.proj_obj.tile_list[int(self.tile)]
-                        self.tile_position = get_tile_position(tile)
+                        self.ctx.tile_position = get_tile_position(tile)
                         for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
                                 self.ctx.iterations += 1
