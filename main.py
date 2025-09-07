@@ -8,19 +8,19 @@ from config.config import Config
 from lib.assets.context import Context
 from lib.assets.worker import Worker
 from lib.check import Check
-from lib.make_dectime import MakeDectime
 from lib.get_bitrate import GetBitrate
 from lib.get_chunk_quality import GetChunkQuality
-from lib.get_seen_tiles import GetTilesSeen
-from lib.make_tiles_seen import MakeTilesSeen
 from lib.get_dectime import GetDectime
-from lib.make_siti import MakeSiti, GetMakeSiti
+from lib.get_seen_tiles import GetTilesSeen
+from lib.get_viewport_quality import GetViewportQuality
+from lib.make_chunk_quality import MakeChunkQuality
 from lib.make_dash import MakeDash
 from lib.make_decodable import MakeDecodable
-from lib.make_chunk_quality import MakeChunkQuality
+from lib.make_dectime import MakeDectime
+from lib.make_siti import MakeSiti, GetMakeSiti
 from lib.make_tiles import MakeTiles
+from lib.make_tiles_seen import MakeTilesSeen
 from lib.make_viewport_quality import ViewportQuality, CheckViewportQuality
-from lib.get_viewport_quality import GetViewportQuality
 from lib.utils.main_utils import make_help_txt, menu, Option, get_option
 
 
@@ -79,16 +79,13 @@ def main():
 
     if videos_list_id in [0, 9] and args.slice is not None:
         start, stop = args.slice
-        items_list = list(ctx.video_list)
-        ctx.video_list = items_list[start:stop]
+        items_list = list(ctx.name_list)
+        ctx.name_list = items_list[start:stop]
 
     if args.video is not None:
-        video = args.video
-        video_list = ctx.video_list
-        ctx.video_list = [video_list[int(video)]]
+        ctx.name_list = [ctx.name_list[int(args.video)]]
 
     if args.projection is not None:
-        ctx.projection_list
         ctx.projection_list = [args.projection]
 
     if args.tiling is not None:
