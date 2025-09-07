@@ -1,3 +1,4 @@
+import os
 import shutil
 from pathlib import Path
 
@@ -12,14 +13,7 @@ from lib.utils.util import run_command
 
 
 class MakeDash(Worker, MakeDashPaths, CtxInterface):
-    decode_check = False
-
-    def init(self):
-        self.quality_list = ['0'] + self.quality_list
-        self.remove = self.config.remove
-
     def main(self):
-        self.init()
         for _ in self.iterate_name_projection_tiling_tile():
             with task(self):
                 self.work()
@@ -37,6 +31,8 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
         for self.quality in self.quality_list:
             self.assert_tile_video()
             filename.append(self.tile_video.as_posix())
+        self.quality = None
+
         filename_ = ' '.join(filename)
 
         cmd = ('bash -c '
@@ -48,7 +44,6 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
                f'-out {self.dash_mpd.as_posix()} '
                f'{filename_}'
                "'")
-        self.quality = None
         return cmd
 
     def assert_dash(self):
@@ -151,31 +146,16 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
 
 
 if __name__ == '__main__':
-    import os
-
     os.chdir('../')
 
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
-    config_file = Path('config/config_cmp_crf.json')
     # config_file = Path('config/config_cmp_qp.json')
-    # config_file = Path('config/config_erp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
-    # videos_file = Path('config/videos_full.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    MakeDash(ctx)
+    MakeDash(ctx).run()
     # CheckViewportQuality(ctx)
