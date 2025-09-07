@@ -38,13 +38,13 @@ class PrivatesMethods(TilesSeenPaths):
 
     viewport_dict: dict
 
-    def get_tiles_seen_by_frame(self, user_hmd_data) -> list[list[str]]:
+    def get_tiles_seen_by_frame(self) -> list[list[str]]:
         if self.tiling == '1x1': return [["0"]] * self.n_frames
 
         tiles_seen_by_frame = []
         viewport_obj: Viewport = self.viewport_dict[self.projection][self.tiling]
 
-        for frame, yaw_pitch_roll in enumerate(user_hmd_data, 1):
+        for frame, yaw_pitch_roll in enumerate(self.user_hmd_data, 1):
             print(f'\r\tframe {frame:04d}/{self.n_frames}', end='')
             vptiles: list[Tile] = viewport_obj.get_vptiles(yaw_pitch_roll)
             vptiles: list[str] = [str(tile.idx) for tile in vptiles]
@@ -74,29 +74,26 @@ class MakeTilesSeen(Worker, PrivatesMethods):
     tiles_seen: dict
 
     def init(self):
-        def create_projections_dict():
+        proj_res = self.config.config_dict['scale']['erp']
+
+        def create_viewport_dict():
             """
-            viewport_dict = {'cmp': {'3x2': CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res),
-                                       '6x4': CMP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res),
-                                       ...},
-                               'erp': {'3x2': ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res),
-                                       '6x4': ERP(tiling=tiling, proj_res=proj_res, vp_res=vp_res, fov_res=fov_res),
-                                       ...}
-                               }
+            viewport_dict = {'cmp': {'3x2': Viewport(vp_res, self.fov, CMP(tiling='3x2', proj_res=proj_res)),
+                                     '6x4': Viewport(vp_res, self.fov, CMP(tiling='6x4', proj_res=proj_res)),
+                                     ...},
+                             'erp': {'3x2': Viewport(vp_res, self.fov, ERP(tiling='3x2', proj_res=proj_res)),
+                                     '6x4': Viewport(vp_res, self.fov, ERP(tiling='6x4', proj_res=proj_res)),
+                                     ...}
+                             }
             :return:
             """
-            projection_dict = AutoDict()
+            viewport_dict = AutoDict()
             for tiling in self.tiling_list:
-                projection = ERP(tiling=tiling, proj_res=self.config.config_dict['scale']['erp'])
-                vp = Viewport('1320x1080', self.fov, projection)
-                projection_dict['erp'][tiling] = vp
+                viewport_dict['erp'][tiling] = Viewport(self.vp_res, self.fov, ERP(tiling=tiling, proj_res=proj_res))
+                viewport_dict['cmp'][tiling] = Viewport(self.vp_res, self.fov, CMP(tiling=tiling, proj_res=proj_res))
+            return viewport_dict
 
-                projection = CMP(tiling=tiling, proj_res=self.config.config_dict['scale']['cmp'])
-                vp = Viewport('1320x1080', self.fov, projection)
-                projection_dict['cmp'][tiling] = vp
-            return projection_dict
-
-        self.viewport_dict = create_projections_dict()
+        self.viewport_dict = create_viewport_dict()
 
     def main(self):
         for _ in self.iterate_name_projection_tiling_user():
@@ -129,7 +126,7 @@ class MakeTilesSeen(Worker, PrivatesMethods):
     def get_tiles_seen(self):
         print('')
         with timer(ident=1):
-            tiles_seen_by_frame = self.get_tiles_seen_by_frame(self.user_hmd_data)
+            tiles_seen_by_frame = self.get_tiles_seen_by_frame()
             self.tiles_seen = {'frames': tiles_seen_by_frame}
 
     def save_tiles_seen(self):
@@ -141,12 +138,13 @@ class MakeTilesSeen(Worker, PrivatesMethods):
 if __name__ == '__main__':
     os.chdir('../')
 
-    config_file = Path('config/config_cmp_crf.json')
-    # config_file = Path('config/config_erp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    app = MakeTilesSeen(ctx)
-    app.run()
+    MakeTilesSeen(ctx).run()
