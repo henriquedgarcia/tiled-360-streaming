@@ -66,8 +66,8 @@ class ConfigProps:
         return self.config_dict['fov']
 
     @cached_property
-    def fov_res(self):
-        return self.config_dict['fov_res']
+    def vp_res(self):
+        return self.config_dict['vp_res']
 
     @cached_property
     def quality_list(self) -> list[str]:

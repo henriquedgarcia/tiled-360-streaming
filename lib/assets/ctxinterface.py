@@ -173,8 +173,8 @@ class CtxInterface(Factors, Lists):
         return self.ctx.scale
 
     @property
-    def fov_res(self):
-        return self.ctx.config.fov_res
+    def vp_res(self):
+        return self.ctx.config.vp_res
 
     @property
     def proj_res(self):

@@ -6,7 +6,7 @@
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "fov_res": "1080x1080",
+  "vp_res": "1080x1080",
   "scale": {"erp": "4320x2160"},
 
   "rate_control": "qp",
