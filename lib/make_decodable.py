@@ -11,7 +11,6 @@ from lib.utils.util import run_command
 
 
 class MakeDecodable(Worker, MakeDecodablePaths):
-    quality_list: list[str] = None
     decode_check = False
 
     def init(self):
