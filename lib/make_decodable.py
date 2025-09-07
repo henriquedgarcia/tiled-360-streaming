@@ -15,7 +15,7 @@ class MakeDecodable(Worker, MakeDecodablePaths):
     decode_check = False
 
     def init(self):
-        self.quality_list = ['0'] + self.ctx.quality_list
+        pass
 
     def main(self):
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
@@ -26,7 +26,7 @@ class MakeDecodable(Worker, MakeDecodablePaths):
         self.assert_decodable()
         self.assert_dash()
         self.make_decodable_cmd()
-        self.run()
+        self.run_command()
 
     def assert_decodable(self):
         try:
@@ -52,7 +52,7 @@ class MakeDecodable(Worker, MakeDecodablePaths):
         self.cmd = (f'bash -c "cat {self.dash_init.as_posix()} {self.dash_m4s.as_posix()} '
                     f'> {self.decodable_chunk.as_posix()}"')
 
-    def run(self):
+    def run_command(self):
         run_command(self.cmd, folder=self.decodable_folder, log_file=None,
                     ui_prefix='\t')
 
@@ -67,24 +67,13 @@ class MakeDecodable(Worker, MakeDecodablePaths):
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
-    config_file = Path('config/config_cmp_crf.json')
-    # config_file = Path('config/config_erp_qp.json')
     # config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    MakeDecodable(ctx)
+    MakeDecodable(ctx).run()
