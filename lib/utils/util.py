@@ -443,7 +443,7 @@ def decode_video(filename, threads=None, ui_prefix='', ui_suffix='\n'):
     """
 
     cmd = make_decode_cmd(filename=filename, threads=threads)
-    process, stdout = run_command(cmd, log_file=None, ui_prefix=ui_prefix, ui_suffix=ui_suffix)
+    process, stdout = run_command(cmd, log_file=None, ui_prefix=ui_prefix, ui_suffix=ui_suffix, folder=None)
     return stdout
 
 
