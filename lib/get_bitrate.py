@@ -62,7 +62,7 @@ class GetBitrate(MakeDash):
         cools_names = ('name', 'projection', 'tiling', 'tile', 'quality',
                        'chunk', 'bitrate')
         df = pd.DataFrame(data, columns=cools_names)
-        df.set_index(cools_names[:-1], inplace=True)
+        df.set_index(list(cools_names[:-1]), inplace=True)
         pd.to_pickle(df, self.bitrate_result_by_name)
 
     def merge(self):
@@ -72,7 +72,7 @@ class GetBitrate(MakeDash):
             merged = (df if merged is None
                       else pd.concat([merged, df], axis=0))
 
-        if merged.size != 434400 * 2:
+        if merged.size != len(self.name_list) * self.total_by_name * 2:
             print_error('Dataframe size mismatch.')
             raise AbortError
 
@@ -82,8 +82,11 @@ class GetBitrate(MakeDash):
 if __name__ == '__main__':
     os.chdir('../')
 
-    config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
