@@ -66,24 +66,13 @@ class MakeDectime(Worker, DectimePaths):
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
-    config_file = Path('config/config_erp_qp.json')
     # config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    MakeDectime(ctx)
+    MakeDectime(ctx).run()
