@@ -7,7 +7,6 @@ from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
 from lib.assets.logger import Logger
 from lib.assets.status_ctx import StatusCtx
-from lib.utils.util import run_command
 
 
 class Multi(ABC):
@@ -119,6 +118,7 @@ class Worker(ABC, CtxInterface):
 
     @property
     def iterate_name_projection_tiling_quality_user_chunk(self):
+        i = 0
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
@@ -126,7 +126,20 @@ class Worker(ABC, CtxInterface):
                         for self.user in self.users_list_by_name:
                             for self.chunk in self.chunk_list:
                                 self.ctx.iterations += 1
-                                yield
+                                yield i
+                                i += 1
+
+    @property
+    def iterate_name_projection_tiling_user_chunk(self):
+        i = 0
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.user in self.users_list_by_name:
+                        for self.chunk in self.chunk_list:
+                            self.ctx.iterations += 1
+                            yield i
+                            i += 1
 
     def iterate_name_projection_tiling_tile_quality_chunk(self):
         for self.name in self.name_list:
