@@ -28,7 +28,6 @@ class MakeDectime(Worker, DectimePaths):
     def decode_chunks(self):
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             with task(self):
-                print(f'{self.ctx}', end='')
                 self.count_dectime()
                 self.check_decodable()
                 self.decode()
