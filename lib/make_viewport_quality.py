@@ -14,12 +14,12 @@ from skimage.metrics import mean_squared_error as mse, structural_similarity as 
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.assets.chunkprojectionreader import ChunkProjectionReader
 from lib.assets.context import Context
 from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
+from lib.assets.tile_stitcher import TileStitcher
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, print_error
+from lib.utils.util import save_json, load_json
 
 Tiling = str
 NumpyArray = np.ndarray
@@ -37,8 +37,9 @@ class Props(Worker, ViewportQualityPaths, ABC):
     @property
     def chunk_yaw_pitch_roll_per_frame(self) -> list[tuple[float, float, float]]:
         chunk = int(self.chunk) - 1
-        start = chunk * 30
-        return self.user_hmd_data[slice(start, start + 30)]
+        gop = int(self.gop)
+        start = chunk * gop
+        return self.user_hmd_data[slice(start, start + gop)]
 
     # @property
     # def seen_tiles(self):
@@ -61,14 +62,26 @@ class Props(Worker, ViewportQualityPaths, ABC):
 
 
 class ViewportQuality(Props):
+    vp: Viewport
     seen_tiles_db: DataFrame
     seen_tiles_level: list
     viewport_frame_ref_3dArray: Optional[np.ndarray]
     results: defaultdict
     video_seen_tiles: pd.DataFrame
+    proj_dict: AutoDict
+    vp_dict: AutoDict
 
     def init(self):
-        pass
+        self.seen_tiles_db = pd.read_hdf(self.seen_tiles_result)
+        self.proj_dict = AutoDict()
+        self.vp_dict = AutoDict()
+        self.quality_list.remove('0')
+
+        for self.projection in self.projection_list:
+            for self.tiling in self.tiling_list:
+                proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
+                self.proj_dict[self.projection][self.tiling] = proj_obj
+                self.vp_dict[self.projection][self.tiling] = Viewport(self.vp_res, self.fov, projection=proj_obj)
 
     def main(self):
         """
@@ -81,27 +94,34 @@ class ViewportQuality(Props):
         yaw, pitch, roll in radians
         :return:
         """
-        for self.projection in self.projection_list:
-            self.seen_tiles_db = pd.read_pickle(self.seen_tiles_result)
+        total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list) * len(self.quality_list) * 30 * len(self.chunk_list)
+        i = 0
+        for _ in self.iterate_name_projection_tiling_user_chunk:
+            vp = self.vp_dict[self.projection][self.tiling]
+            ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.get_seen_tiles()}
+            ref_proj_frame_array = TileStitcher(ref_tiles_path, viewport=vp, full=True).full
 
-            for self.name in self.name_list:
-                for self.projection in self.projection_list:
-                    for self.tiling in self.tiling_list:
-                        self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
-                        self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
+            for self.quality in self.quality_list:
+                print(f'\r{i}/{total} - {self}. Processing... ', end='')
+                i += 1
+                if self.user_viewport_quality_json.exists(): continue
+                deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
+                deg_proj_frame_stitcher = TileStitcher(deg_tiles_path, viewport=vp)
 
-                        for self.user in self.users_list_by_name:
-                            for self.quality in self.quality_list:
-                                for self.chunk in self.chunk_list:
-                                    print(f'{self}. Processing... ', end='')
-                                    try:
-                                        self.calc_chunk_error_per_frame()
-                                    except StopIteration:
-                                        print_error(f'Decode error. Frame {self.frame}')
-                                        self.logger.register_log(f'Decode error. Frame {self.frame}', self.user_viewport_quality_json)
-                                        continue
-                                    print(f'Saving...')
-                                    save_json(self.results, self.user_viewport_quality_json)
+                self.results = defaultdict(list)
+                zip_data = zip(self.chunk_yaw_pitch_roll_per_frame, ref_proj_frame_array)
+                for self.frame, (yaw_pitch_roll, ref_proj_frame) in enumerate(zip_data):
+                    viewport_frame_ref = vp.extract_viewport(ref_proj_frame, yaw_pitch_roll)
+                    viewport_frame_deg = deg_proj_frame_stitcher.extract_viewport(yaw_pitch_roll)
+
+                    _mse = mse(viewport_frame_ref, viewport_frame_deg)
+                    _ssim = ssim(viewport_frame_ref, viewport_frame_deg, data_range=255.0,
+                                 gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
+                    self.results['mse'].append(_mse)
+                    self.results['ssim'].append(_ssim)
+                self.frame = None
+                print(f'Saving...')
+                save_json(self.results, self.user_viewport_quality_json)
 
     def get_seen_tiles(self) -> list[int]:
         seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
@@ -112,34 +132,9 @@ class ViewportQuality(Props):
             a.update(item)
         return list(a)
 
-    vp: Viewport
-
-    def make_proj_and_vp_obj(self):
-        self.proj_obj = (CMP if self.projection == 'cmp' else ERP)(tiling=self.tiling, proj_res=self.scale)
-        self.vp = Viewport('1080x1080', '90x90', projection=self.proj_obj)
-
-    def calc_chunk_error_per_frame(self, ):
-        ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.tile_list}
-        ref_proj_frame_vreader = ChunkProjectionReader(ref_tiles_path, viewport=self.vp)
-
-        deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
-        deg_proj_frame_vreader = ChunkProjectionReader(deg_tiles_path, viewport=self.vp)
-
-        self.results = defaultdict(list)
-        for self.frame, yaw_pitch_roll in enumerate(self.chunk_yaw_pitch_roll_per_frame):
-            viewport_frame_ref = ref_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-            viewport_frame_deg = deg_proj_frame_vreader.extract_viewport(yaw_pitch_roll)
-            _mse = mse(viewport_frame_ref, viewport_frame_deg)
-            _ssim = ssim(viewport_frame_ref, viewport_frame_deg, data_range=255.0,
-                         gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
-            self.results['mse'].append(_mse)
-            self.results['ssim'].append(_ssim)
-        self.frame = None
-
-
-# from PILL import Image
-# Image.fromarray(viewport_frame_ref).show()
-# Image.fromarray(np.abs(viewport_frame_ref - viewport_frame_deg)).show()
+    # from PIL import Image
+    # Image.fromarray(viewport_frame_ref).show()
+    # Image.fromarray(np.abs(viewport_frame_ref - viewport_frame_deg)).show()
 
 
 class CheckViewportQuality(ViewportQuality):
@@ -179,6 +174,9 @@ class CheckViewportQuality(ViewportQuality):
 
 if __name__ == '__main__':
     os.chdir('../')
+
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
 
     config_file = Path('config/config_pres_qp.json')
     videos_file = Path('config/videos_pres.json')
