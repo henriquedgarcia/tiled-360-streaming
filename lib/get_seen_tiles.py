@@ -69,7 +69,7 @@ class GetTilesSeen(MakeTilesSeen):
                 new_df = df.groupby(['name', 'projection', 'tiling', 'user', 'chunk'])['tiles_seen'].apply(lambda x: set().union(*tuple(x)))
                 merged = (new_df if merged is None
                           else pd.concat([merged, new_df], axis=0))
-        if merged.size != 8 * 2 * 5 * 30 * 60:
+        if merged.size != len(self.name_list) * len(self.projection_list) * len(self.tiling_list) * 30 * 60:
             print_error('Dataframe size mismatch.')
             raise AbortError
         new_df = pd.DataFrame(merged, columns=['tiles_seen'])
@@ -79,11 +79,12 @@ class GetTilesSeen(MakeTilesSeen):
 if __name__ == '__main__':
     os.chdir('../')
 
-    config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    app = GetTilesSeen(ctx)
-    app.run()
+    GetTilesSeen(ctx).run()
