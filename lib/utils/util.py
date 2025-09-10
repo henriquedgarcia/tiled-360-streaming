@@ -14,11 +14,10 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
-from py360tools import ProjectionBase, ERP, CMP, Viewport
+from py360tools import ProjectionBase, ERP, CMP, Viewport, Tile
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
-from py360tools import Tile
 
 
 def run_command_os(command: str):
@@ -583,8 +582,8 @@ def make_tiles_position(proj: ProjectionBase) -> dict[str, tuple[int, int, int, 
 
 def get_tile_position(tile: Tile) -> tuple[int, int, int, int]:
     h, w = tile.shape
-    x_ini, y_ini = tile.position
-    x_end, y_end = x_ini + w, y_ini + h
+    y_ini, x_ini, = tile.position
+    y_end, x_end = y_ini + h, x_ini + w
     return x_ini, x_end, y_ini, y_end
 
 
