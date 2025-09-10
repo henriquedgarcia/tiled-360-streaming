@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 from py360tools import Viewport
 
 from lib.utils.util import iter_video, make_tiles_position, idx2xy
@@ -53,7 +54,7 @@ class TileStitcher:
         self.clean_canvas()
         for tile in self.seen_tiles:
             tile_frame = next(self.tiles_reader[tile])
-
+            show(tile_frame)
             x_ini, x_end, y_ini, y_end = self.tile_positions[str(tile)]
             self.canvas[y_ini:y_end, x_ini:x_end] = tile_frame
         return self.canvas
@@ -90,3 +91,10 @@ class TileStitcher:
             y_end = tile_y + tile_h
             tile_positions[tile] = x_ini, x_end, y_ini, y_end
         return tile_positions
+
+
+def show(frame1, frame2=None):
+    if frame2 is None:
+        Image.fromarray(frame1).show()
+    else:
+        Image.fromarray(np.abs(frame1 - frame2)).show()
