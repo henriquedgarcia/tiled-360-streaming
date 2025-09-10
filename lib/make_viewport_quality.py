@@ -8,6 +8,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from PIL import Image
 from pandas import DataFrame
 from py360tools import CMP, ERP, Viewport
 from skimage.metrics import mean_squared_error as mse, structural_similarity as ssim
@@ -97,19 +98,29 @@ class ViewportQuality(Props):
         total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list) * len(self.quality_list) * 30 * len(self.chunk_list)
         i = 0
         for _ in self.iterate_name_projection_tiling_user_chunk:
-            vp = self.vp_dict[self.projection][self.tiling]
-            ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.get_seen_tiles()}
-            ref_proj_frame_array = TileStitcher(ref_tiles_path, viewport=vp, full=True).full
+            vp = None
+            ref_tiles_path = None
+            ref_proj_frame_array = None
 
             for self.quality in self.quality_list:
-                print(f'\r{i}/{total} - {self}. Processing... ', end='')
                 i += 1
-                if self.user_viewport_quality_json.exists(): continue
+                print(f'\r{i}/{total} - {self}. Processing... ', end='')
+                if self.user_viewport_quality_json.exists():
+                    print('exist', end='')
+                    continue
+
+                if vp is None: vp = self.vp_dict[self.projection][self.tiling]
+                if ref_tiles_path is None: ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.get_seen_tiles()}
+                if ref_proj_frame_array is None: ref_proj_frame_array = TileStitcher(ref_tiles_path,
+                                                                                     viewport=vp,
+                                                                                     full=True).full
+
                 deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
                 deg_proj_frame_stitcher = TileStitcher(deg_tiles_path, viewport=vp)
 
                 self.results = defaultdict(list)
                 zip_data = zip(self.chunk_yaw_pitch_roll_per_frame, ref_proj_frame_array)
+
                 for self.frame, (yaw_pitch_roll, ref_proj_frame) in enumerate(zip_data):
                     viewport_frame_ref = vp.extract_viewport(ref_proj_frame, yaw_pitch_roll)
                     viewport_frame_deg = deg_proj_frame_stitcher.extract_viewport(yaw_pitch_roll)
@@ -119,6 +130,7 @@ class ViewportQuality(Props):
                                  gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
                     self.results['mse'].append(_mse)
                     self.results['ssim'].append(_ssim)
+
                 self.frame = None
                 print(f'Saving...')
                 save_json(self.results, self.user_viewport_quality_json)
@@ -132,9 +144,12 @@ class ViewportQuality(Props):
             a.update(item)
         return list(a)
 
-    # from PIL import Image
-    # Image.fromarray(viewport_frame_ref).show()
-    # Image.fromarray(np.abs(viewport_frame_ref - viewport_frame_deg)).show()
+
+def show(frame1, frame2=None):
+    if frame2 is None:
+        Image.fromarray(frame1).show()
+    else:
+        Image.fromarray(np.abs(frame1 - frame2)).show()
 
 
 class CheckViewportQuality(ViewportQuality):
@@ -144,28 +159,29 @@ class CheckViewportQuality(ViewportQuality):
         ok_total = 0
 
         for self.name in self.name_list:
-            for self.tiling in self.tiling_list:
-                for self.quality in self.quality_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.quality in self.quality_list:
 
-                    print(f'\r{self.name}_{self.tiling}_{self.quality}  ', end='')
-                    miss = 0
-                    ok = 0
-                    for self.user in self.users_list_by_name:
-                        for self.chunk in self.chunk_list:
-                            if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
-                                ok += 1
-                                continue
-                            miss += 1
+                        print(f'\r{self.name}_{self.tiling}_{self.quality}  ', end='')
+                        miss = 0
+                        ok = 0
+                        for self.user in self.users_list_by_name:
+                            for self.chunk in self.chunk_list:
+                                if self.user_viewport_quality_json.exists() and self.user_viewport_quality_json.stat().st_size > 10:
+                                    ok += 1
+                                    continue
+                                miss += 1
 
-                    if miss == 0:
-                        print('OK!')
-                        continue
-                    print(f'\n\tChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
-                    miss_total += miss
-                    ok_total += ok
+                        if miss == 0:
+                            print('OK!')
+                            continue
+                        print(f'\n\tChunks que faltam: {miss}, Chunks ok: {ok}. Total: {miss + ok}')
+                        miss_total += miss
+                        ok_total += ok
 
-                    result[self.name][self.tiling][self.quality]['ok'] = ok
-                    result[self.name][self.tiling][self.quality]['miss'] = miss
+                        result[self.name][self.tiling][self.quality]['ok'] = ok
+                        result[self.name][self.tiling][self.quality]['miss'] = miss
                     # print('')
         print(json.dumps(result, indent=2))
         print(f'\nChunks que faltam: {miss_total}, Chunks ok: {ok_total}. Total: {miss_total + ok_total}')
