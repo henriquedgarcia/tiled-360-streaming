@@ -14,6 +14,8 @@ from lib.utils.util import run_command, print_error, splitx
 
 
 class MakeDash(Worker, MakeDashPaths, CtxInterface):
+    remove = False
+
     def main(self):
         for _ in self.iterate_name_projection_tiling_tile():
             with task(self):
@@ -47,13 +49,6 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
                "'")
         return cmd
 
-    def assert_dash(self):
-        try:
-            self._assert_segmenter_log()
-            raise AbortError('')
-        except FileNotFoundError:
-            self._clean_dash()
-
     def assert_tile_video(self):
         try:
             self._check_tile_video()
@@ -68,12 +63,12 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
             self.tile_video.unlink()
             raise FileNotFoundError
 
-    def _clean_dash(self):
-        if self.remove:
-            shutil.rmtree(self.mpd_folder, ignore_errors=True)
-            self.mp4box_log.unlink(missing_ok=True)
-
-    remove = False
+    def assert_dash(self):
+        try:
+            self._assert_segmenter_log()
+            raise AbortError('')
+        except FileNotFoundError:
+            self._clean_dash()
 
     def _assert_segmenter_log(self):
         segment_log_txt = self.mp4box_log.read_text()
@@ -82,6 +77,11 @@ class MakeDash(Worker, MakeDashPaths, CtxInterface):
                 self.mp4box_log.unlink(missing_ok=True)
             self.logger.register_log('Segmenter log is corrupt.', self.mp4box_log)
             raise FileNotFoundError
+
+    def _clean_dash(self):
+        if self.remove:
+            shutil.rmtree(self.mpd_folder, ignore_errors=True)
+            self.mp4box_log.unlink(missing_ok=True)
 
 
 class OldCode(Worker, MakeDashPaths):
@@ -164,4 +164,3 @@ if __name__ == '__main__':
     ctx = Context(config=config)
 
     MakeDash(ctx).run()
-    # CheckViewportQuality(ctx)
