@@ -18,6 +18,7 @@ from py360tools import ProjectionBase, ERP, CMP, Viewport, Tile
 
 from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
+from lib.assets.errors import AbortError
 
 
 def run_command_os(command: str):
@@ -416,7 +417,11 @@ def count_decoding(dectime_log: Path) -> int:
     Count how many times the word "utime" appears in "log_file"
     :return:
     """
-    times = len(get_times(dectime_log))
+    times = get_times(dectime_log)
+    if np.sum(times) > 0:
+        times = len(times)
+    else:
+        times = 0
     return times
 
 
@@ -426,8 +431,8 @@ def get_times(filename: Path):
     for line in content.splitlines():
         if 'utime' in line:
             t = float(line.strip().split(' ')[1].split('=')[1][:-1])
-            if t > 0:
-                times.append(t)
+            # if t > 0:
+            times.append(t)
     return times
 
 
@@ -492,14 +497,25 @@ def run_command(cmd: str, folder: Optional[Path],
     if folder is not None:
         folder.mkdir(parents=True, exist_ok=True)
 
-    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding="utf-8")
     stdout_lines = [cmd + '\n']
     print(ui_prefix, end='')
+
+    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE)
+    out =''
     while True:
-        out = process.stdout.readline()
+        print('.', end='')
+        stdout = process.stdout.read()
+        for cod, err in [('utf-8', 'strict'),('utf-8', 'replace'),('cp1252', 'replace')]:
+            try:
+                out = stdout.decode(encoding=cod, errors=err)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            print_error(' UnicodeDecodeError')
+            raise AbortError('UnicodeDecodeError')
         if not out: break
         stdout_lines.append(out)
-        print('.', end='')
     process.wait()
     stdout = ''.join(stdout_lines)
     print(' finish', end='')
