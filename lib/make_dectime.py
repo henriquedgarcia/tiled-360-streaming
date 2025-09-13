@@ -19,19 +19,17 @@ class MakeDectime(Worker, DectimePaths):
     t: ProgressBar
 
     def init(self):
+        self.quality_list.remove('0')
         self.total = len(self.name_list) * len(self.projection_list) * 181 * len(self.quality_list) * len(self.chunk_list)
 
     def main(self):
         for self.attempt in range(self.config.decoding_num):
-            self.decode_chunks()
-
-    def decode_chunks(self):
-        for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
-            with task(self):
-                self.count_dectime()
-                self.check_decodable()
-                self.decode()
-                self.save()
+            for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
+                with task(self):
+                    self.count_dectime()
+                    self.check_decodable()
+                    self.decode()
+                    self.save()
 
     def count_dectime(self):
         try:
