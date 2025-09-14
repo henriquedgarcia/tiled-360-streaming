@@ -22,7 +22,7 @@ class MakeTilesPaths(BasePaths):
 
     @property
     def tile_video(self) -> Path:
-        return self.tile_folder / f'tile{self.tile}_{self.config.rate_control}{self.ctx.quality}.mp4'
+        return self.tile_folder / f'tile{self.tile}_{self.rate_control}{self.ctx.quality}.mp4'
 
     @property
     def tile_log(self) -> Path:
