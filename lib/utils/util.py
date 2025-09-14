@@ -329,6 +329,22 @@ def load_json(filename: Union[str, Path], object_hook: type[dict] = None):
     return results
 
 
+def save_hdf(data: pd.DataFrame, filename: Union[str, Path], key='default', mode="w", complevel=9):
+    filename = Path(filename)
+
+    try:
+        data.to_hdf(filename, key=key, mode=mode, complevel=complevel)
+    except (FileNotFoundError, OSError):
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        data.to_hdf(filename, key=key, mode=mode, complevel=complevel)
+
+
+def load_hdf(filename: Union[str, Path]) -> pd.DataFrame:
+    filename = Path(filename)
+    results: pd.DataFrame = pd.read_hdf(filename)
+    return results
+
+
 def save_pickle(data: object, filename: Union[str, Path]):
     filename = Path(filename)
     try:
@@ -501,11 +517,11 @@ def run_command(cmd: str, folder: Optional[Path],
     print(ui_prefix, end='')
 
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE)
-    out =''
+    out = ''
     while True:
         print('.', end='')
         stdout = process.stdout.read()
-        for cod, err in [('utf-8', 'strict'),('utf-8', 'replace'),('cp1252', 'replace')]:
+        for cod, err in [('utf-8', 'strict'), ('utf-8', 'replace'), ('cp1252', 'replace')]:
             try:
                 out = stdout.decode(encoding=cod, errors=err)
                 break
