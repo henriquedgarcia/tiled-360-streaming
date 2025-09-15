@@ -70,7 +70,6 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
         n = iter(range(total))
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
 
-        self.quality_list = ['0'] + self.quality_list
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
             context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                        f'qp{self.quality}', f'chunk{self.chunk}')
@@ -103,7 +102,7 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
                     for self.tile in self.tile_list:
-                        for self.quality in ['0'] + self.quality_list:
+                        for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
                                 context = (f'{self.name}', f'{self.projection}', f'{self.tiling}', f'tile{self.tile}',
                                            f'qp{self.quality}', f'chunk{self.chunk}')
@@ -211,7 +210,7 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
                                        None, None)
                             check_data.append(context + (err,))
 
-                        for self.quality in ['0'] + self.quality_list:
+                        for self.quality in self.quality_list:
                             err = ''
                             try:
                                 size = self.dash_init.stat().st_size
@@ -314,24 +313,13 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
 if __name__ == '__main__':
     os.chdir('../')
 
-    # config_file = 'config_erp_qp.json'
-    # config_file = 'config_cmp_crf.json'
-    # config_file = 'config_erp_crf.json'
-    # videos_file = 'videos_reversed.json'
-    # videos_file = 'videos_lumine.json'
-    # videos_file = 'videos_container0.json'
-    # videos_file = 'videos_container1.json'
-    # videos_file = 'videos_fortrek.json'
-    # videos_file = 'videos_hp_elite.json'
-    # videos_file = 'videos_alambique.json'
-    # videos_file = 'videos_test.json'
-    # videos_file = 'videos_full.json'
-
     # config_file = Path('config/config_cmp_qp.json')
-    config_file = Path('config/config_cmp_crf.json')
-    videos_file = Path('config/videos_reduced.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
 
-    Check(ctx)
+    Check(ctx).run()
