@@ -516,20 +516,23 @@ def run_command(cmd: str, folder: Optional[Path],
     stdout_lines = [cmd + '\n']
     print(ui_prefix, end='')
 
-    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE)
+    process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding='UTF-8')
     out = ''
     while True:
         print('.', end='')
-        stdout = process.stdout.read()
-        for cod, err in [('utf-8', 'strict'), ('utf-8', 'replace'), ('cp1252', 'replace')]:
-            try:
-                out = stdout.decode(encoding=cod, errors=err)
-                break
-            except UnicodeDecodeError:
-                continue
-        else:
-            print_error(' UnicodeDecodeError')
-            raise AbortError('UnicodeDecodeError')
+        try:
+            stdout = process.stdout.read()
+        except UnicodeDecodeError:
+            continue
+        # for cod, err in [('utf-8', 'strict'), ('utf-8', 'replace'), ('cp1252', 'replace')]:
+        #     try:
+        #         out = stdout.decode(encoding=cod, errors=err)
+        #         break
+        #     except UnicodeDecodeError:
+        #         continue
+        # else:
+        #     print_error(' UnicodeDecodeError')
+        #     raise AbortError('UnicodeDecodeError')
         if not out: break
         stdout_lines.append(out)
     process.wait()
