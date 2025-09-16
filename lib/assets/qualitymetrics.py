@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+from PIL import Image
 from py360tools import ERP, CMP
 from py360tools.utils import splitx
 from skimage.metrics import mean_squared_error, structural_similarity
@@ -10,14 +11,16 @@ from lib.assets.ctxinterface import CtxInterface
 from lib.utils.util import save_pickle, load_pickle
 
 
-class QualityMetrics(CtxInterface):
-    ctx: Context
+def show(array):
+    Image.fromarray(array).show()
 
+
+class QualityMetrics(CtxInterface):
     def __init__(self, make_chunk_quality_obj: CtxInterface):
+        self.make_chunk_quality_obj = make_chunk_quality_obj
         self.ctx = make_chunk_quality_obj.ctx
-        self.tile_position = self.ctx.proj_obj.tile_list[int(self.tile)].position
-        self.sph_points_mask_dict = self.make_sph_points_mask_dict()
-        self.weight_ndarray = make_weight_ndarray_dict(self.ctx)
+        self.make_sph_points_mask_dict()
+        self.weight_ndarray = make_weight_ndarray_dict(self.make_chunk_quality_obj.ctx)
 
     @staticmethod
     def mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
@@ -57,14 +60,12 @@ class QualityMetrics(CtxInterface):
         :param im_deg:
         :return:
         """
-        x1, x2, y1, y2 = self.ctx.tile_position
-        weight_tile = self.weight_ndarray[self.projection][y1:y2, x1:x2]
+        x1, x2, y1, y2 = self.make_chunk_quality_obj.ctx.tile_position
+        weight_tile = self.weight_ndarray[self.make_chunk_quality_obj.projection][y1:y2, x1:x2]
 
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
         return wmse
 
-    # from PIL import Image
-    # Image.fromarray(array).show()
     def smse_nn(self, tile_ref: np.ndarray, tile_deg: np.ndarray) -> float:
         """
         Calculate of S-PSNR between two images. All arrays must be on the same
@@ -74,8 +75,8 @@ class QualityMetrics(CtxInterface):
         :param tile_deg: The image degraded
         :return:
         """
-        x1, x2, y1, y2 = self.ctx.tile_position
-        tile_mask = self.sph_points_mask_dict[self.projection][y1:y2, x1:x2]
+        x1, x2, y1, y2 = self.make_chunk_quality_obj.ctx.tile_position
+        tile_mask = self.sph_points_mask_dict[self.make_chunk_quality_obj.projection][y1:y2, x1:x2]
 
         tile_ref_m = tile_ref * tile_mask
         tile_deg_m = tile_deg * tile_mask
@@ -85,20 +86,24 @@ class QualityMetrics(CtxInterface):
         smse_nn = sqr_dif.sum() / np.sum(tile_mask)
         return smse_nn
 
-    def make_sph_points_mask_dict(self) -> dict[str, np.ndarray]:
-        proj_str = ', '.join(self.projection_list)
-        sph_points_mask_file = Path(f'datasets/masks/sph_points_mask_{proj_str}.pickle')
-        sph_file = Path('datasets/sphere_655362.txt')
+    sph_points_mask_dict: dict
 
-        if sph_points_mask_file.exists():
-            return load_pickle(sph_points_mask_file)
+    def make_sph_points_mask_dict(self):
+        """
+        Processes the spherical file to identify points on the unit sphere (r=1)
+        based on given elevation and azimuth coordinates. Marks these points on
+        the faces of the specified projection type (CMP or ERP). The projection
+        resolution must match the one used in videos, for example, (2160, 3240)
+        for CMP. The resulting map is saved and used as a mask to determine which
+        pixels are taken into account during the calculation of the s-MSE metric.
 
-        sph_points_mask = {self.projection: self.process_sphere_file(sph_file, self.projection)
-                           for self.projection in self.projection_list}
-        save_pickle(sph_points_mask, sph_points_mask_file)
-        return sph_points_mask
-
-    def process_sphere_file(self, sph_file, proj) -> np.ndarray:
+        :param sph_file: The spherical file containing elevation and azimuth
+                         coordinates to process
+        :type sph_file: pathlib.Path
+        :param proj: The type of projection to be used ('cmp' or 'erp')
+        :type proj: str
+        :return: None
+        """
         """
         O arquivo txt contem as coordenadas como ea (elevação, azimute).
         Vamos identificar pontos na esfera (r=1) com essas coordenadas e marcar nas
@@ -108,74 +113,46 @@ class QualityMetrics(CtxInterface):
 
         :return:
         """
-        sph_file_lines = sph_file.read_text().splitlines()[1:]
-        ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
+        sph_file_array = self.config.sph_file.with_suffix('.pickle')
+        try:
+            ea_array = load_pickle(sph_file_array)
+        except FileNotFoundError:
+            sph_file = self.config.sph_file
+            sph_file_lines = sph_file.read_text().splitlines()[1:]
+            ea_array = np.array(list(map(self.lines_2_list, sph_file_lines))).T
+            save_pickle(ea_array, sph_file_array)
 
-        if proj == 'cmp':
-            nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
-        elif proj == 'erp':
-            nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)
-        else:
-            nm = np.ndarray([])
+        self.sph_points_mask_dict = {}
+        for self.projection in self.projection_list:
+            sph_points_mask_file = Path(f'datasets/'
+                                        f'masks/'
+                                        f'sph_points_mask_{self.projection}_{self.video_shape}.pickle')
 
-        sph_points_mask = np.zeros(self.video_shape)
-        sph_points_mask[nm[0], nm[1]] = 1
-        return sph_points_mask
+            try:
+                self.sph_points_mask_dict[self.projection] = load_pickle(sph_points_mask_file)
+                continue
+            except FileNotFoundError:
+                pass
 
+            if self.projection == 'cmp':
+                nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
+            elif self.projection == 'erp':
+                nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)[0]
+            else:
+                nm = np.ndarray([])
+            sph_points_mask = np.zeros(self.video_shape)
+            sph_points_mask[nm[0], nm[1]] = 1
+            self.sph_points_mask_dict[self.projection] = sph_points_mask
+            sph_points_mask_file.parent.mkdir(parents=True, exist_ok=True)
+            save_pickle(sph_points_mask, sph_points_mask_file)
 
-def make_sph_points_mask_dict(ctx: Context) -> np.ndarray:
-    """
-    Load 655362 sample points (elevation, azimuth). Angles in degree.
-
-    :return:
-    """
-    sph_points_mask_file = Path(f'datasets/masks/sph_points_mask.pickle')
-
-    try:
-        sph_points_mask = load_pickle(sph_points_mask_file)
-    except FileNotFoundError:
-        sph_points_mask = process_sphere_file(ctx)
-        save_pickle(sph_points_mask, sph_points_mask_file)
-    return sph_points_mask
-
-
-def process_sphere_file(ctx: Context) -> dict[str, np.ndarray]:
-    """
-    O arquivo txt contem as coordenadas como ea (elevação, azimute).
-    Vamos identificar pontos na esfera (r=1) com essas coordenadas e marcar nas
-    faces da projeção estes pontos. A projeção deve ter a mesma resolução dos
-    vídeos, (2160, 3240) para CMP. Este mapa é guardado e usado como máscara
-    para selecionar quais pixeis devem ser considerados no cálculo do s-mse.
-
-
-    :param ctx:
-    :return:
-    """
-    sph_file = Path('datasets/sphere_655362.txt')
-    sph_file_lines = sph_file.read_text().splitlines()[1:]
-    ea_array = np.array(list(map(lines_2_list, sph_file_lines))).T
-
-    sph_points_mask = {}
-    for proj in ctx.projection_list:
-        proj_shape = splitx(ctx.config.config_dict['scale'][proj])[::-1]
-        if proj == 'erp':
-            nm = ERP.ea2nm(ea=ea_array, proj_shape=proj_shape)
-        elif proj == 'cmp':
-            nm = CMP.ea2nm_face(ea=ea_array, proj_shape=proj_shape)[0]
-        else:
-            raise ValueError(f'Unknown projection: {proj}')
-        sph_points_mask[proj] = np.zeros(proj_shape)
-        sph_points_mask[proj][nm[0], nm[1]] = 1
-
-    return sph_points_mask
-
-
-def lines_2_list(line) -> list:
-    strip_line = line.strip()
-    split_line = strip_line.split()
-    map_float_line = map(float, split_line)
-    map_rad_line = map(np.deg2rad, map_float_line)
-    return list(map_rad_line)
+    @staticmethod
+    def lines_2_list(line) -> list:
+        strip_line = line.strip()
+        split_line = strip_line.split()
+        map_float_line = map(float, split_line)
+        map_rad_line = map(np.deg2rad, map_float_line)
+        return list(map_rad_line)
 
 
 def make_weight_ndarray_dict(ctx: Context) -> dict[str, np.ndarray]:
