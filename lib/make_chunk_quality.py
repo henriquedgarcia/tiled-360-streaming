@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from py360tools import ERP, CMP, ProjectionBase
+from py360tools import ERP, CMP, ProjectionBase, AutoDict
 from tqdm import tqdm
 
 from config.config import Config
@@ -19,13 +19,36 @@ from lib.utils.util import iter_video, get_tile_position
 class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
     proj_obj: ProjectionBase
+    proj_dict: AutoDict
+    tile_position: AutoDict
+
+    def init(self):
+        self.proj_dict = AutoDict()
+        for self.tiling in self.tiling_list:
+            self.projection = 'cmp'
+            proj_obj = CMP(tiling=self.tiling, proj_res=self.scale)
+            self.proj_dict[self.projection][self.tiling] = proj_obj
+
+            self.projection = 'erp'
+            proj_obj = ERP(tiling=self.tiling, proj_res=self.scale)
+            self.proj_dict[self.projection][self.tiling] = proj_obj
+
+        self.tile_position = AutoDict()
+        for self.projection in self.projection_list:
+            for self.tiling in self.tiling_list:
+                for self.tile in self.tile_list:
+                    tile = self.proj_dict[self.projection][self.tiling].tile_list[int(self.tile)]
+                    tile_position = (*tile.position, *(tile.position + tile.shape))
+                    self.tile_position[self.projection][self.tiling][self.tile] = tile_position
+
+        self.quality_metrics = QualityMetrics(self)
 
     @property
     def iterate_name_projection_tiling_tile_quality_chunk(self):
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
-                    self.proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
+                    self.proj_obj = self.proj_dict[self.projection][self.tiling]
                     for self.tile in self.tile_list:
                         tile = self.proj_obj.tile_list[int(self.tile)]
                         self.ctx.tile_position = get_tile_position(tile)
@@ -38,9 +61,6 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
         for _ in self.iterate_name_projection_tiling_tile_quality_chunk:
             with task(self):
                 self.work()
-
-    def init(self):
-        self.quality_metrics = QualityMetrics(self)
 
     def work(self):
         if self.chunk_quality_json_ok():
@@ -125,8 +145,11 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
 
 if __name__ == '__main__':
     os.chdir('../')
-    config_file = Path('config/config_cmp_crf.json')
-    videos_file = Path('config/videos_reduced.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
