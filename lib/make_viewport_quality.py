@@ -97,43 +97,61 @@ class ViewportQuality(Props):
         """
         total = len(self.name_list) * len(self.projection_list) * len(self.tiling_list) * len(self.quality_list) * 30 * len(self.chunk_list)
         i = 0
-        for _ in self.iterate_name_projection_tiling_user_chunk:
-            vp = None
-            ref_tiles_path = None
-            ref_proj_frame_array = None
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    vp = None
+                    for self.user in self.users_list_by_name:
+                        for self.chunk in self.chunk_list:
+                            ref_proj_frame_array = None
 
-            for self.quality in self.quality_list:
-                i += 1
-                print(f'\r{i}/{total} - {self}. Processing... ', end='')
-                if self.user_viewport_quality_json.exists():
-                    print('exist', end='')
-                    continue
+                            for self.quality in self.quality_list:
+                                i += 1
+                                print(f'\r{i}/{total} - {self}. Processing... ', end='')
 
-                if vp is None: vp = self.vp_dict[self.projection][self.tiling]
-                if ref_tiles_path is None: ref_tiles_path = {self.tile: self.reference_chunk for self.tile in self.get_seen_tiles()}
-                if ref_proj_frame_array is None: ref_proj_frame_array = TileStitcher(ref_tiles_path,
-                                                                                     viewport=vp,
-                                                                                     full=True).full
+                                if self.user_viewport_quality_json.exists():
+                                    print('exist', end='')
+                                    continue
 
-                deg_tiles_path = {self.tile: self.decodable_chunk for self.tile in self.get_seen_tiles()}
-                deg_proj_frame_stitcher = TileStitcher(deg_tiles_path, viewport=vp)
+                                if vp is None:
+                                    vp = self.vp_dict[self.projection][self.tiling]
 
-                self.results = defaultdict(list)
-                zip_data = zip(self.chunk_yaw_pitch_roll_per_frame, ref_proj_frame_array)
+                                if ref_proj_frame_array is None:
+                                    ref_tiles_path = {self.tile: self.reference_chunk
+                                                      for self.tile
+                                                      in self.get_seen_tiles()}
+                                    ref_proj_frame_array = TileStitcher(ref_tiles_path,
+                                                                        viewport=vp,
+                                                                        full=True).full
 
-                for self.frame, (yaw_pitch_roll, ref_proj_frame) in enumerate(zip_data):
-                    viewport_frame_ref = vp.extract_viewport(ref_proj_frame, yaw_pitch_roll)
-                    viewport_frame_deg = deg_proj_frame_stitcher.extract_viewport(yaw_pitch_roll)
+                                deg_tiles_path = {self.tile: self.decodable_chunk
+                                                  for self.tile
+                                                  in self.get_seen_tiles()}
+                                deg_proj_frame_array = TileStitcher(deg_tiles_path,
+                                                                    viewport=vp,
+                                                                    full=True).full
 
-                    _mse = mse(viewport_frame_ref, viewport_frame_deg)
-                    _ssim = ssim(viewport_frame_ref, viewport_frame_deg, data_range=255.0,
-                                 gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
-                    self.results['mse'].append(_mse)
-                    self.results['ssim'].append(_ssim)
+                                results = defaultdict(list)
+                                zip_data = zip(self.chunk_yaw_pitch_roll_per_frame,
+                                               ref_proj_frame_array,
+                                               deg_proj_frame_array)
 
-                self.frame = None
-                print(f'Saving...')
-                save_json(self.results, self.user_viewport_quality_json)
+                                for yaw_pitch_roll, ref_proj_frame, deg_proj_frame in zip_data:
+                                    viewport_frame_ref = vp.extract_viewport(ref_proj_frame,
+                                                                             yaw_pitch_roll)
+                                    viewport_frame_deg = vp.extract_viewport(deg_proj_frame,
+                                                                             yaw_pitch_roll)
+
+                                    _mse = mse(viewport_frame_ref, viewport_frame_deg)
+                                    _ssim = ssim(viewport_frame_ref, viewport_frame_deg,
+                                                 data_range=255.0, gaussian_weights=True,
+                                                 sigma=1.5, use_sample_covariance=False)
+                                    results['mse'].append(_mse)
+                                    results['ssim'].append(_ssim)
+
+                                self.frame = None
+                                print(f'Saving...')
+                                save_json(results, self.user_viewport_quality_json)
 
     def get_seen_tiles(self) -> list[int]:
         seen_tiles_level = ('name', 'projection', 'tiling', 'user', 'chunk')
