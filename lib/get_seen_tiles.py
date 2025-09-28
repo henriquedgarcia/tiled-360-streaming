@@ -16,10 +16,10 @@ class GetTilesSeen(MakeTilesSeen):
     tiles_seen_result: list
     progress_bar: ProgressBar
     cools_names: list
+    total_by_name: int
 
     def init(self):
         self.cools_names = ['name', 'projection', 'tiling', 'user', 'chunk', 'frame', 'tiles_seen']
-        self.total_by_name = 181 * len(self.quality_list) * len(self.chunk_list)
 
     def main(self):
         for _ in self.iterate_name_projection:
@@ -31,7 +31,7 @@ class GetTilesSeen(MakeTilesSeen):
     def check_seen_tiles_result_by_name(self):
         try:
             df = pd.read_pickle(self.seen_tiles_result_by_name)
-            if df.size == 270000:
+            if df.size == self.total_by_name:
                 raise AbortError('Seen tiles Pickle is OK.')
         except FileNotFoundError:
             pass
