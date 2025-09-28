@@ -19,8 +19,6 @@ from lib.utils.util import iter_video, get_tile_position
 class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
     proj_obj: ProjectionBase
-    proj_dict: AutoDict
-    tile_position: AutoDict
 
     def init(self):
         self.proj_dict = AutoDict()
@@ -41,7 +39,7 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
                     tile_position = (*tile.position, *(tile.position + tile.shape))
                     self.tile_position[self.projection][self.tiling][self.tile] = tile_position
 
-        self.quality_metrics = QualityMetrics(self)
+        self.quality_metrics = QualityMetrics(self.ctx)
 
     @property
     def iterate_name_projection_tiling_tile_quality_chunk(self):
@@ -51,7 +49,7 @@ class MakeChunkQuality(Worker, MakeChunkQualityPaths):
                     self.proj_obj = self.proj_dict[self.projection][self.tiling]
                     for self.tile in self.tile_list:
                         tile = self.proj_obj.tile_list[int(self.tile)]
-                        self.ctx.tile_position = get_tile_position(tile)
+                        self.tile_position = (*tile.position, *(tile.position + tile.shape))
                         for self.quality in self.quality_list:
                             for self.chunk in self.chunk_list:
                                 self.ctx.iterations += 1
