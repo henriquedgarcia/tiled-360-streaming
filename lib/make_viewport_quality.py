@@ -20,7 +20,7 @@ from lib.assets.paths.viewportqualitypaths import ViewportQualityPaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.tile_stitcher import TileStitcher
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json
+from lib.utils.io_util import save_json, load_json
 
 Tiling = str
 NumpyArray = np.ndarray
