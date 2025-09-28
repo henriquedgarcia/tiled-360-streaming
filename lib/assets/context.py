@@ -6,7 +6,8 @@ from py360tools import ProjectionBase
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
-from lib.utils.util import load_json, splitx
+from lib.utils.util import splitx
+from lib.utils.io_util import load_json
 
 
 class Context:
