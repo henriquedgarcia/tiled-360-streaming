@@ -3,7 +3,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from lib.assets.autodict import AutoDict
-from lib.utils.util import save_json, get_nested_value
+from lib.utils.util import get_nested_value
+from lib.utils.io_util import save_json
 
 
 class StatusCtx:
