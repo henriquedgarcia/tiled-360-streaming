@@ -1,5 +1,6 @@
 from py360tools import ProjectionBase
 
+from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
 from lib.utils.util import make_tile_position_dict
 
@@ -241,3 +242,39 @@ class CtxInterface(Factors, Lists):
         proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
 
         return make_tile_position_dict(proj_obj, self.tiling_list)
+
+    _tile_position: AutoDict
+
+    @property
+    def tile_position(self) -> AutoDict:
+        """
+        self.tile_position[self.projection][self.tiling][self.tile]
+        :return:
+        """
+        return self._tile_position
+
+    @tile_position.setter
+    def tile_position(self, value: AutoDict):
+        """
+        self.tile_position[self.projection][self.tiling][self.tile]
+        :return:
+        """
+        self._tile_position = value
+
+    _proj_dict: AutoDict
+
+    @property
+    def proj_dict(self) -> AutoDict:
+        """
+        self.proj_dict[self.projection][self.tiling]
+        :return:
+        """
+        return self._proj_dict
+
+    @proj_dict.setter
+    def proj_dict(self, value: AutoDict):
+        """
+        self.proj_dict[self.projection][self.tiling]
+        :return:
+        """
+        self._proj_dict = value
