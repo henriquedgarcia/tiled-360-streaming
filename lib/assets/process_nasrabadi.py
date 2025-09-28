@@ -6,7 +6,8 @@ from py360tools import xyz2ea
 from lib.assets.autodict import AutoDict
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker
-from lib.utils.util import save_json, load_json, lin_interpol
+from lib.utils.util import lin_interpol
+from lib.utils.io_util import save_json, load_json
 
 pi = np.pi
 pi2 = np.pi * 2
