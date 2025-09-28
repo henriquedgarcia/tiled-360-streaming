@@ -9,7 +9,7 @@ from lib.assets.paths.makesitipaths import MakeSitiPaths
 from lib.assets.paths.maketilespaths import MakeTilesPaths
 from lib.assets.siti import SiTi
 from lib.assets.worker import Worker
-from lib.utils.util import print_error
+from lib.utils.io_util import print_error
 
 
 class MakeSiti(Worker, MakeSitiPaths, MakeTilesPaths):
