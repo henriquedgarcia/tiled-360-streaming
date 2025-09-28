@@ -8,7 +8,7 @@ from skimage.metrics import mean_squared_error, structural_similarity
 
 from lib.assets.context import Context
 from lib.assets.ctxinterface import CtxInterface
-from lib.utils.util import save_pickle, load_pickle
+from lib.utils.io_util import save_pickle, load_pickle
 
 
 def show(array):
@@ -16,11 +16,10 @@ def show(array):
 
 
 class QualityMetrics(CtxInterface):
-    def __init__(self, make_chunk_quality_obj: CtxInterface):
-        self.make_chunk_quality_obj = make_chunk_quality_obj
-        self.ctx = make_chunk_quality_obj.ctx
+    def __init__(self, ctx: Context):
+        self.ctx = ctx
         self.make_sph_points_mask_dict()
-        self.weight_ndarray = make_weight_ndarray_dict(self.make_chunk_quality_obj.ctx)
+        self.weight_ndarray = make_weight_ndarray_dict(self.ctx)
 
     @staticmethod
     def mse(im_ref: np.ndarray, im_deg: np.ndarray) -> float:
@@ -60,8 +59,8 @@ class QualityMetrics(CtxInterface):
         :param im_deg:
         :return:
         """
-        x1, x2, y1, y2 = self.make_chunk_quality_obj.ctx.tile_position
-        weight_tile = self.weight_ndarray[self.make_chunk_quality_obj.projection][y1:y2, x1:x2]
+        x1, x2, y1, y2 = self.tile_position
+        weight_tile = self.weight_ndarray[self.projection][y1:y2, x1:x2]
 
         wmse = np.sum(weight_tile * (im_ref - im_deg) ** 2) / np.sum(weight_tile)
         return wmse
@@ -75,8 +74,8 @@ class QualityMetrics(CtxInterface):
         :param tile_deg: The image degraded
         :return:
         """
-        x1, x2, y1, y2 = self.make_chunk_quality_obj.ctx.tile_position
-        tile_mask = self.sph_points_mask_dict[self.make_chunk_quality_obj.projection][y1:y2, x1:x2]
+        x1, x2, y1, y2 = self.tile_position
+        tile_mask = self.sph_points_mask_dict[self.projection][y1:y2, x1:x2]
 
         tile_ref_m = tile_ref * tile_mask
         tile_deg_m = tile_deg * tile_mask
@@ -113,38 +112,53 @@ class QualityMetrics(CtxInterface):
 
         :return:
         """
-        sph_file_array = self.config.sph_file.with_suffix('.pickle')
-        try:
-            ea_array = load_pickle(sph_file_array)
-        except FileNotFoundError:
-            sph_file = self.config.sph_file
-            sph_file_lines = sph_file.read_text().splitlines()[1:]
-            ea_array = np.array(list(map(self.lines_2_list, sph_file_lines))).T
-            save_pickle(ea_array, sph_file_array)
+        def load_sph_file() -> np.ndarray:
+            """
+            Converte o arquivo original para radianos e converte o txt em array.
+            Salva o resultado no disco e usa ele sempre que necessário em vez do
+            txt.
 
-        self.sph_points_mask_dict = {}
-        for self.projection in self.projection_list:
-            sph_points_mask_file = Path(f'datasets/'
-                                        f'masks/'
-                                        f'sph_points_mask_{self.projection}_{self.video_shape}.pickle')
-
+            :param sph_file:
+            :return:
+            """
+            sph_file_array = self.config.sph_file.with_suffix('.pickle')
             try:
-                self.sph_points_mask_dict[self.projection] = load_pickle(sph_points_mask_file)
-                continue
+                array = load_pickle(sph_file_array)
+                return array
             except FileNotFoundError:
-                pass
+                sph_file = self.config.sph_file
+                sph_file_lines = sph_file.read_text().splitlines()[1:]
+                array = np.array(list(map(self.lines_2_list, sph_file_lines))).T
+                save_pickle(array, sph_file_array)
+                return array
 
-            if self.projection == 'cmp':
-                nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
-            elif self.projection == 'erp':
-                nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)[0]
-            else:
-                nm = np.ndarray([])
-            sph_points_mask = np.zeros(self.video_shape)
-            sph_points_mask[nm[0], nm[1]] = 1
-            self.sph_points_mask_dict[self.projection] = sph_points_mask
-            sph_points_mask_file.parent.mkdir(parents=True, exist_ok=True)
-            save_pickle(sph_points_mask, sph_points_mask_file)
+        # ea_array = load_sph_file()
+        ea_array = None
+
+        def load_sph_points_mask_dict():
+            self.sph_points_mask_dict = {}
+            for self.projection in self.projection_list:
+                sph_points_mask_file = Path(f'datasets/'
+                                            f'masks/'
+                                            f'sph_points_mask_{self.projection}_{self.video_shape}.pickle')
+
+                try:
+                    self.sph_points_mask_dict[self.projection] = load_pickle(sph_points_mask_file)
+                    continue
+                except FileNotFoundError:
+                    pass
+
+                if self.projection == 'cmp':
+                    nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
+                elif self.projection == 'erp':
+                    nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)[0]
+                else:
+                    nm = np.ndarray([])
+                sph_points_mask = np.zeros(self.video_shape)
+                sph_points_mask[nm[0], nm[1]] = 1
+                self.sph_points_mask_dict[self.projection] = sph_points_mask
+                sph_points_mask_file.parent.mkdir(parents=True, exist_ok=True)
+                save_pickle(sph_points_mask, sph_points_mask_file)
 
     @staticmethod
     def lines_2_list(line) -> list:
