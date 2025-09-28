@@ -155,6 +155,7 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
         bar = ProgressBar(total=total, desc=name)
         self.quality_list.remove('0')
+
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
@@ -166,23 +167,13 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
                                 context_str = '_'.join(context)
                                 bar.update(context_str)
 
-                                if not self.dectime_log.exists():
+                                try:
+                                    if len(get_times(self.dectime_log)) < self.decoding_num:
+                                        err = 'Decode Times Insufficient'
+                                        check_data.append(context + (err,))
+                                except FileNotFoundError:
                                     err = 'dectime_log not exist'
                                     check_data.append(context + (err,))
-                                    continue
-
-                                dectime_list = get_times(self.dectime_log, allow_zeros=True)
-                                decoding_times = len(dectime_list)
-
-                                if decoding_times < self.decoding_num:
-                                    err = 'Decode Times Insufficient'
-                                    check_data.append(context + (err,))
-                                elif np.sum(dectime_list) == 0:
-                                    err = 'All times is 0'
-                                    check_data.append(context + (err,))
-                                # elif dectime_list.count(0) > 0:
-                                #     err = 'last one 0 In Dectime'
-                                #     check_data.append(context + (err,))
 
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
