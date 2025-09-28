@@ -9,7 +9,7 @@ from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.progressbar import ProgressBar
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import count_decoding, decode_video
+from lib.utils.util import make_decode_cmd, run_command, get_times
 
 
 class MakeDectime(Worker, DectimePaths):
@@ -26,14 +26,14 @@ class MakeDectime(Worker, DectimePaths):
         for self.attempt in range(self.config.decoding_num):
             for _ in self.iterate_name_projection_tiling_tile_quality_chunk():
                 with task(self):
-                    self.count_dectime()
+                    self.check_dectime()
                     self.check_decodable()
                     self.decode()
                     self.save()
 
-    def count_dectime(self):
+    def check_dectime(self):
         try:
-            self.turn = count_decoding(self.dectime_log)
+            self.turn = len(get_times(self.dectime_log))
             if self.turn >= self.decoding_num:
                 raise AbortError('Decoding is enough.')
         except FileNotFoundError:
@@ -51,8 +51,9 @@ class MakeDectime(Worker, DectimePaths):
             raise AbortError(msg)
 
     def decode(self):
-        self.stdout = decode_video(self.decodable_chunk,
-                                   threads=1, ui_prefix='\n\t')
+        cmd = make_decode_cmd(filename=self.decodable_chunk, threads=1,
+                              codec='hevc', benchmark=True)
+        self.stdout = run_command(cmd, log_file=None, ui_prefix='\n\t', ui_suffix='\n', folder=None)
 
     def save(self):
         self.dectime_log.parent.mkdir(parents=True, exist_ok=True)
