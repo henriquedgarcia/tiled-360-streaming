@@ -1,6 +1,4 @@
-import json
 import os
-import pickle
 import subprocess as sp
 from collections import defaultdict
 from collections.abc import Sequence, Hashable
@@ -16,9 +14,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 from py360tools import ProjectionBase, ERP, CMP, Viewport, Tile
 
-from lib.assets.ansi_colors import Bcolors
 from lib.assets.autodict import AutoDict
-from lib.assets.errors import AbortError
 
 
 def run_command_os(command: str):
@@ -231,8 +227,9 @@ def show_array(nm_array: np.ndarray, shape: tuple = None):
         shape = nm_array.shape[1:]
         if len(shape) < 2:
             shape = (np.max(nm_array[0]) + 1, np.max(nm_array[1]) + 1)
-    array2 = np.zeros(shape, dtype=int)[nm_array[0], nm_array[1]] = 255
-    Image.fromarray(array2).show()
+    array = np.zeros(shape, dtype=int)
+    array[nm_array[0], nm_array[1]] = 255
+    Image.fromarray(array).show()
 
 
 def find_keys(data: dict, level=0, result=None):
@@ -307,59 +304,6 @@ def draw_pixel_density():
     plt.show()
 
 
-def __geral__(): ...
-
-
-def print_error(msg: str, end: str = '\n'):
-    print(f'{Bcolors.RED}{msg}{Bcolors.ENDC}', end=end)
-
-
-def save_json(data: Union[dict, list], filename: Union[str, Path], separators=(',', ':'), indent=None):
-    filename = Path(filename)
-    try:
-        filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
-    except (FileNotFoundError, OSError):
-        filename.parent.mkdir(parents=True, exist_ok=True)
-        filename.write_text(json.dumps(data, separators=separators, indent=indent), encoding='utf-8')
-
-
-def load_json(filename: Union[str, Path], object_hook: type[dict] = None):
-    filename = Path(filename)
-    results = json.loads(filename.read_text(encoding='utf-8'), object_hook=object_hook)
-    return results
-
-
-def save_hdf(data: pd.DataFrame, filename: Union[str, Path], key='default', mode="w", complevel=9):
-    filename = Path(filename)
-
-    try:
-        data.to_hdf(filename, key=key, mode=mode, complevel=complevel)
-    except (FileNotFoundError, OSError):
-        filename.parent.mkdir(parents=True, exist_ok=True)
-        data.to_hdf(filename, key=key, mode=mode, complevel=complevel)
-
-
-def load_hdf(filename: Union[str, Path]) -> pd.DataFrame:
-    filename = Path(filename)
-    results: pd.DataFrame = pd.read_hdf(filename)
-    return results
-
-
-def save_pickle(data: object, filename: Union[str, Path]):
-    filename = Path(filename)
-    try:
-        filename.write_bytes(pickle.dumps(data, protocol=5))
-    except FileNotFoundError:
-        filename.parent.mkdir(parents=True, exist_ok=True)
-        filename.write_bytes(pickle.dumps(data, protocol=5))
-
-
-def load_pickle(filename: Path):
-    filename = Path(filename)
-    results = pickle.loads(filename.read_bytes())
-    return results
-
-
 def __coords__(): ...
 
 
@@ -403,6 +347,7 @@ def make_tile_position_dict(proj_obj: ProjectionBase, tiling_list) -> dict[str, 
     onde tiles é XXXX (verificar)
     e as coordenadas são inteiros.
 
+    :param tiling_list:
     :param proj_obj:
     :return:
     """
@@ -428,43 +373,22 @@ def make_tile_position_dict(proj_obj: ProjectionBase, tiling_list) -> dict[str, 
 def __misc__(): ...
 
 
-def count_decoding(dectime_log: Path) -> int:
-    """
-    Count how many times the word "utime" appears in "log_file"
-    :return:
-    """
-    times = get_times(dectime_log)
-    if np.sum(times) > 0:
-        times = len(times)
-    else:
-        times = 0
-    return times
-
-
-def get_times(filename: Path):
+def get_times(filename: Path, allow_zeros=True, allow_all_zeros=True) -> list[float]:
     content = filename.read_text(encoding='utf-8')
     times = []
     for line in content.splitlines():
         if 'utime' in line:
             t = float(line.strip().split(' ')[1].split('=')[1][:-1])
-            # if t > 0:
-            times.append(t)
-    return times
 
+            if allow_zeros:
+                times.append(t)
+            elif t > 0:
+                times.append(t)
 
-def decode_video(filename, threads=None, ui_prefix='', ui_suffix='\n'):
-    """
-    MakeDectime the filename HEVC video with "threads".
-    :param filename:
-    :param threads:
-    :param ui_prefix:
-    :param ui_suffix:
-    :return:
-    """
-
-    cmd = make_decode_cmd(filename=filename, threads=threads)
-    process, stdout = run_command(cmd, log_file=None, ui_prefix=ui_prefix, ui_suffix=ui_suffix, folder=None)
-    return stdout
+    if allow_all_zeros or np.sum(times) > 0:
+        return times
+    else:
+        return []
 
 
 def make_decode_cmd(filename, threads: int = None, codec: str = 'hevc', benchmark: bool = True):
@@ -514,37 +438,26 @@ def run_command(cmd: str, folder: Optional[Path],
         folder.mkdir(parents=True, exist_ok=True)
 
     stdout_lines = [cmd + '\n']
+    lista = ['-', '\\', '|', '/']
+    i = 0
     print(ui_prefix, end='')
-
     process = Popen(cmd, shell=True, stderr=STDOUT, stdout=PIPE, encoding='UTF-8')
-    out = ''
     while True:
-        print('.', end='')
-        try:
-            stdout = process.stdout.read()
-        except UnicodeDecodeError:
-            continue
-        # for cod, err in [('utf-8', 'strict'), ('utf-8', 'replace'), ('cp1252', 'replace')]:
-        #     try:
-        #         out = stdout.decode(encoding=cod, errors=err)
-        #         break
-        #     except UnicodeDecodeError:
-        #         continue
-        # else:
-        #     print_error(' UnicodeDecodeError')
-        #     raise AbortError('UnicodeDecodeError')
-        if not out: break
-        stdout_lines.append(out)
+        print(lista[i % 4], end='')
+        i += 1
+        stdout = process.stdout.read()
+        if not stdout: break
+        stdout_lines.append(stdout)
     process.wait()
+    print(f' finish. {ui_suffix}', end='')
+
     stdout = ''.join(stdout_lines)
-    print(' finish', end='')
-    print(ui_suffix, end='')
+    if log_file is None:
+        return stdout
 
-    if log_file is not None:
-        with open(log_file, mode) as f:
-            f.write(stdout)
-
-    return process, stdout
+    with open(log_file, mode) as f:
+        f.write(stdout)
+    return stdout
 
 
 def __frame_handler__(): ...
