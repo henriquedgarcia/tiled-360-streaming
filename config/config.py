@@ -2,7 +2,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Union
 
-from lib.utils.util import load_json
+from lib.utils.io_util import load_json
 
 
 class ConfigProps:
