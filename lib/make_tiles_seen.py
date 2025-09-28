@@ -11,7 +11,8 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.make_tiles_seen_paths import TilesSeenPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task, timer
-from lib.utils.util import save_json, get_nested_value
+from lib.utils.util import get_nested_value
+from lib.utils.io_util import save_json
 
 
 class PrivatesMethods(TilesSeenPaths):
