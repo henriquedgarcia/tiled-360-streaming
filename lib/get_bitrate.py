@@ -12,17 +12,11 @@ from lib.utils.io_util import print_error
 
 
 class GetBitrate(MakeDash):
-    """
-    self.video_bitrate[name][projection][tiling][tile]  |
-                                  ['dash_mpd'] |
-                                  ['dash_init'][self.quality] |
-                                  ['dash_m4s'][self.quality][self.chunk]
-    :return:
-    """
     cools_names: list
     total_by_name: int
 
     def init(self):
+        self.quality_list.remove('0')
         self.cools_names = ['name', 'projection', 'tiling', 'tile', 'quality',
                             'chunk', 'bitrate']
         self.total_by_name = 181 * len(self.quality_list) * len(self.chunk_list)
@@ -32,38 +26,50 @@ class GetBitrate(MakeDash):
             with task(self):
                 self.check_bitrate_result_by_name()
                 self.get_data()
-
         self.merge()
 
     def check_bitrate_result_by_name(self):
         try:
             df = pd.read_pickle(self.bitrate_result_by_name)
-            if df.size == self.total_by_name:
-                raise AbortError('bitrate_result_by_name is OK.')
         except FileNotFoundError:
-            pass
+            return
+
+        if df.size == self.total_by_name:
+            raise AbortError('bitrate_result_by_name is OK.')
+        else:
+            msg = 'bitrate_result_by_name is NOT OK.'
+            self.logger.register_log(msg, self.bitrate_result_by_name)
+            raise AbortError(msg)
 
     def get_data(self):
         data = []
         for n in self.iterate_tiling_tile_quality_chunk:
             print(f'\n\rProcessing {n}/{self.total_by_name} - {self.ctx}', end='')
-            try:
-                bitrate = self.dash_m4s.stat().st_size * 8
-            except FileNotFoundError:
-                self.logger.register_log('dash_m4s is MISSING', self.dash_m4s)
-                raise AbortError('\ndash_m4s is MISSING.')
-
+            bitrate = self.get_bitrate()
             key = (self.name, self.projection, self.tiling,
                    int(self.tile), int(self.quality),
                    int(self.chunk) - 1, bitrate)
             data.append(key)
 
         print('\nSaving')
-        cools_names = ('name', 'projection', 'tiling', 'tile', 'quality',
-                       'chunk', 'bitrate')
-        df = pd.DataFrame(data, columns=cools_names)
-        df.set_index(list(cools_names[:-1]), inplace=True)
+        df = pd.DataFrame(data, columns=self.cools_names)
+        df.set_index(self.cools_names[:-1], inplace=True)
         pd.to_pickle(df, self.bitrate_result_by_name)
+
+    def get_bitrate(self):
+        try:
+            bitrate = self.dash_m4s.stat().st_size * 8
+        except FileNotFoundError:
+            msg = f'dash_m4s not found.'
+            self.logger.register_log(msg, self.dash_m4s)
+            raise AbortError(msg)
+
+        if bitrate == 0:
+            msg = f'dash_m4s is empty.'
+            self.logger.register_log(msg, self.dash_m4s)
+            raise AbortError(msg)
+
+        return bitrate
 
     def merge(self):
         merged = None
@@ -72,7 +78,7 @@ class GetBitrate(MakeDash):
             merged = (df if merged is None
                       else pd.concat([merged, df], axis=0))
 
-        if merged.size != len(self.name_list) * self.total_by_name * 2:
+        if merged.size != len(self.name_list) * self.total_by_name * len(self.projection_list):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
