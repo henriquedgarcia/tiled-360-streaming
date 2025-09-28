@@ -10,8 +10,8 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import get_times
 from lib.utils.io_util import print_error
+from lib.utils.util import get_times
 
 
 class GetDectime(Worker, DectimePaths):
@@ -22,7 +22,9 @@ class GetDectime(Worker, DectimePaths):
     def init(self):
         self.cools_names = ['name', 'projection', 'tiling', 'tile', 'quality',
                             'chunk', 'dectime']
-        self.total_by_name = 181 * len(self.quality_list) * len(self.chunk_list)
+        self.quality_list.remove('0')
+        self.total_by_name = (181 * len(self.quality_list)
+                              * len(self.chunk_list))
 
     def main(self):
         for _ in self.iterate_name_projection:
@@ -34,13 +36,15 @@ class GetDectime(Worker, DectimePaths):
     def check_dectime_result_by_name(self):
         try:
             df = pd.read_pickle(self.dectime_result_by_name)
-            if df.size == self.total_by_name:
-                raise AbortError('dectime_result_by_name is OK.')
-            else:
-                print_error('dectime_result_by_name is NOT OK.')
-                raise FileNotFoundError
         except FileNotFoundError:
-            pass
+            return
+
+        if df.size == self.total_by_name:
+            raise AbortError('dectime_result_by_name is OK.')
+        else:
+            msg = 'dectime_result_by_name is NOT OK.'
+            self.logger.register_log(msg, self.dectime_result_by_name)
+            raise AbortError(msg)
 
     def get_data(self):
         data = []
@@ -69,10 +73,6 @@ class GetDectime(Worker, DectimePaths):
             msg = f'Chunk is not decoded enough. {len(times)} times.'
             self.logger.register_log(msg, self.dectime_log)
             raise AbortError(msg)
-        elif times.count(0) > 0:
-            msg = f'0 In Dectime found.'
-            print(msg)
-            self.logger.register_log(msg, self.dectime_log)
         return np.mean(times)
 
     def merge(self):
@@ -83,7 +83,8 @@ class GetDectime(Worker, DectimePaths):
             merged = (df if merged is None
                       else pd.concat([merged, df], axis=0))
 
-        if merged.size != 434400*2:
+        if (merged.size != (self.total_by_name * len(self.name_list)
+                            * len(self.projection_list))):
             print_error('Dataframe size mismatch.')
             raise AbortError
 
