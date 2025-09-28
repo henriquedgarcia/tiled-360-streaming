@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -153,6 +154,7 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
         total = len(self.name_list) * 181 * len(self.projection_list) * len(self.quality_list) * len(self.chunk_list)
         columns = ['name', 'projection', 'tiling', 'tile', 'quality', 'chunk', 'err']
         bar = ProgressBar(total=total, desc=name)
+        self.quality_list.remove('0')
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 for self.tiling in self.tiling_list:
@@ -165,22 +167,22 @@ class Check(Worker, ViewportQualityPaths, DectimePaths, MakeSitiPaths):
                                 bar.update(context_str)
 
                                 if not self.dectime_log.exists():
-                                    err = 'FileNotFoundError'
+                                    err = 'dectime_log not exist'
                                     check_data.append(context + (err,))
                                     continue
 
-                                dectime_list = get_times(self.dectime_log)
+                                dectime_list = get_times(self.dectime_log, allow_zeros=True)
                                 decoding_times = len(dectime_list)
 
                                 if decoding_times < self.decoding_num:
-                                    err = 'DecodeTimesError'
+                                    err = 'Decode Times Insufficient'
                                     check_data.append(context + (err,))
-                                    continue
-
-                                if 0 in dectime_list:
-                                    err = '0InDectimeError'
+                                elif np.sum(dectime_list) == 0:
+                                    err = 'All times is 0'
                                     check_data.append(context + (err,))
-                                    continue
+                                # elif dectime_list.count(0) > 0:
+                                #     err = 'last one 0 In Dectime'
+                                #     check_data.append(context + (err,))
 
         df = pd.DataFrame(check_data, columns=columns)
         now = f'{datetime.now()}'.replace(':', '-')
