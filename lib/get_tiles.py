@@ -9,7 +9,8 @@ from py360tools.draw import draw
 
 from lib.assets.errors import GetTilesOkError, HMDDatasetError
 from lib.make_tiles_seen import MakeTilesSeen
-from lib.utils.util import print_error, load_json, splitx
+from lib.utils.util import splitx
+from lib.utils.io_util import print_error, load_json
 
 
 # "Videos 10,17,27,28 were rotated 265, 180,63,81 degrees to right,
