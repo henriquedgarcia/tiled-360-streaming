@@ -8,7 +8,7 @@ from lib.assets.context import Context
 from lib.assets.errors import AbortError
 from lib.make_dash import MakeDash
 from lib.utils.context_utils import task
-from lib.utils.util import print_error
+from lib.utils.io_util import print_error
 
 
 class GetBitrate(MakeDash):
