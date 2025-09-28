@@ -10,7 +10,8 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.makedashpaths import MakeDashPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import run_command, print_error, splitx
+from lib.utils.util import run_command, splitx
+from lib.utils.io_util import print_error
 
 
 class MakeDash(Worker, MakeDashPaths, CtxInterface):
