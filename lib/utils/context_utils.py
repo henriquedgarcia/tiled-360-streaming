@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from time import time
 
 from lib.assets.errors import AbortError
-from lib.utils.util import print_error
+from lib.utils.io_util import print_error
 
 
 @contextmanager
