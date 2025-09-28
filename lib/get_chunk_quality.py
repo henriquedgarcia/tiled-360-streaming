@@ -12,7 +12,7 @@ from lib.assets.errors import AbortError
 from lib.assets.worker import Worker
 from lib.make_chunk_quality import MakeChunkQualityPaths
 from lib.utils.context_utils import task
-from lib.utils.util import print_error, load_json
+from lib.utils.io_util import print_error, load_json
 
 
 class GetChunkQuality(Worker, MakeChunkQualityPaths):
