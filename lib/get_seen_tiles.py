@@ -9,7 +9,7 @@ from lib.assets.errors import AbortError
 from lib.assets.progressbar import ProgressBar
 from lib.make_tiles_seen import MakeTilesSeen
 from lib.utils.context_utils import task
-from lib.utils.util import load_json, print_error
+from lib.utils.io_util import print_error, load_json
 
 
 class GetTilesSeen(MakeTilesSeen):
