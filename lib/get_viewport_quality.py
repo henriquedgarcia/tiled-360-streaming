@@ -8,7 +8,7 @@ from lib.assets.context import Context
 from lib.assets.errors import AbortError
 from lib.make_viewport_quality import ViewportQuality
 from lib.utils.context_utils import task
-from lib.utils.util import print_error, load_json
+from lib.utils.io_util import print_error, load_json
 
 
 class GetViewportQuality(ViewportQuality):
