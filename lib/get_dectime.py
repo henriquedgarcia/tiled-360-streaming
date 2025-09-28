@@ -10,7 +10,8 @@ from lib.assets.errors import AbortError
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import get_times, print_error
+from lib.utils.util import get_times
+from lib.utils.io_util import print_error
 
 
 class GetDectime(Worker, DectimePaths):
@@ -31,13 +32,13 @@ class GetDectime(Worker, DectimePaths):
         self.merge()
 
     def check_dectime_result_by_name(self):
-        if self.dectime_result_by_name.exists():
-            raise AbortError('dectime_result_by_name is OK.')
-
         try:
             df = pd.read_pickle(self.dectime_result_by_name)
             if df.size == self.total_by_name:
                 raise AbortError('dectime_result_by_name is OK.')
+            else:
+                print_error('dectime_result_by_name is NOT OK.')
+                raise FileNotFoundError
         except FileNotFoundError:
             pass
 
@@ -58,15 +59,21 @@ class GetDectime(Worker, DectimePaths):
 
     def get_dectime(self):
         try:
-            times = get_times(self.dectime_log)
+            times = get_times(self.dectime_log, allow_zeros=True)
         except FileNotFoundError:
-            times = []
+            msg = f'dectime_log not found.'
+            self.logger.register_log(msg, self.dectime_log)
+            raise AbortError(msg)
 
         if len(times) < self.config.decoding_num:
             msg = f'Chunk is not decoded enough. {len(times)} times.'
             self.logger.register_log(msg, self.dectime_log)
             raise AbortError(msg)
-        return times
+        elif times.count(0) > 0:
+            msg = f'0 In Dectime found.'
+            print(msg)
+            self.logger.register_log(msg, self.dectime_log)
+        return np.mean(times)
 
     def merge(self):
         merged = None
@@ -86,8 +93,11 @@ class GetDectime(Worker, DectimePaths):
 if __name__ == '__main__':
     os.chdir('../')
 
-    config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_reduced.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    # videos_file = Path('config/videos_reduced.json')
+
+    config_file = Path('config/config_pres_qp.json')
+    videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
