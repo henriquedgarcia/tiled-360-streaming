@@ -11,7 +11,8 @@ from lib.assets.logger import Logger
 from lib.assets.paths.dectimepaths import DectimePaths
 from lib.assets.paths.make_decodable_paths import MakeDecodablePaths
 from lib.assets.worker import Worker
-from lib.utils.util import run_command, save_json
+from lib.utils.util import run_command
+from lib.utils.io_util import save_json
 
 State = namedtuple(typename='State',
                    field_names=['name', 'projection', 'tiling',
