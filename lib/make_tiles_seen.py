@@ -75,8 +75,6 @@ class MakeTilesSeen(Worker, PrivatesMethods):
     tiles_seen: dict
 
     def init(self):
-        proj_res = self.config.config_dict['scale']['erp']
-
         def create_viewport_dict():
             """
             viewport_dict = {'cmp': {'3x2': Viewport(vp_res, self.fov, CMP(tiling='3x2', proj_res=proj_res)),
@@ -90,8 +88,9 @@ class MakeTilesSeen(Worker, PrivatesMethods):
             """
             viewport_dict = AutoDict()
             for tiling in self.tiling_list:
-                viewport_dict['erp'][tiling] = Viewport(self.vp_res, self.fov, ERP(tiling=tiling, proj_res=proj_res))
-                viewport_dict['cmp'][tiling] = Viewport(self.vp_res, self.fov, CMP(tiling=tiling, proj_res=proj_res))
+                for self.projection in self.projection_list:
+                    proj = eval(self.projection.upper())
+                    viewport_dict[self.projection][tiling] = Viewport(self.vp_res, self.fov, proj(tiling=tiling, proj_res=self.scale))
             return viewport_dict
 
         self.viewport_dict = create_viewport_dict()
