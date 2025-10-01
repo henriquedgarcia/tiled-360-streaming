@@ -30,7 +30,7 @@ class StatusCtx:
         try:
             self.status = json.loads(self.status_filename.read_text(),
                                      object_hook=lambda value: AutoDict(value))
-        except FileNotFoundError:
+        except (FileNotFoundError, json.decoder.JSONDecodeError):
             self.status = AutoDict()
             self.save_status()
 
