@@ -7,7 +7,7 @@ from py360tools import ProjectionBase
 from config.config import Config
 from lib.assets.autodict import AutoDict
 from lib.utils.util import splitx
-from lib.utils.io_util import load_json
+from lib.utils.io_util import load_json, load_hdf
 
 
 class Context:
@@ -103,7 +103,10 @@ class Context:
 
     @cached_property
     def hmd_dataset(self):
-        return load_json(self.config.dataset_file)
+        try:
+            return load_hdf(self.config.dataset_file)
+        except FileNotFoundError:
+            return None
 
     @property
     def users_list(self):
@@ -111,7 +114,7 @@ class Context:
 
     @property
     def users_list_by_name(self):
-        users_str = self.hmd_dataset[self.name + '_nas'].keys()
+        users_str = self.hmd_dataset.loc[self.name].index.unique('user')
         sorted_users_int = sorted(map(int, users_str))
         sorted_users_str = list(map(str, sorted_users_int))
         return sorted_users_str
