@@ -1,3 +1,5 @@
+from typing import Any
+
 from py360tools import ProjectionBase
 
 from lib.assets.autodict import AutoDict
@@ -218,8 +220,9 @@ class CtxInterface(Factors, Lists):
         return self.config.dataset_file
 
     @property
-    def user_hmd_data(self) -> list:
-        return self.ctx.hmd_dataset[self.name + '_nas'][self.user]
+    def user_hmd_data(self) -> list[tuple[Any]]:
+        user_data = self.ctx.hmd_dataset.loc[self.name, self.user]
+        return [tuple(i[1]) for i in user_data.iterrows()]
 
     @property
     def video_list_by_group(self):
