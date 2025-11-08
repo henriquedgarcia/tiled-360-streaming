@@ -110,7 +110,8 @@ config_list = [
     Option(id=1, name='erp_qp', obj=path_config / 'config_erp_qp.json'),
     Option(id=2, name='cmp_crf', obj=path_config / 'config_cmp_crf.json'),
     Option(id=3, name='erp_crf', obj=path_config / 'config_erp_crf.json'),
-    Option(id=4, name='pres_qp', obj=path_config / 'config_pres_qp.json'),
+    Option(id=4, name='pres_qp_2', obj=path_config / 'config_pres_qp_2.json'),
+    Option(id=5, name='pres_qp', obj=path_config / 'config_pres_qp.json'),
 ]
 
 videos_list = [
