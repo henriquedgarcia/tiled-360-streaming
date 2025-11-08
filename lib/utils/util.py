@@ -529,9 +529,13 @@ def make_tiles_position(proj: ProjectionBase) -> dict[str, tuple[int, int, int, 
 
 
 def get_tile_position(tile: Tile) -> tuple[int, int, int, int]:
-    h, w = tile.shape
+    """
+
+    :param tile:
+    :return: (x_ini, x_end, y_ini, y_end)
+    """
     y_ini, x_ini, = tile.position
-    y_end, x_end = y_ini + h, x_ini + w
+    y_end, x_end = tile.position + tile.shape
     return x_ini, x_end, y_ini, y_end
 
 
