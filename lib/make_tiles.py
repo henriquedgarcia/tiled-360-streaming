@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from py360tools import ERP, CMP, ProjectionBase
+from py360tools import ERP, CMP, ProjectionBase, Tile
 
 from config.config import Config
 from lib.assets.context import Context
@@ -9,8 +9,7 @@ from lib.assets.errors import AbortError, TilesOkError
 from lib.assets.paths.maketilespaths import MakeTilesPaths
 from lib.assets.worker import Worker
 from lib.utils.context_utils import task
-from lib.utils.util import run_command, get_tile_position
-
+from lib.utils.util import run_command
 
 class MakeTiles(Worker, MakeTilesPaths):
     tile_position: tuple[int, int, int, int]
@@ -18,16 +17,16 @@ class MakeTiles(Worker, MakeTilesPaths):
 
     @property
     def iterate_name_projection_tiling_tile_quality(self):
+        proj_types = {'erp': ERP, 'cmp': CMP}
         for self.name in self.name_list:
             for self.projection in self.projection_list:
+                proj = proj_types[self.projection]
                 for self.tiling in self.tiling_list:
-                    self.proj_obj = (ERP if self.projection == 'erp' else CMP)(proj_res=self.proj_res, tiling=self.tiling)
-                    for self.tile in self.tile_list:
-                        tile = self.proj_obj.tile_list[int(self.tile)]
-                        self.tile_position = get_tile_position(tile)
+                    self.proj_obj = proj(proj_res=self.proj_res, tiling=self.tiling)
+                    for self.tile in self.proj_obj.tile_list:
                         for self.quality in self.quality_list:
-                            self.ctx.iterations += 1
                             yield
+    tile: Tile
 
     def main(self):
         for _ in self.iterate_name_projection_tiling_tile_quality:
@@ -76,8 +75,9 @@ class MakeTiles(Worker, MakeTilesPaths):
             raise AbortError(f'lossless_video not found.')
 
     def make_tile_cmd(self) -> str:
-        x1, x2, y1, y2 = self.tile_position
-        crop_params = f'crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1}'
+        y1, x1 = self.tile.position
+        y2, x2 = self.tile.position + self.tile.shape
+        crop_params = f'scale={self.tile.shape[1]}:{self.tile.shape[0]},crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1}'
 
         gop_options = f'keyint={self.gop}:min-keyint={self.gop}:open-gop=0'
         misc_options = f':scenecut=0:info=0'
@@ -99,13 +99,12 @@ class MakeTiles(Worker, MakeTilesPaths):
 
         return cmd
 
-
 if __name__ == '__main__':
     os.chdir('../')
     # config_file = Path('config/config_cmp_qp.json')
     # videos_file = Path('config/videos_reduced.json')
 
-    config_file = Path('config/config_pres_qp.json')
+    config_file = Path('config/config_pres_qp_2.json')
     videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
