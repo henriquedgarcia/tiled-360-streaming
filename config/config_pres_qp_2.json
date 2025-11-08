@@ -1,0 +1,25 @@
+{
+  "project_folder": "../results/pres_qp_2",
+  "sph_file": "datasets/sphere_655362.txt",
+  "dataset_file": "datasets/nasrabadi_28videos.hd5",
+
+  "duration": 60,
+  "fps": 30,
+  "gop": 30,
+  "vp_res": "310x230",
+  "scale": {"cmp": "360x240","erp": "480x240"},
+
+  "rate_control": "qp",
+  "decoding_num": 1,
+
+  "bins": 30,
+  "metric_list": ["time", "rate", "ssim", "mse", "s-mse", "ws-mse"],
+  "error_metric": "rmse",
+  "distributions": ["burr12", "fatiguelife", "gamma", "beta", "invgauss",
+                    "rayleigh", "lognorm", "genpareto", "pareto", "halfnorm",
+                    "expon"],
+
+  "fov": "110x90",
+  "quality_list": ["0", "22", "28", "34"],
+  "tiling_list": ["1x1", "3x2", "6x4", "9x6", "12x8"]
+}
