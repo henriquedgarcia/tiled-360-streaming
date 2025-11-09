@@ -77,7 +77,7 @@ class MakeTiles(Worker, MakeTilesPaths):
     def make_tile_cmd(self) -> str:
         y1, x1 = self.tile.position
         y2, x2 = self.tile.position + self.tile.shape
-        crop_params = f'scale={self.tile.shape[1]}:{self.tile.shape[0]},crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1}'
+        crop_params = f'scale={self.video_shape[1]}:{self.video_shape[0]},crop=w={x2 - x1}:h={y2 - y1}:x={x1}:y={y1}'
 
         gop_options = f'keyint={self.gop}:min-keyint={self.gop}:open-gop=0'
         misc_options = f':scenecut=0:info=0'
