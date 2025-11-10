@@ -14,6 +14,7 @@ from lib.get_dectime import GetDectime
 from lib.get_seen_tiles import GetTilesSeen
 from lib.get_viewport_quality import GetViewportQuality
 from lib.make_chunk_quality import MakeChunkQuality
+from lib.make_chunks import MakeChunks
 from lib.make_dash import MakeDash
 from lib.make_decodable import MakeDecodable
 from lib.make_dectime import MakeDectime
@@ -129,9 +130,10 @@ videos_list = [
 ]
 
 worker_list = [
-    Option(id=0, name='MakeTiles', obj=MakeTiles),
-    Option(id=1, name='MakeDash', obj=MakeDash),
-    Option(id=2, name='MakeDecodable', obj=MakeDecodable),
+    Option(id=0, name='MakeChunks', obj=MakeChunks),
+    # Option(id=0, name='MakeTiles', obj=MakeTiles),
+    # Option(id=1, name='MakeDash', obj=MakeDash),
+    # Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='MakeDectime', obj=MakeDectime),
     Option(id=4, name='MakeChunkQuality', obj=MakeChunkQuality),
     Option(id=5, name='MakeTilesSeen', obj=MakeTilesSeen),
