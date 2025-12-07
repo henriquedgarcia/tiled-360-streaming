@@ -133,32 +133,24 @@ class QualityMetrics(CtxInterface):
                 return array
 
         # ea_array = load_sph_file()
-        ea_array = None
 
-        def load_sph_points_mask_dict():
-            self.sph_points_mask_dict = {}
-            for self.projection in self.projection_list:
-                sph_points_mask_file = Path(f'datasets/'
-                                            f'masks/'
-                                            f'sph_points_mask_{self.projection}_{self.video_shape}.pickle')
+    def load_sph_points_mask_dict(self):
+        sph_file = self.config.sph_file
+        sph_file_lines = sph_file.read_text().splitlines()[1:]
+        ea_array = np.array(list(map(self.lines_2_list, sph_file_lines))).T
+        self.sph_points_mask_dict = {}
 
-                try:
-                    self.sph_points_mask_dict[self.projection] = load_pickle(sph_points_mask_file)
-                    continue
-                except FileNotFoundError:
-                    pass
-
-                if self.projection == 'cmp':
-                    nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
-                elif self.projection == 'erp':
-                    nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)[0]
-                else:
-                    nm = np.ndarray([])
-                sph_points_mask = np.zeros(self.video_shape)
-                sph_points_mask[nm[0], nm[1]] = 1
-                self.sph_points_mask_dict[self.projection] = sph_points_mask
-                sph_points_mask_file.parent.mkdir(parents=True, exist_ok=True)
-                save_pickle(sph_points_mask, sph_points_mask_file)
+        if self.projection == 'cmp':
+            nm = CMP.ea2nm_face(ea=ea_array, proj_shape=self.video_shape)[0]
+        elif self.projection == 'erp':
+            nm = ERP.ea2nm(ea=ea_array, proj_shape=self.video_shape)[0]
+        else:
+            nm = np.ndarray([])
+        sph_points_mask = np.zeros(self.video_shape)
+        sph_points_mask[nm[0], nm[1]] = 1
+        self.sph_points_mask_dict[self.projection] = sph_points_mask
+        sph_points_mask_file.parent.mkdir(parents=True, exist_ok=True)
+        save_pickle(sph_points_mask, sph_points_mask_file)
 
     @staticmethod
     def lines_2_list(line) -> list:
