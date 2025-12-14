@@ -2,7 +2,7 @@ from collections import defaultdict
 from functools import cached_property
 from math import prod
 
-from py360tools import ProjectionBase
+from py360tools import Projection
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -24,7 +24,7 @@ class Context:
     attempt: int = None
     iterations: int = 0
     projection_dict: AutoDict
-    proj_obj: ProjectionBase
+    proj_obj: Projection
     tile_position: tuple[int, int, int, int]
 
     factors_list = ['name', 'projection', 'tiling', 'tile', 'user', 'quality', 'chunk',
