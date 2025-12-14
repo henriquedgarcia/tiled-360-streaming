@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from matplotlib import pyplot as plt
-from py360tools import ProjectionBase, ERP, CMP, Viewport, Tile
+from py360tools import Projection, ERP, CMP, Viewport, Tile
 
 from lib.assets.autodict import AutoDict
 
@@ -341,7 +341,7 @@ def lin_interpol(t: float, t_f: float, t_i: float, v_f: np.ndarray, v_i: np.ndar
     return v
 
 
-def make_tile_position_dict(proj_obj: ProjectionBase, tiling_list) -> dict[str, dict[str, dict[str, list[int]]]]:
+def make_tile_position_dict(proj_obj: Projection, tiling_list) -> dict[str, dict[str, dict[str, list[int]]]]:
     """
     Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
     onde tiles é XXXX (verificar)
@@ -511,7 +511,7 @@ class LoadingUi:
         print(f'{suffix}', end='')
 
 
-def make_tiles_position(proj: ProjectionBase) -> dict[str, tuple[int, int, int, int]]:
+def make_tiles_position(proj: Projection) -> dict[str, tuple[int, int, int, int]]:
     """
     Um dicionário do tipo {tile: (x_ini, x_end, y_ini, y_end)}
     onde tiles é XXXX (verificar)
