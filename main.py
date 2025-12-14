@@ -130,10 +130,10 @@ videos_list = [
 ]
 
 worker_list = [
-    Option(id=0, name='MakeChunks', obj=MakeChunks),
-    # Option(id=0, name='MakeTiles', obj=MakeTiles),
-    # Option(id=1, name='MakeDash', obj=MakeDash),
-    # Option(id=2, name='MakeDecodable', obj=MakeDecodable),
+    # Option(id=0, name='MakeChunks', obj=MakeChunks),
+    Option(id=0, name='MakeTiles', obj=MakeTiles),
+    Option(id=1, name='MakeDash', obj=MakeDash),
+    Option(id=2, name='MakeDecodable', obj=MakeDecodable),
     Option(id=3, name='MakeDectime', obj=MakeDectime),
     Option(id=4, name='MakeChunkQuality', obj=MakeChunkQuality),
     Option(id=5, name='MakeTilesSeen', obj=MakeTilesSeen),
