@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from py360tools import ERP, CMP, ProjectionBase, Tile
+from py360tools import ERP, CMP, Projection, Tile
 
 from config.config import Config
 from lib.assets.context import Context
@@ -13,7 +13,7 @@ from lib.utils.util import run_command
 
 class MakeTiles(Worker, MakeTilesPaths):
     tile_position: tuple[int, int, int, int]
-    proj_obj: ProjectionBase
+    proj_obj: Projection
 
     @property
     def iterate_name_projection_tiling_tile_quality(self):
