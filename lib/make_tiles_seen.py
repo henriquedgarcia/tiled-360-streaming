@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Optional, Any, Union
 
-from py360tools import Viewport, Tile, ProjectionBase, ERP, CMP
+from py360tools import Viewport, Tile, Projection, ERP, CMP
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -78,7 +78,7 @@ class MakeTilesSeen(Worker, TilesSeenPaths):
         self.viewport_dict = AutoDict()
         for tiling in self.tiling_list:
             for self.projection in self.projection_list:
-                proj: type(ProjectionBase) = eval(self.projection.upper())
+                proj: type(Projection) = eval(self.projection.upper())
                 self.viewport_dict[self.projection][tiling] = Viewport(self.vp_res, self.fov, proj(tiling=tiling, proj_res=self.scale))
 
     def main(self):
