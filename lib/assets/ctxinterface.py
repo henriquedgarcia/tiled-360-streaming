@@ -1,6 +1,6 @@
 from typing import Any
 
-from py360tools import ProjectionBase
+from py360tools import Projection
 
 from lib.assets.autodict import AutoDict
 from lib.assets.context import Context
@@ -99,11 +99,11 @@ class Factors:
         self.ctx.frame = value
 
     @property
-    def proj_obj(self) -> ProjectionBase:
+    def proj_obj(self) -> Projection:
         return self.ctx.proj_obj
 
     @proj_obj.setter
-    def proj_obj(self, value: ProjectionBase):
+    def proj_obj(self, value: Projection):
         self.ctx.proj_obj = value
 
 
