@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from py360tools import ERP, CMP, ProjectionBase, AutoDict
+from py360tools import ERP, CMP, Projection, AutoDict
 from tqdm import tqdm
 
 from config.config import Config
@@ -18,7 +18,7 @@ from lib.utils.util import iter_video, get_tile_position
 
 class MakeChunkQuality(Worker, MakeChunkQualityPaths):
     quality_metrics: QualityMetrics
-    proj_obj: ProjectionBase
+    proj_obj: Projection
 
     def init(self):
         self.proj_dict = AutoDict()
