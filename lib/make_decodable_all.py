@@ -3,7 +3,7 @@ import shutil
 from abc import ABC
 from pathlib import Path
 
-from py360tools import ERP, CMP, ProjectionBase
+from py360tools import ERP, CMP, Projection
 
 from config.config import Config
 from lib.assets.autodict import AutoDict
@@ -19,7 +19,7 @@ from lib.utils.util import run_command
 
 class MakeTiles(ABC, MakeTilesPaths):
     tile_position: tuple[int, int, int, int]
-    proj_obj: dict[str, dict[str, ProjectionBase]]
+    proj_obj: dict[str, dict[str, Projection]]
     logger: Logger
 
     def make_tile(self):
@@ -208,11 +208,12 @@ class MakeDecodable(Worker, MakeTiles, MakeDash):
 
 if __name__ == '__main__':
     os.chdir('../')
-    # config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_cmp_qp.json')
+    videos_file = Path('config/videos_full.json')
     # videos_file = Path('config/videos_reduced.json')
 
-    config_file = Path('config/config_pres_qp.json')
-    videos_file = Path('config/videos_pres.json')
+    # config_file = Path('config/config_pres_qp.json')
+    # videos_file = Path('config/videos_pres.json')
 
     config = Config(config_file, videos_file)
     ctx = Context(config=config)
