@@ -102,7 +102,8 @@ class MakeTiles(Worker, MakeTilesPaths):
 if __name__ == '__main__':
     os.chdir('../')
     config_file = Path('config/config_cmp_qp.json')
-    videos_file = Path('config/videos_full.json')
+    # videos_file = Path('config/videos_full.json')
+    videos_file = Path('config/videos_reduced.json')
 
     # config_file = Path('config/config_pres_qp_2.json')
     # videos_file = Path('config/videos_pres.json')
