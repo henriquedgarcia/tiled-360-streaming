@@ -1,12 +1,12 @@
 {
   "project_folder": "../results/nasrabadi_cmp_crf",
   "sph_file": "datasets/sphere_655362.txt",
-  "dataset_file": "datasets/nasrabadi_28videos.json",
+  "dataset_file": "datasets/nasrabadi_28videos.hd5",
 
   "duration": 60,
   "fps": 30,
   "gop": 30,
-  "vp_res": "1080x1080",
+  "vp_res": "1100x900",
   "scale": {"cmp": "3240x2160"},
 
   "rate_control": "crf",
