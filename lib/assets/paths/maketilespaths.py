@@ -27,3 +27,11 @@ class MakeTilesPaths(BasePaths):
     @property
     def tile_log(self) -> Path:
         return self.tile_video.with_suffix('.log')
+
+    @property
+    def hvc_video(self) -> Path:
+        return self.tile_folder / f'tile{self.tile}_{self.rate_control}{self.ctx.quality}.hvc'
+
+    @property
+    def hvc_log(self) -> Path:
+        return self.tile_video.with_suffix('.log')
