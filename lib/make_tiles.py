@@ -18,6 +18,7 @@ class MakeTiles(Worker, MakeTilesPaths):
     @property
     def iterate_name_projection_tiling_tile_quality(self):
         proj_types = {'erp': ERP, 'cmp': CMP}
+
         for self.name in self.name_list:
             for self.projection in self.projection_list:
                 proj = proj_types[self.projection]
@@ -26,9 +27,10 @@ class MakeTiles(Worker, MakeTilesPaths):
                     for self.tile in self.proj_obj.tile_list:
                         for self.quality in self.quality_list:
                             yield
+
     tile: Tile
 
-    def main(self):
+    def main3(self):
         for _ in self.iterate_name_projection_tiling_tile_quality:
             with task(self):
                 self.make_tile()
@@ -49,21 +51,6 @@ class MakeTiles(Worker, MakeTilesPaths):
             self.tile_log.unlink(missing_ok=True)
             self.tile_video.unlink(missing_ok=True)
 
-    def check_tile_video(self):
-        compressed_file_size = self.tile_video.stat().st_size
-        compressed_log_text = self.tile_log.read_text()
-
-        if compressed_file_size == 0:
-            raise FileNotFoundError('Filesize is 0')
-
-        if 'encoded 1800 frames' not in compressed_log_text:
-            self.logger.register_log('Tile log is corrupt', self.tile_log)
-            raise FileNotFoundError
-
-        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
-            self.logger.register_log('Codec version is different.', self.tile_log)
-            raise FileNotFoundError
-
     def assert_lossless(self):
         try:
             lossless_video_size = self.lossless_video.stat().st_size
@@ -73,6 +60,22 @@ class MakeTiles(Worker, MakeTilesPaths):
         except FileNotFoundError:
             self.logger.register_log('lossless_video not found.', self.lossless_video)
             raise AbortError(f'lossless_video not found.')
+
+    def check_tile_video(self):
+        compressed_file_size = self.tile_video.stat().st_size
+        compressed_log_text = self.tile_log.read_text()
+
+        if compressed_file_size == 0:
+            raise FileNotFoundError('Filesize is 0')
+
+        # todo: com kavazaar isso aqui muda.
+        if 'encoded 1800 frames' not in compressed_log_text:
+            self.logger.register_log('Tile log is corrupt', self.tile_log)
+            raise FileNotFoundError
+
+        if 'encoder         : Lavc59.18.100 libx265' not in compressed_log_text:
+            self.logger.register_log('Codec version is different.', self.tile_log)
+            raise FileNotFoundError
 
     def make_tile_cmd(self) -> str:
         y1, x1 = self.tile.position
@@ -99,9 +102,52 @@ class MakeTiles(Worker, MakeTilesPaths):
 
         return cmd
 
+    # com kvazaar
+    def main(self):
+        for _ in self.iterate_name_projection_tiling_quality2:
+            with task(self):
+                self.assert_tiles()
+                self.assert_lossless()
+                cmd = self.make_kvazaar_cmd()
+                run_command(cmd=cmd, folder=self.tile_folder, log_file=self.tile_log,
+                            ui_prefix='\t')
+
+    @property
+    def iterate_name_projection_tiling_quality2(self):
+        for self.name in self.name_list:
+            for self.projection in self.projection_list:
+                for self.tiling in self.tiling_list:
+                    for self.quality in self.quality_list2:
+                        yield
+
+    @property
+    def quality_list2(self):
+        bitrate_base = self.config.config_dict['bitrate_list'][self.name]
+        bitrate_list = ["0"]
+        for quality in self.config.quality_list:
+            bitrate = bitrate_base * 2 ** (int(quality) - 2)
+            bitrate_list.append(bitrate)
+        return bitrate_list
+
+    def make_kvazaar_cmd(self) -> str:
+        if self.quality == '0':
+            cmd = f'cp {self.lossless_video} {self.hvc_video}'
+            return cmd
+
+        # Ele aceita mp4 ou só yuv?
+        height, width = self.video_shape
+
+        cmd = (
+            f"kvazaar -i {self.lossless_video} --input-res {width}x{height} --input-fps {self.fps} -o {self.hvc_video} "
+            f"--tiles {self.tiling} --bitrate {self.quality} --slices tiles --mv-constraint frametilemargin --no-open-gop -p {self.gop}")
+
+        return cmd
+
 if __name__ == '__main__':
     os.chdir('../')
-    config_file = Path('config/config_cmp_qp.json')
+    # config_file = Path('config/config_cmp_qp.json')
+    config_file = Path('config/config_erp_bitrate.json')
+
     # videos_file = Path('config/videos_full.json')
     videos_file = Path('config/videos_reduced.json')
 
